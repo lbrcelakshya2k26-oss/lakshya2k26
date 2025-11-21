@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAKSHYA 2K26 | National Level Fest</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- INTERNAL CSS: COSMIC GLASS THEME --- */
+        
+        :root {
+            --primary-color: #00d2ff; /* Cyber Blue */
+            --secondary-color: #3a7bd5; /* Deep Blue */
+            --accent-color: #ff00cc; /* Neon Pink */
+            --text-color: #ffffff;
+            --glass-bg: rgba(10, 10, 20, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.4), rgba(5, 5, 15, 0.95));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: #0a0a0a;
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+
+        /* --- NAVIGATION BAR --- */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1.2rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            transition: 0.4s;
+            background: rgba(5, 5, 10, 0.6); 
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .logo {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            background: linear-gradient(45deg, var(--primary-color), #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+            z-index: 1001;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2.5rem;
+            transition: 0.4s;
+        }
+
+        .nav-links li a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.3s;
+            position: relative;
+        }
+
+        .nav-links li a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: var(--primary-color);
+            transition: 0.3s;
+        }
+
+        .nav-links li a:hover::after { width: 100%; }
+        .nav-links li a:hover { color: var(--primary-color); text-shadow: 0 0 10px var(--primary-color); }
+
+        /* Buttons */
+        .btn-login {
+            padding: 0.6rem 1.5rem;
+            border: 1px solid var(--primary-color);
+            border-radius: 50px;
+            color: var(--primary-color) !important;
+        }
+
+        .btn-register {
+            padding: 0.6rem 1.5rem;
+            background: linear-gradient(45deg, var(--secondary-color), var(--primary-color));
+            border-radius: 50px;
+            color: white !important;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+        }
+
+        /* Mobile Menu Icon (Hidden on Desktop) */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        .bar {
+            width: 30px;
+            height: 3px;
+            background-color: white;
+            border-radius: 3px;
+            transition: 0.4s;
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            height: 100vh;
+            width: 100%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            overflow: hidden;
+            padding: 0 20px; /* Padding for mobile */
+        }
+
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('../assets/admin-block.jpg') no-repeat center top/cover;
+            z-index: -2;
+            animation: zoomEffect 20s infinite alternate; 
+        }
+
+        .hero-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--dark-overlay);
+            z-index: -1;
+        }
+
+        .hero-particles {
+            position: absolute;
+            width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px);
+            background-size: 550px 550px, 350px 350px;
+            opacity: 0.4;
+            z-index: -1;
+            animation: starMove 100s linear infinite;
+        }
+
+        .hero-content {
+            z-index: 1;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 60px; /* Offset for navbar */
+        }
+
+        /* --- LOGO BRIGHTNESS FIX --- */
+        .college-logo {
+            width: 180px;
+            height: auto;
+            margin-bottom: 1.5rem;
+            /* Magic combo for "Glowing White" look on black BG images */
+            mix-blend-mode: screen; 
+            filter: brightness(200%) contrast(120%) drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+            animation: fadeDown 1s ease-out forwards;
+            opacity: 0;
+        }
+
+        .hero-tagline {
+            font-size: 1.3rem;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            animation: fadeDown 1s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
+        .hero-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 6.5rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 1rem;
+            background: linear-gradient(to bottom, #ffffff, #b3ecff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 40px rgba(0, 210, 255, 0.3);
+            animation: fadeUp 1s ease-out 0.4s forwards;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        .hero-subtitle {
+            font-size: 1.6rem;
+            color: #e0e0e0;
+            margin-bottom: 3rem;
+            font-weight: 300;
+            animation: fadeUp 1s ease-out 0.6s forwards;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        .cta-btn {
+            display: inline-block;
+            padding: 1rem 3.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--primary-color);
+            border-radius: 50px;
+            position: relative;
+            overflow: hidden;
+            transition: 0.4s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+            animation: fadeUp 1s ease-out 0.9s forwards;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        .cta-btn:hover {
+            background: var(--primary-color);
+            box-shadow: 0 0 40px var(--primary-color);
+            transform: translateY(-5px);
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes zoomEffect { 0% { transform: scale(1); } 100% { transform: scale(1.15); } }
+        @keyframes starMove { from { transform: translateY(0); } to { transform: translateY(-1000px); } }
+        @keyframes fadeDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+        /* --- RESPONSIVE DESIGN --- */
+        
+        /* Tablet (1024px and down) */
+        @media (max-width: 1024px) {
+            .hero-title { font-size: 5rem; }
+            nav { padding: 1.2rem 2rem; }
+        }
+
+        /* Mobile (768px and down) */
+        @media (max-width: 768px) {
+            .menu-toggle { display: flex; } /* Show Hamburger */
+            
+            .nav-links {
+                position: absolute;
+                top: 0;
+                right: -100%; /* Hide off-screen */
+                height: 100vh;
+                width: 70%;
+                background: var(--glass-bg);
+                backdrop-filter: blur(20px);
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                gap: 2rem;
+                border-left: 1px solid var(--glass-border);
+            }
+
+            .nav-links.active { right: 0; } /* Slide in */
+
+            .hero-title { font-size: 3.8rem; }
+            .hero-subtitle { font-size: 1.1rem; max-width: 90%; }
+            .hero-tagline { font-size: 1rem; letter-spacing: 3px; }
+            .college-logo { width: 140px; }
+        }
+
+        /* Small Mobile (480px and down) */
+        @media (max-width: 480px) {
+            .logo { font-size: 1.4rem; }
+            .hero-title { font-size: 2.8rem; }
+            .cta-btn { padding: 0.8rem 2.5rem; font-size: 1rem; }
+            .college-logo { width: 120px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVIGATION -->
+    <nav>
+        <div class="logo">LAKSHYA 2K26</div>
+        
+        <ul class="nav-links" id="navLinks">
+            <li><a href="home.html">Home</a></li>
+            <li><a href="brochure.html">Brochure</a></li>
+            <li><a href="events.html">Events</a></li>
+            <li><a href="culturals.html">Culturals</a></li>
+            <li><a href="committee.html">Committee</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="register.html" class="btn-register">Register</a></li>
+            <li><a href="login.html" class="btn-login">Login</a></li>
+        </ul>
+
+        <div class="menu-toggle" onclick="toggleMenu()">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <header class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+        <div class="hero-particles"></div>
+
+        <div class="hero-content">
+            <img src="../assets/college-logo.png" alt="College Logo" class="college-logo">
+            
+            <p class="hero-tagline">The Battle of Wits</p>
+            <h1 class="hero-title">LAKSHYA 2K26</h1>
+            <p class="hero-subtitle">19th National Level Technical & Cultural Symposium</p>
+            <a href="register.html" class="cta-btn">Start Your Journey</a>
+        </div>
+    </header>
+
+    <script>
+        function toggleMenu() {
+            const nav = document.getElementById('navLinks');
+            nav.classList.toggle('active');
+        }
+    </script>
+
+</body>
+</html>

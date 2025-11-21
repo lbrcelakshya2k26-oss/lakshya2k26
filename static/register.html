@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- GLOBAL VARIABLES --- */
+        :root {
+            --primary-color: #00d2ff;
+            --secondary-color: #3a7bd5;
+            --accent-color: #ff00cc;
+            --text-color: #ffffff;
+            --glass-bg: rgba(10, 10, 20, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.5), rgba(5, 5, 15, 0.9));
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; }
+
+        /* --- BACKGROUND --- */
+        .bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('../assets/admin-block.jpg') no-repeat center top/cover;
+            z-index: -2;
+        }
+        .overlay-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--dark-overlay); z-index: -1;
+        }
+
+        /* --- NAVBAR (Copy of Home) --- */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%; padding: 1.2rem 4rem;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000; background: rgba(5, 5, 10, 0.6); backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .logo {
+            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900;
+            background: linear-gradient(45deg, var(--primary-color), #ffffff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+        .nav-links a { text-decoration: none; color: white; font-weight: 500; transition: 0.3s; }
+        .nav-links a:hover { color: var(--primary-color); }
+        .menu-toggle { display: none; flex-direction: column; gap: 6px; cursor: pointer; }
+        .bar { width: 30px; height: 3px; background: white; border-radius: 3px; }
+
+        /* --- REGISTER CONTAINER --- */
+        .container {
+            min-height: 100vh; display: flex; justify-content: center; align-items: center;
+            padding: 120px 20px 50px 20px;
+        }
+
+        .glass-card {
+            background: rgba(20, 20, 40, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 0 40px rgba(0, 210, 255, 0.1);
+            animation: fadeUp 0.8s ease-out;
+        }
+
+        .form-header { text-align: center; margin-bottom: 2rem; }
+        .form-header h2 { font-family: 'Montserrat', sans-serif; font-size: 2.5rem; color: var(--primary-color); }
+        .form-header p { color: #ccc; font-size: 0.9rem; margin-top: 5px; }
+
+        /* --- FORM ELEMENTS --- */
+        .input-group { margin-bottom: 1.2rem; position: relative; }
+        .input-group label { display: block; font-size: 0.9rem; margin-bottom: 5px; color: #e0e0e0; }
+        
+        input, select {
+            width: 100%; padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
+            border-radius: 8px; color: white; font-size: 1rem; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); }
+
+        /* OTP Section */
+        .otp-section { display: flex; gap: 10px; }
+        .btn-verify {
+            padding: 0 20px; background: var(--secondary-color); border: none;
+            border-radius: 8px; color: white; cursor: pointer; font-weight: 600;
+            white-space: nowrap; transition: 0.3s;
+        }
+        .btn-verify:hover { background: var(--primary-color); }
+
+        .otp-input-group {
+            display: none; /* Hidden initially */
+            margin-top: 10px;
+            animation: slideDown 0.4s ease;
+        }
+
+        .btn-submit {
+            width: 100%; padding: 14px; margin-top: 1rem;
+            background: linear-gradient(45deg, var(--secondary-color), var(--primary-color));
+            border: none; border-radius: 50px; color: white; font-size: 1.1rem; font-weight: 700;
+            cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
+
+        .login-link { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; }
+        .login-link a { color: var(--primary-color); text-decoration: none; font-weight: 600; }
+
+        /* --- ANIMATIONS & RESPONSIVE --- */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 768px) {
+            nav { padding: 1.2rem 2rem; }
+            .nav-links { display: none; } /* Mobile menu logic handled via JS similar to home */
+            .menu-toggle { display: flex; }
+            .glass-card { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <nav>
+        <div class="logo">LAKSHYA 2K26</div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="home.html">Home</a></li>
+            <li><a href="events.html">Events</a></li>
+            <li><a href="login.html">Login</a></li>
+        </ul>
+        <div class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('active')">
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="glass-card">
+            <div class="form-header">
+                <h2>Registration</h2>
+                <p>Join the Battle of Wits</p>
+            </div>
+            
+            <form action="#" onsubmit="event.preventDefault(); registerUser();">
+                <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" placeholder="Enter your full name" required>
+                </div>
+
+                <div class="input-group">
+                    <label>College Name</label>
+                    <input type="text" placeholder="e.g. LBRCE" required>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>Roll Number</label>
+                        <input type="text" placeholder="Roll No" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Mobile</label>
+                        <input type="tel" placeholder="Mobile No" required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <div class="otp-section">
+                        <input type="email" id="emailInput" placeholder="Enter email" required>
+                        <button type="button" class="btn-verify" onclick="sendOTP()">Get OTP</button>
+                    </div>
+                </div>
+
+                <div class="input-group otp-input-group" id="otpGroup">
+                    <label>Enter OTP</label>
+                    <input type="text" placeholder="Check your mail for OTP">
+                </div>
+
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" placeholder="Create a password" required>
+                </div>
+
+                <button type="submit" class="btn-submit">Register Now</button>
+            </form>
+
+            <div class="login-link">
+                Already registered? <a href="login.html">Login Here</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function sendOTP() {
+            const email = document.getElementById('emailInput').value;
+            if(email) {
+                alert(`OTP Sent to ${email} (Simulation)`);
+                document.getElementById('otpGroup').style.display = 'block';
+            } else {
+                alert("Please enter a valid email first");
+            }
+        }
+
+        function registerUser() {
+            alert("Registration Successful! Redirecting to Login...");
+            window.location.href = "login.html";
+        }
+    </script>
+</body>
+</html>

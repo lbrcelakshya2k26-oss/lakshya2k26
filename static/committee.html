@@ -1,0 +1,327 @@
+<!-- Committee Members & Dept Images -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Committee | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- GLOBAL VARIABLES (SAME THEME) --- */
+        :root {
+            --primary-color: #00d2ff;
+            --secondary-color: #3a7bd5;
+            --accent-color: #ff00cc;
+            --text-color: #ffffff;
+            --glass-bg: rgba(15, 15, 30, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.6), rgba(5, 5, 15, 0.95));
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; }
+
+        /* --- BACKGROUND --- */
+        .bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('../assets/admin-block.jpg') no-repeat center top/cover;
+            z-index: -2;
+        }
+        .overlay-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--dark-overlay); z-index: -1;
+        }
+
+        /* --- NAVBAR --- */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%; padding: 1.2rem 4rem;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000; background: rgba(5, 5, 10, 0.6); backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .logo {
+            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900;
+            background: linear-gradient(45deg, var(--primary-color), #ffffff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+        .nav-links a { text-decoration: none; color: white; font-weight: 500; transition: 0.3s; }
+        .nav-links a:hover { color: var(--primary-color); }
+        .menu-toggle { display: none; flex-direction: column; gap: 6px; cursor: pointer; }
+        .bar { width: 30px; height: 3px; background: white; border-radius: 3px; }
+        
+        .btn-login { padding: 0.6rem 1.5rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; }
+        .btn-register { padding: 0.6rem 1.5rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; }
+
+        /* --- COMMITTEE SECTION --- */
+        .container {
+            padding: 120px 10% 50px 10%;
+            min-height: 100vh;
+        }
+
+        .section-title {
+            text-align: center; margin-bottom: 3rem;
+            font-family: 'Montserrat', sans-serif; font-size: 3rem; font-weight: 800;
+            background: linear-gradient(to right, #fff, var(--primary-color));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+            animation: fadeDown 1s ease-out;
+        }
+
+        /* Accordion Styles */
+        .accordion-item {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: 0.3s;
+            animation: fadeUp 0.8s ease-out forwards;
+            opacity: 0;
+        }
+
+        .accordion-item:nth-child(1) { animation-delay: 0.1s; }
+        .accordion-item:nth-child(2) { animation-delay: 0.2s; }
+        .accordion-item:nth-child(3) { animation-delay: 0.3s; }
+        .accordion-item:nth-child(4) { animation-delay: 0.4s; }
+        .accordion-item:nth-child(5) { animation-delay: 0.5s; }
+
+        .accordion-header {
+            padding: 1.5rem 2rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            transition: 0.3s;
+        }
+
+        .accordion-header:hover {
+            background: rgba(0, 210, 255, 0.1);
+        }
+
+        .accordion-header h3 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .accordion-header i {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            transition: transform 0.3s;
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .accordion-content.open {
+            max-height: 1000px; /* Large enough to fit content */
+        }
+
+        .members-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        .member-card {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1.5rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: 0.3s;
+        }
+
+        .member-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
+        }
+
+        .member-img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .member-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 0.3rem;
+        }
+
+        .member-role {
+            font-size: 0.85rem;
+            color: #ccc;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Animations */
+        @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .menu-toggle { display: flex; }
+            .container { padding: 100px 5% 50px 5%; }
+            .section-title { font-size: 2.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <nav>
+        <div class="logo">LAKSHYA 2K26</div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="home.html">Home</a></li>
+            <li><a href="brochure.html">Brochure</a></li>
+            <li><a href="events.html">Events</a></li>
+            <li><a href="culturals.html">Culturals</a></li>
+            <li><a href="committee.html" style="color: var(--primary-color);">Committee</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="register.html" class="btn-register">Register</a></li>
+            <li><a href="login.html" class="btn-login">Login</a></li>
+        </ul>
+        <div class="menu-toggle" onclick="document.getElementById('navLinks').classList.toggle('active')">
+            <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="section-title">ORGANIZING COMMITTEE</h1>
+
+        <!-- Chief Patrons -->
+        <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <h3>Chief Patrons</h3>
+                <i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+                <div class="members-grid">
+                    <!-- Placeholders for Admin to populate later -->
+                    <div class="member-card">
+                        <img src="https://via.placeholder.com/100" alt="Member" class="member-img">
+                        <div class="member-name">Dr. K. Appa Rao</div>
+                        <div class="member-role">Principal</div>
+                    </div>
+                     <div class="member-card">
+                        <img src="https://via.placeholder.com/100" alt="Member" class="member-img">
+                        <div class="member-name">Sri L. Jaya Prakash Reddy</div>
+                        <div class="member-role">Co-Chairman</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Patrons -->
+        <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <h3>Patrons</h3>
+                <i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+                <div class="members-grid">
+                    <div class="member-card">
+                        <img src="https://via.placeholder.com/100" alt="Member" class="member-img">
+                        <div class="member-name">Dr. K. Harinadha Reddy</div>
+                        <div class="member-role">Vice Principal</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conveners -->
+        <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <h3>Conveners</h3>
+                <i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+                <div class="members-grid">
+                    <div class="member-card">
+                        <img src="https://via.placeholder.com/100" alt="Member" class="member-img">
+                        <div class="member-name">Dr. P. Ashok Reddy</div>
+                        <div class="member-role">HOD, CSE</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSE Department -->
+        <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <h3>Computer Science & Engineering</h3>
+                <i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+                <div class="members-grid">
+                    <div class="member-card">
+                        <img src="https://via.placeholder.com/100" alt="Member" class="member-img">
+                        <div class="member-name">Student Name</div>
+                        <div class="member-role">Student Coordinator</div>
+                    </div>
+                     <div class="member-card">
+                        <img src="https://via.placeholder.com/100" alt="Member" class="member-img">
+                        <div class="member-name">Faculty Name</div>
+                        <div class="member-role">Faculty Coordinator</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ECE Department -->
+        <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+                <h3>Electronics & Communication</h3>
+                <i class="fa-solid fa-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+                <div class="members-grid">
+                    <div class="member-card">
+                        <img src="https://via.placeholder.com/100" alt="Member" class="member-img">
+                        <div class="member-name">Student Name</div>
+                        <div class="member-role">Student Coordinator</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('i');
+            
+            // Toggle Open Class
+            content.classList.toggle('open');
+
+            // Rotate Icon
+            if (content.classList.contains('open')) {
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+    </script>
+
+</body>
+</html>

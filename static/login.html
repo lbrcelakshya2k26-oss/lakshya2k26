@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- GLOBAL VARIABLES --- */
+        :root {
+            --primary-color: #00d2ff;
+            --secondary-color: #3a7bd5;
+            --accent-color: #ff00cc;
+            --text-color: #ffffff;
+            --glass-bg: rgba(10, 10, 20, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.5), rgba(5, 5, 15, 0.9));
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; }
+
+        /* --- BACKGROUND --- */
+        .bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('../assets/admin-block.jpg') no-repeat center top/cover;
+            z-index: -2;
+        }
+        .overlay-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--dark-overlay); z-index: -1;
+        }
+
+        /* --- NAVBAR --- */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%; padding: 1.2rem 4rem;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000; background: rgba(5, 5, 10, 0.6); backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .logo {
+            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900;
+            background: linear-gradient(45deg, var(--primary-color), #ffffff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+        .nav-links a { text-decoration: none; color: white; font-weight: 500; transition: 0.3s; }
+        .nav-links a:hover { color: var(--primary-color); }
+
+        /* --- LOGIN CONTAINER --- */
+        .container {
+            min-height: 100vh; display: flex; justify-content: center; align-items: center;
+            padding: 20px;
+        }
+
+        .glass-card {
+            background: rgba(20, 20, 40, 0.75);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 0 40px rgba(0, 210, 255, 0.15);
+            position: relative;
+            overflow: hidden;
+            animation: fadeIn 1s ease;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            margin-bottom: 2rem;
+            padding: 5px;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: 0.3s;
+            color: #aaa;
+        }
+
+        .tab.active {
+            background: var(--primary-color);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.5);
+        }
+
+        /* Form */
+        .form-header { text-align: center; margin-bottom: 2rem; }
+        .form-header h2 { font-family: 'Montserrat', sans-serif; color: white; }
+
+        .input-group { margin-bottom: 1.5rem; }
+        .input-group label { display: block; font-size: 0.9rem; margin-bottom: 8px; color: #ddd; }
+        
+        input {
+            width: 100%; padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
+            border-radius: 8px; color: white; font-size: 1rem; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary-color); }
+
+        .btn-login {
+            width: 100%; padding: 12px;
+            background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
+            border: none; border-radius: 50px; color: white; font-weight: 700;
+            cursor: pointer; transition: 0.3s; font-size: 1rem; text-transform: uppercase;
+        }
+        .btn-login:hover { box-shadow: 0 0 20px rgba(0, 210, 255, 0.6); transform: scale(1.02); }
+
+        .forgot-pass {
+            text-align: right; margin-bottom: 1.5rem; font-size: 0.85rem;
+        }
+        .forgot-pass a { color: var(--primary-color); text-decoration: none; cursor: pointer; }
+
+        .register-link { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; }
+        .register-link a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
+
+        /* Modal (Forgot Password) */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); z-index: 2000; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #1a1a2e; padding: 2rem; border-radius: 15px; border: 1px solid var(--primary-color);
+            width: 90%; max-width: 400px; text-align: center;
+        }
+        .close-modal { float: right; font-size: 1.5rem; cursor: pointer; color: #aaa; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @media (max-width: 768px) { .nav-links { display: none; } }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <nav>
+        <div class="logo">LAKSHYA 2K26</div>
+        <ul class="nav-links">
+            <li><a href="home.html">Home</a></li>
+            <li><a href="register.html">Register</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="glass-card">
+            <!-- TABS -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('participant')">Participant</div>
+                <div class="tab" onclick="switchTab('coordinator')">Coordinator</div>
+                <div class="tab" onclick="switchTab('admin')">Admin</div>
+            </div>
+
+            <div class="form-header">
+                <h2 id="loginTitle">Student Login</h2>
+            </div>
+
+            <form onsubmit="event.preventDefault(); handleLogin();">
+                <div class="input-group">
+                    <label id="idLabel">Email Address</label>
+                    <input type="text" id="emailInput" placeholder="Enter your email" required>
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" placeholder="Enter password" required>
+                </div>
+
+                <div class="forgot-pass" id="forgotLink">
+                    <a onclick="openModal()">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="btn-login">Login</button>
+            </form>
+
+            <div class="register-link" id="regLink">
+                New here? <a href="register.html">Create an Account</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORGOT PASSWORD MODAL -->
+    <div class="modal" id="forgotModal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h3 style="color:white; margin-bottom:1rem;">Reset Password</h3>
+            <p style="color:#ccc; font-size:0.9rem; margin-bottom:1rem;">Enter your registered email to receive a reset link.</p>
+            <input type="email" placeholder="Enter your email" style="margin-bottom:1rem;">
+            <button class="btn-login">Send Reset Link</button>
+        </div>
+    </div>
+
+    <script>
+        let currentRole = 'participant';
+
+        function switchTab(role) {
+            currentRole = role;
+            // Update Tab Styles
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update UI Content
+            const title = document.getElementById('loginTitle');
+            const label = document.getElementById('idLabel');
+            const forgot = document.getElementById('forgotLink');
+            const reg = document.getElementById('regLink');
+
+            if(role === 'participant') {
+                title.innerText = "Student Login";
+                label.innerText = "Email Address";
+                forgot.style.display = "block";
+                reg.style.display = "block";
+            } else if (role === 'coordinator') {
+                title.innerText = "Coordinator Login";
+                label.innerText = "Department ID / Email";
+                forgot.style.display = "none"; // Usually admins reset this
+                reg.style.display = "none";
+            } else {
+                title.innerText = "Admin Login";
+                label.innerText = "Admin ID";
+                forgot.style.display = "none";
+                reg.style.display = "none";
+            }
+        }
+
+        function openModal() { document.getElementById('forgotModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('forgotModal').style.display = 'none'; }
+
+        function handleLogin() {
+            alert(`Logging in as ${currentRole}... (Simulation)`);
+            // Redirect Logic based on role (To be connected to backend)
+            if(currentRole === 'participant') window.location.href = '../participant/dashboard.html';
+            else if(currentRole === 'coordinator') window.location.href = '../coordinator/dashboard.html';
+            else window.location.href = '../admin/dashboard.html';
+        }
+    </script>
+</body>
+</html>
