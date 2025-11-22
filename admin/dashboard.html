@@ -1,1 +1,282 @@
-<!-- Visual Analytics -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Analytics | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* --- COSMIC ADMIN THEME (BLUE RESTORED) --- */
+        :root {
+            --primary-color: #00d2ff; /* Restored to Blue */
+            --secondary-color: #3a7bd5;
+            --accent-color: #ff00cc; 
+            --bg-color: #050510;
+            --card-bg: #151520; 
+            --text-color: #ffffff;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --sidebar-width: 260px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            display: flex; min-height: 100vh; 
+            overflow-x: hidden; 
+            -webkit-font-smoothing: antialiased; 
+        }
+
+        /* Background Layers */
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center/cover; z-index: -2; opacity: 0.4; }
+        .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,15,0.9); z-index: -1; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--card-bg); border-right: 1px solid var(--border-color); 
+            padding: 2rem; display: flex; flex-direction: column; z-index: 1000; height: 100vh; position: sticky; top: 0; 
+            transition: transform 0.3s ease-in-out;
+        }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--primary-color); margin-bottom: 3rem; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .menu { list-style: none; flex-grow: 1; } .menu li { margin-bottom: 1rem; }
+        .menu a { text-decoration: none; color: #ccc; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 8px; transition: 0.3s; border: 1px solid transparent; }
+        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); border-color: rgba(0, 210, 255, 0.2); }
+        .logout { color: #ff4444; cursor: pointer; margin-top: auto; }
+
+        /* --- MOBILE NAV --- */
+        .mobile-header {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 70px;
+            background: var(--card-bg); border-bottom: 1px solid var(--border-color);
+            z-index: 1100; align-items: center; justify-content: space-between; padding: 0 20px;
+        }
+        .mobile-logo { font-family: 'Montserrat', sans-serif; font-weight: 900; color: white; font-size: 1.2rem; }
+        .menu-toggle { font-size: 1.5rem; color: var(--primary-color); cursor: pointer; }
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+        .sidebar-overlay.active { display: block; }
+        .close-sidebar-btn { display: none; font-size: 1.2rem; color: white; cursor: pointer; }
+
+        /* --- MAIN CONTENT --- */
+        .main { flex-grow: 1; padding: 2rem; overflow-y: auto; z-index: 1; width: 100%; }
+        .header { display: flex; justify-content: space-between; margin-bottom: 2rem; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .header h2 { font-family: 'Montserrat', sans-serif; font-size: 1.8rem; margin: 0; }
+
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { 
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); 
+            padding: 1.5rem; border-radius: 15px; position: relative; overflow: hidden; 
+        }
+        /* Blue Highlight Line */
+        .stat-card::before { content:''; position: absolute; top:0; left:0; width: 4px; height: 100%; background: var(--primary-color); }
+        .stat-card h3 { font-size: 2.5rem; margin-bottom: 5px; color: white; font-family: 'Montserrat', sans-serif; }
+        .stat-card p { color: #aaa; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Charts Layout */
+        .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; margin-bottom: 2rem; }
+        .chart-card { 
+            background: var(--card-bg); border: 1px solid var(--border-color); 
+            border-radius: 15px; padding: 1.5rem; height: 400px; 
+            display: flex; flex-direction: column;
+        }
+        .chart-card h4 { margin-bottom: 15px; color: #ccc; font-family: 'Montserrat'; }
+        .chart-wrapper { flex-grow: 1; position: relative; }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 1024px) {
+            .sidebar { position: fixed; left: 0; top: 0; height: 100vh; transform: translateX(-100%); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+            .sidebar.active { transform: translateX(0); }
+            .mobile-header { display: flex; }
+            .close-sidebar-btn { display: block; }
+            .main { width: 100%; margin-left: 0; padding: 1.5rem; padding-top: 90px; }
+            .charts-row { grid-template-columns: 1fr; height: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="mobile-logo">LAKSHYA ADMIN</div>
+        <i class="fa-solid fa-bars menu-toggle" onclick="toggleSidebar()"></i>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            LAKSHYA ADMIN 
+            <i class="fa-solid fa-xmark close-sidebar-btn" onclick="toggleSidebar()"></i>
+        </div>
+        <ul class="menu">
+<li><a href="dashboard" class="active">
+    <i class="fa-solid fa-gauge-high"></i> Dashboard
+</a></li>
+
+<li><a href="registrations">
+    <i class="fa-solid fa-clipboard-list"></i> Registrations
+</a></li>
+
+<li><a href="add-event">
+    <i class="fa-solid fa-calendar-plus"></i> Add Event
+</a></li>
+
+<li><a href="departments">
+    <i class="fa-solid fa-building-columns"></i> Departments
+</a></li>
+
+<li><a href="manage-users">
+    <i class="fa-solid fa-users"></i> Users
+</a></li>
+
+<li><a href="committee">
+    <i class="fa-solid fa-user-tie"></i> Committee
+</a></li>
+
+<li><a href="setup-scoring">
+    <i class="fa-solid fa-sliders"></i> Setup Scoring
+</a></li>
+
+<li><a href="view-scores">
+    <i class="fa-solid fa-square-poll-vertical"></i> View Scores
+</a></li>
+
+
+
+            <li><a onclick="logout()" class="logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="header">
+            <h2>Analytics Overview</h2>
+            <div class="user-info">Welcome, Admin <i class="fa-solid fa-circle-user"></i></div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3 id="totalReg">0</h3>
+                <p>Total Registrations</p>
+            </div>
+            <div class="stat-card" style="--primary-color: #4caf50;"> <!-- Green for Revenue -->
+                <h3 id="totalRev" style="color:#4caf50;">₹0</h3>
+                <p>Estimated Revenue</p>
+            </div>
+            <div class="stat-card" style="--primary-color: #ffc107;"> <!-- Yellow for Users -->
+                <h3 id="totalUsers" style="color:#ffc107;">0</h3>
+                <p>Total Users</p>
+            </div>
+            <div class="stat-card" style="--primary-color: #00d2ff;"> <!-- Blue for Events -->
+                <h3 id="totalEvents">0</h3>
+                <p>Active Events</p>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-row">
+            <div class="chart-card">
+                <h4>Registrations by Department</h4>
+                <div class="chart-wrapper">
+                    <canvas id="deptChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h4>Payment Status</h4>
+                <div class="chart-wrapper">
+                    <canvas id="paymentChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/admin/stats');
+                const data = await res.json();
+                
+                if(res.ok) {
+                    // Update Cards
+                    document.getElementById('totalReg').innerText = data.totalRegistrations;
+                    document.getElementById('totalRev').innerText = '₹' + data.totalRevenue;
+                    document.getElementById('totalUsers').innerText = data.totalUsers;
+                    document.getElementById('totalEvents').innerText = data.totalEvents;
+                    
+                    // Render Charts
+                    renderDeptChart(data.deptCounts || {});
+                    renderPaymentChart(data.paymentCounts || {Paid: 0, Pending: 0});
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderDeptChart(dataObj) {
+            const ctx = document.getElementById('deptChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(dataObj),
+                    datasets: [{
+                        label: 'Registrations',
+                        data: Object.values(dataObj),
+                        // Blue Theme for Chart
+                        backgroundColor: 'rgba(0, 210, 255, 0.5)',
+                        borderColor: '#00d2ff',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#aaa' } },
+                        x: { grid: { display: false }, ticks: { color: '#aaa' } }
+                    }
+                }
+            });
+        }
+
+        function renderPaymentChart(dataObj) {
+            const ctx = document.getElementById('paymentChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Paid', 'Pending'],
+                    datasets: [{
+                        data: [dataObj.Paid, dataObj.Pending],
+                        backgroundColor: ['#4caf50', '#222'], // Green for Paid, Dark for Pending
+                        borderColor: '#151520',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#fff' } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login';
+        }
+
+        fetchStats();
+    </script>
+</body>
+</html>

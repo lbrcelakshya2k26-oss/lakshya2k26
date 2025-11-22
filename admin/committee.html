@@ -1,1 +1,229 @@
-<!-- Upload Committee Images -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Committee | Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- COSMIC ADMIN THEME --- */
+        :root {
+            --primary-color: #00d2ff;
+            --accent-color: #ff00cc;
+            --glass-bg: rgba(20, 20, 35, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #050510; color: var(--text-color); display: flex; min-height: 100vh; }
+
+        /* Background Image Layer */
+        .bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('../assets/admin-block.jpg') no-repeat center center/cover;
+            z-index: -2;
+        }
+        .overlay-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 15, 0.85); z-index: -1;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--glass-bg);
+            border-right: 1px solid var(--glass-border);
+            padding: 2rem;
+            display: flex; flex-direction: column;
+            flex-shrink: 0;
+        }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--primary-color); margin-bottom: 3rem; text-align: center; }
+        .menu { list-style: none; flex-grow: 1; }
+        .menu li { margin-bottom: 1rem; }
+        .menu a {
+            text-decoration: none; color: #ccc; display: flex; align-items: center; gap: 10px;
+            padding: 10px; border-radius: 8px; transition: 0.3s;
+        }
+        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); }
+        .logout { color: #ff4444; cursor: pointer; margin-top: auto; }
+
+        /* Main Content */
+        .main { flex-grow: 1; padding: 2rem; overflow-y: auto; position: relative; z-index: 1; }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        h2 { margin-bottom: 1.5rem; color: var(--primary-color); font-family: 'Montserrat', sans-serif; }
+
+        /* Form */
+        .glass-box { background: var(--glass-bg); padding: 2rem; border-radius: 10px; border: 1px solid var(--glass-border); margin-bottom: 2rem; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group.full { grid-column: span 2; }
+        
+        label { display: block; margin-bottom: 5px; color: #ccc; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; border-radius: 5px; }
+        option { background: #111; }
+        
+        .btn { padding: 10px 20px; background: var(--primary-color); color: black; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { color: var(--primary-color); }
+        .action-btn { color: #ff4444; cursor: pointer; margin-left: 10px; }
+        .edit-btn { color: var(--primary-color); cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">LAKSHYA ADMIN</div>
+        <ul class="menu">
+            <li><a href="dashboard">
+    <i class="fa-solid fa-gauge-high"></i> Dashboard
+</a></li>
+
+<li><a href="registrations">
+    <i class="fa-solid fa-clipboard-list"></i> Registrations
+</a></li>
+
+<li><a href="add-event">
+    <i class="fa-solid fa-calendar-plus"></i> Add Event
+</a></li>
+
+<li><a href="departments">
+    <i class="fa-solid fa-building-columns"></i> Departments
+</a></li>
+
+<li><a href="manage-users">
+    <i class="fa-solid fa-users"></i> Users
+</a></li>
+
+<li><a href="committee" class="active">
+    <i class="fa-solid fa-user-tie"></i> Committee
+</a></li>
+
+<li><a href="setup-scoring">
+    <i class="fa-solid fa-sliders"></i> Setup Scoring
+</a></li>
+
+<li><a href="view-scores">
+    <i class="fa-solid fa-square-poll-vertical"></i> View Scores
+</a></li>
+
+        </ul>
+    </aside>
+
+    <main class="main">
+        <div class="container">
+            <h2>Manage Committee Members</h2>
+
+            <!-- Add Member Form -->
+            <div class="glass-box">
+                <form onsubmit="event.preventDefault(); addMember();">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Role / Designation</label>
+                            <input type="text" id="role" placeholder="e.g. Student Coordinator" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Department / Category</label>
+                            <select id="category">
+                                <option value="Patrons">Patrons</option>
+                                <option value="Conveners">Conveners</option>
+                                <!-- Departments here could also be dynamic -->
+                                <option value="CSE">CSE</option>
+                                <option value="ECE">ECE</option>
+                                <option value="EEE">EEE</option>
+                                <option value="MECH">MECH</option>
+                                <option value="CIVIL">CIVIL</option>
+                                <option value="MBA">MBA</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Image URL</label>
+                            <input type="text" id="imgUrl" placeholder="https://example.com/photo.jpg">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">Add Member</button>
+                </form>
+            </div>
+
+            <!-- Member List -->
+            <div class="glass-box">
+                <h3 style="margin-bottom:1rem;">Current Members</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Category</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="memberTable">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Simulated Data Fetch
+        let members = [
+            { name: "Dr. K. Appa Rao", role: "Principal", category: "Patrons" },
+            { name: "Dr. P. Ashok Reddy", role: "HOD, CSE", category: "Conveners" }
+        ];
+
+        function renderTable() {
+            const tbody = document.getElementById('memberTable');
+            tbody.innerHTML = '';
+            members.forEach((m, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${m.name}</td>
+                        <td>${m.role}</td>
+                        <td>${m.category}</td>
+                        <td>
+                            <span class="edit-btn" onclick="alert('Edit feature coming soon')"><i class="fa-solid fa-pen"></i></span>
+                            <span class="action-btn" onclick="deleteMember(${index})"><i class="fa-solid fa-trash"></i></span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function addMember() {
+            const name = document.getElementById('name').value;
+            const role = document.getElementById('role').value;
+            const category = document.getElementById('category').value;
+            
+            members.push({ name, role, category });
+            renderTable();
+            
+            document.getElementById('name').value = '';
+            document.getElementById('role').value = '';
+            alert("Member Added Locally");
+        }
+
+        function deleteMember(index) {
+            if(confirm("Are you sure?")) {
+                members.splice(index, 1);
+                renderTable();
+            }
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
