@@ -173,14 +173,14 @@
                 </div>
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" placeholder="Enter password" required>
+                    <input type="password" id="passwordInput" placeholder="Enter password" required>
                 </div>
 
                 <div class="forgot-pass" id="forgotLink">
                     <a onclick="openModal()">Forgot Password?</a>
                 </div>
 
-                <button type="submit" class="btn-login">Login</button>
+                <button type="submit" class="btn-login" id="loginBtn">Login</button>
             </form>
 
             <div class="register-link" id="regLink">
@@ -223,7 +223,7 @@
             } else if (role === 'coordinator') {
                 title.innerText = "Coordinator Login";
                 label.innerText = "Department ID / Email";
-                forgot.style.display = "none"; // Usually admins reset this
+                forgot.style.display = "none"; 
                 reg.style.display = "none";
             } else {
                 title.innerText = "Admin Login";
@@ -236,12 +236,43 @@
         function openModal() { document.getElementById('forgotModal').style.display = 'flex'; }
         function closeModal() { document.getElementById('forgotModal').style.display = 'none'; }
 
-        function handleLogin() {
-            alert(`Logging in as ${currentRole}... (Simulation)`);
-            // Redirect Logic based on role (To be connected to backend)
-            if(currentRole === 'participant') window.location.href = '../participant/dashboard.html';
-            else if(currentRole === 'coordinator') window.location.href = '../coordinator/dashboard.html';
-            else window.location.href = '../admin/dashboard.html';
+        async function handleLogin() {
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            const btn = document.getElementById('loginBtn');
+
+            btn.innerText = "Logging in...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        role: currentRole // Sends 'participant', 'coordinator', or 'admin'
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Redirect based on role
+                    if (currentRole === 'participant') window.location.href = '../participant/dashboard';
+                    else if (currentRole === 'coordinator') window.location.href = '../coordinator/dashboard';
+                    else window.location.href = '../admin/dashboard';
+                } else {
+                    alert("Login Failed: " + result.error);
+                    btn.innerText = "Login";
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Server error. Please check your connection.");
+                btn.innerText = "Login";
+                btn.disabled = false;
+            }
         }
     </script>
 </body>

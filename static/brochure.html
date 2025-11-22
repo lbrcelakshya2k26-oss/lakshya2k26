@@ -1,1 +1,309 @@
-<!-- Download/View Brochure -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brochure | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- GLOBAL VARIABLES (COSMIC THEME) --- */
+        :root {
+            --primary-color: #00d2ff; /* Cyber Blue */
+            --secondary-color: #3a7bd5; /* Deep Blue */
+            --accent-color: #ff00cc; /* Neon Pink */
+            --text-color: #ffffff;
+            --glass-bg: rgba(10, 10, 20, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.4), rgba(5, 5, 15, 0.95));
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; }
+
+        /* --- BACKGROUND --- */
+        .bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('../assets/admin-block.jpg') no-repeat center top/cover;
+            z-index: -2;
+        }
+        .overlay-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--dark-overlay); z-index: -1;
+        }
+
+        /* --- NAVBAR --- */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%; padding: 1.2rem 4rem;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000; background: rgba(5, 5, 10, 0.6); backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .logo {
+            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900;
+            background: linear-gradient(45deg, var(--primary-color), #ffffff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        
+        /* Desktop Menu */
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; transition: 0.4s; }
+        .nav-links a { text-decoration: none; color: white; font-weight: 500; transition: 0.3s; position: relative; }
+        .nav-links a:hover { color: var(--primary-color); }
+        
+        /* Hover Underline */
+        .nav-links a::after {
+            content: ''; position: absolute; bottom: -5px; left: 0; width: 0%; height: 2px;
+            background: var(--primary-color); transition: 0.3s;
+        }
+        .nav-links a:hover::after { width: 100%; }
+
+        /* Mobile Menu Toggle */
+        .menu-toggle { display: none; flex-direction: column; gap: 6px; cursor: pointer; z-index: 1001; }
+        .bar { width: 30px; height: 3px; background: white; border-radius: 3px; transition: 0.4s; }
+        
+        /* Buttons */
+        .btn-login { padding: 0.6rem 1.5rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; }
+        .btn-register { padding: 0.6rem 1.5rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; }
+
+        /* --- BROCHURE SECTION --- */
+        .brochure-container {
+            padding: 120px 4% 50px 4%; /* Reduced side padding to allow more width */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .section-title {
+            text-align: center; margin-bottom: 1.5rem;
+            font-family: 'Montserrat', sans-serif; font-size: 3rem; font-weight: 800;
+            background: linear-gradient(to right, #fff, var(--primary-color));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+            animation: fadeDown 1s ease-out;
+        }
+
+        .subtitle {
+            color: #ccc;
+            margin-bottom: 2.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 600px;
+            animation: fadeDown 1s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+
+        /* Brochure Image Wrapper - UPDATED FOR SIZE */
+        .brochure-image-wrapper {
+            width: 100%;
+            max-width: 1200px; /* Increased from 800px to 1200px */
+            background: transparent; /* Removed dark background */
+            backdrop-filter: none;   /* Removed blur effect on container */
+            border: none;
+            border-radius: 15px;     /* Matched to image radius */
+            padding: 0;              /* Removed padding (the gap around the image) */
+            box-shadow: 0 0 50px rgba(0, 210, 255, 0.15);
+            animation: fadeUp 1s ease-out 0.4s forwards;
+            opacity: 0;
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            cursor: zoom-in; /* Indicates it can be clicked */
+            overflow: hidden; /* Ensures image fits perfectly inside corners */
+        }
+
+        .brochure-image-wrapper:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 70px rgba(0, 210, 255, 0.3);
+        }
+
+        /* Overlay hint for zooming */
+        .brochure-image-wrapper::after {
+            content: '\f00e  Click to Expand';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 2rem;
+            opacity: 0;
+            transition: 0.3s;
+            text-shadow: 0 0 10px black;
+            pointer-events: none;
+        }
+
+        .brochure-image-wrapper:hover::after {
+            opacity: 1;
+        }
+
+        .brochure-img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 15px;
+        }
+
+        /* Download Button */
+        .download-section {
+            margin-top: 2.5rem;
+            animation: fadeUp 1s ease-out 0.6s forwards;
+            opacity: 0;
+        }
+
+        .btn-download {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 1rem 3rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: black;
+            background: var(--primary-color);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.3s;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);
+        }
+
+        .btn-download:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 40px rgba(0, 210, 255, 0.8);
+            background: white;
+        }
+
+        /* --- LIGHTBOX (FULL SCREEN) STYLES --- */
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.95);
+            justify-content: center;
+            align-items: center;
+            cursor: zoom-out;
+        }
+
+        .lightbox-content {
+            max-width: 95%;
+            max-height: 95vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.5);
+            animation: zoomIn 0.3s ease-out;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes zoomIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* --- RESPONSIVE DESIGN --- */
+        @media (max-width: 1024px) {
+            .section-title { font-size: 2.5rem; }
+            nav { padding: 1.2rem 2rem; }
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle { display: flex; }
+            
+            .nav-links {
+                position: absolute; top: 0; right: -100%;
+                height: 100vh; width: 70%;
+                background: var(--glass-bg); backdrop-filter: blur(20px);
+                flex-direction: column; justify-content: center; align-items: center;
+                gap: 2rem; border-left: 1px solid var(--glass-border);
+                display: flex;
+            }
+
+            .nav-links.active { right: 0; }
+
+            .brochure-container { padding: 100px 2% 50px 2%; } /* Even less padding on mobile */
+            .section-title { font-size: 2rem; }
+            .btn-download { width: 100%; justify-content: center; padding: 1rem; }
+            
+            /* On mobile, the hint might be annoying, so we disable the hover text */
+            .brochure-image-wrapper::after { content: ''; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <!-- NAVBAR -->
+    <nav>
+        <div class="logo">LAKSHYA 2K26</div>
+        
+        <ul class="nav-links" id="navLinks">
+            <li><a href="home.html">Home</a></li>
+            <li><a href="brochure.html" style="color: var(--primary-color);">Brochure</a></li>
+            <li><a href="events.html">Events</a></li>
+            <li><a href="culturals.html">Culturals</a></li>
+            <li><a href="committee.html">Committee</a></li>
+            <li><a href="contact.html">Contact</a></li>
+            <li><a href="register.html" class="btn-register">Register</a></li>
+            <li><a href="login.html" class="btn-login">Login</a></li>
+        </ul>
+
+        <!-- Hamburger Icon -->
+        <div class="menu-toggle" onclick="toggleMenu()">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </div>
+    </nav>
+
+    <!-- BROCHURE SECTION -->
+    <div class="brochure-container">
+        <!-- <h1 class="section-title">OFFICIAL BROCHURE</h1>
+        <p class="subtitle">Explore the schedule, events, and rules for the 19th National Level Symposium.</p> -->
+
+        <!-- Brochure Image View -->
+        <div class="brochure-image-wrapper" onclick="openLightbox()">
+            <!-- PLEASE ENSURE 'brochure.jpg' IS IN YOUR ASSETS FOLDER -->
+            <img src="../assets/brochure.jpg" alt="Lakshya 2K26 Brochure" class="brochure-img" id="mainBrochure">
+        </div>
+
+        <!-- Download Button -->
+        <div class="download-section">
+            <a href="../assets/brochure.pdf" download="Lakshya_2K26_Brochure.pdf" class="btn-download">
+                <i class="fa-solid fa-download"></i> Download PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <img src="../assets/brochure.jpg" class="lightbox-content" id="lightboxImg">
+    </div>
+
+    <script>
+        // Mobile Menu Toggle
+        function toggleMenu() {
+            const nav = document.getElementById('navLinks');
+            nav.classList.toggle('active');
+        }
+
+        // Lightbox Functions
+        function openLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.style.display = 'flex';
+            // Prevent scrolling when lightbox is open
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.style.display = 'none';
+            // Restore scrolling
+            document.body.style.overflow = 'auto';
+        }
+    </script>
+
+</body>
+</html>

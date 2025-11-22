@@ -63,7 +63,7 @@
             border-radius: 20px;
             padding: 3rem;
             width: 100%;
-            max-width: 600px;
+            max-width: 700px; /* Slightly wider for 3-col layout */
             box-shadow: 0 0 40px rgba(0, 210, 255, 0.1);
             animation: fadeUp 0.8s ease-out;
         }
@@ -81,7 +81,8 @@
             background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
             border-radius: 8px; color: white; font-size: 1rem; outline: none; transition: 0.3s;
         }
-        input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); }
+        select option { background: #111; color: white; } /* Fix dropdown bg */
+        input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); }
 
         /* OTP Section */
         .otp-section { display: flex; gap: 10px; }
@@ -91,6 +92,7 @@
             white-space: nowrap; transition: 0.3s;
         }
         .btn-verify:hover { background: var(--primary-color); }
+        .btn-verify:disabled { background: #555; cursor: not-allowed; }
 
         .otp-input-group {
             display: none; /* Hidden initially */
@@ -109,15 +111,20 @@
         .login-link { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; }
         .login-link a { color: var(--primary-color); text-decoration: none; font-weight: 600; }
 
+        /* Grid Layout Helpers */
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
         /* --- ANIMATIONS & RESPONSIVE --- */
         @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
         @media (max-width: 768px) {
             nav { padding: 1.2rem 2rem; }
-            .nav-links { display: none; } /* Mobile menu logic handled via JS similar to home */
+            .nav-links { display: none; } 
             .menu-toggle { display: flex; }
             .glass-card { padding: 2rem; }
+            .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -145,47 +152,84 @@
                 <p>Join the Battle of Wits</p>
             </div>
             
-            <form action="#" onsubmit="event.preventDefault(); registerUser();">
-                <div class="input-group">
-                    <label>Full Name</label>
-                    <input type="text" placeholder="Enter your full name" required>
+            <form id="regForm" onsubmit="event.preventDefault(); registerUser();">
+                <!-- Name & College -->
+                <div class="form-grid-2">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="fullName" placeholder="Your Full Name" required>
+                    </div>
+                    <div class="input-group">
+                        <label>College Name</label>
+                        <input type="text" id="college" placeholder="e.g. LBRCE" required>
+                    </div>
                 </div>
 
-                <div class="input-group">
-                    <label>College Name</label>
-                    <input type="text" placeholder="e.g. LBRCE" required>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- Roll No & Mobile -->
+                <div class="form-grid-2">
                     <div class="input-group">
                         <label>Roll Number</label>
-                        <input type="text" placeholder="Roll No" required>
+                        <input type="text" id="rollNo" placeholder="Roll No" required>
                     </div>
                     <div class="input-group">
                         <label>Mobile</label>
-                        <input type="tel" placeholder="Mobile No" required>
+                        <input type="tel" id="mobile" placeholder="Mobile No" required>
                     </div>
                 </div>
 
+                <!-- NEW INPUTS: Stream, Dept, Year -->
+                <div class="form-grid-3">
+                    <div class="input-group">
+                        <label>Stream</label>
+                        <select id="stream" required>
+                            <option value="" disabled selected>Select Stream</option>
+                            <option value="B.Tech">B.Tech</option>
+                            <option value="M.Tech">M.Tech</option>
+                            <option value="MBA">MBA</option>
+                            <option value="MCA">MCA</option>
+                            <option value="Degree">Degree</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <!-- CHANGED: Department is now a simple text input -->
+                    <div class="input-group">
+                        <label>Department</label>
+                        <input type="text" id="dept" placeholder="Enter Department" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Year</label>
+                        <select id="year" required>
+                            <option value="" disabled selected>Select Year</option>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Email & OTP -->
                 <div class="input-group">
                     <label>Email Address</label>
                     <div class="otp-section">
                         <input type="email" id="emailInput" placeholder="Enter email" required>
-                        <button type="button" class="btn-verify" onclick="sendOTP()">Get OTP</button>
+                        <button type="button" id="otpBtn" class="btn-verify" onclick="sendOTP()">Get OTP</button>
                     </div>
                 </div>
 
                 <div class="input-group otp-input-group" id="otpGroup">
                     <label>Enter OTP</label>
-                    <input type="text" placeholder="Check your mail for OTP">
+                    <input type="text" id="otpInput" placeholder="Check your mail for OTP">
                 </div>
 
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" placeholder="Create a password" required>
+                    <input type="password" id="password" placeholder="Create a password" required>
                 </div>
 
-                <button type="submit" class="btn-submit">Register Now</button>
+                <button type="submit" class="btn-submit" id="submitBtn">Register Now</button>
             </form>
 
             <div class="login-link">
@@ -195,19 +239,110 @@
     </div>
 
     <script>
-        function sendOTP() {
+        async function sendOTP() {
             const email = document.getElementById('emailInput').value;
-            if(email) {
-                alert(`OTP Sent to ${email} (Simulation)`);
-                document.getElementById('otpGroup').style.display = 'block';
-            } else {
+            const otpBtn = document.getElementById('otpBtn');
+
+            if (!email) {
                 alert("Please enter a valid email first");
+                return;
+            }
+
+            otpBtn.innerText = "Sending...";
+            otpBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/auth/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`OTP Sent Successfully!`);
+                    if(result.debug_otp) console.log("Debug OTP:", result.debug_otp); 
+                    document.getElementById('otpGroup').style.display = 'block';
+                    otpBtn.innerText = "Sent";
+                } else {
+                    alert("Failed to send OTP: " + result.error);
+                    otpBtn.innerText = "Get OTP";
+                    otpBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Something went wrong connecting to the server.");
+                otpBtn.innerText = "Get OTP";
+                otpBtn.disabled = false;
             }
         }
 
-        function registerUser() {
-            alert("Registration Successful! Redirecting to Login...");
-            window.location.href = "login.html";
+        async function registerUser() {
+            // Collect Basic Info
+            const fullName = document.getElementById('fullName').value;
+            const college = document.getElementById('college').value;
+            const rollNo = document.getElementById('rollNo').value;
+            const mobile = document.getElementById('mobile').value;
+            
+            // Collect New Dropdown Info
+            const stream = document.getElementById('stream').value;
+            const dept = document.getElementById('dept').value;
+            const year = document.getElementById('year').value;
+
+            // Collect Auth Info
+            const email = document.getElementById('emailInput').value;
+            const otp = document.getElementById('otpInput').value;
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (!otp) {
+                alert("Please verify your email with OTP first.");
+                return;
+            }
+
+            if (!stream || !dept || !year) {
+                alert("Please select Stream, Department, and Year.");
+                return;
+            }
+
+            submitBtn.innerText = "Registering...";
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fullName,
+                        college,
+                        rollNo,
+                        mobile,
+                        stream,  // Sent to backend
+                        dept,    // Sent to backend
+                        year,    // Sent to backend
+                        email,
+                        password,
+                        otp 
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert("Registration Successful! Redirecting to Login...");
+                    window.location.href = "login.html";
+                } else {
+                    alert("Registration Failed: " + result.error);
+                    submitBtn.innerText = "Register Now";
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Server error. Please try again later.");
+                submitBtn.innerText = "Register Now";
+                submitBtn.disabled = false;
+            }
         }
     </script>
 </body>
