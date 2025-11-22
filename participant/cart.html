@@ -1,1 +1,257 @@
-<!-- Checkout (Payment/Cash Toggle) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Cart | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- COSMIC THEME --- */
+        :root {
+            --primary-color: #00d2ff;
+            --accent-color: #ff00cc;
+            --glass-bg: rgba(20, 20, 35, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #0a0a0a; color: var(--text-color); display: flex; min-height: 100vh; overflow-x: hidden; }
+
+        /* Background */
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center center/cover; z-index: -2; }
+        .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 5, 15, 0.92); z-index: -1; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 260px; background: var(--glass-bg); border-right: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px); padding: 2rem; display: flex; flex-direction: column;
+            position: fixed; height: 100vh; z-index: 1000; transition: transform 0.3s ease-in-out; left: 0; top: 0;
+        }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--primary-color); margin-bottom: 3rem; text-align: center; }
+        .menu { list-style: none; flex-grow: 1; }
+        .menu li { margin-bottom: 1rem; }
+        .menu a { text-decoration: none; color: #ccc; display: flex; align-items: center; gap: 15px; padding: 10px; border-radius: 8px; transition: 0.3s; }
+        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); }
+        .logout { color: #ff4444; cursor: pointer; margin-top: auto; }
+
+        /* Main Content */
+        .main { flex-grow: 1; padding: 2rem; margin-left: 260px; width: calc(100% - 260px); overflow-y: auto; }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        h2 { margin-bottom: 2rem; font-family: 'Montserrat', sans-serif; color: var(--primary-color); }
+
+        /* Cart Items */
+        .cart-list { display: flex; flex-direction: column; gap: 1.5rem; }
+        .cart-item {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
+            border-radius: 10px; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center;
+        }
+        .item-info h3 { font-size: 1.2rem; margin-bottom: 5px; color: white; }
+        .item-info p { color: #aaa; font-size: 0.9rem; }
+        .item-price { font-size: 1.2rem; font-weight: 700; color: #4caf50; margin-right: 20px; }
+        .btn-remove { color: #ff4444; cursor: pointer; font-size: 1.2rem; transition: 0.2s; }
+        .btn-remove:hover { transform: scale(1.2); }
+
+        /* Summary Section */
+        .cart-summary {
+            margin-top: 3rem; padding: 2rem; background: rgba(0, 210, 255, 0.05);
+            border: 1px solid var(--primary-color); border-radius: 15px; text-align: right;
+        }
+        .total-row { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
+        .total-row span { color: var(--primary-color); }
+
+        .payment-options { margin-bottom: 1.5rem; display: flex; gap: 20px; justify-content: flex-end; }
+        .radio-label { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #ddd; }
+        input[type="radio"] { accent-color: var(--primary-color); width: 18px; height: 18px; }
+
+        .btn-checkout {
+            padding: 12px 40px; background: var(--primary-color); color: black;
+            border: none; border-radius: 50px; font-weight: 700; font-size: 1.1rem;
+            cursor: pointer; transition: 0.3s; text-transform: uppercase;
+        }
+        .btn-checkout:hover { box-shadow: 0 0 20px var(--primary-color); transform: translateY(-3px); }
+
+        .empty-msg { text-align: center; color: #aaa; margin-top: 50px; font-size: 1.2rem; }
+        
+        @media (max-width: 768px) {
+            .sidebar { display: none; } 
+            .main { margin-left: 0 !important; width: 100% !important; padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <script src="/js/common.js"></script>
+
+    <main class="main">
+        <div class="container">
+            <h2>Your Cart</h2>
+            
+            <div id="cartContainer" class="cart-list">
+                <!-- Items injected here -->
+            </div>
+
+            <div id="summarySection" class="cart-summary" style="display:none;">
+                <div class="total-row">Total: <span id="totalAmount">₹0</span></div>
+                
+                <div class="payment-options">
+                    <label class="radio-label">
+                        <input type="radio" name="payment" value="Online" checked> Pay Online
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="payment" value="Cash"> Pay Later (Cash)
+                    </label>
+                </div>
+
+                <button class="btn-checkout" onclick="checkout()">Proceed to Checkout</button>
+            </div>
+        </div>
+    </main>
+
+    <script>const CURRENT_PAGE = 'cart';</script>
+    
+    <script>
+        let cartItems = [];
+        let eventsCache = {};
+
+        // 1. Init: Fetch from API instead of LocalStorage
+        async function initCart() {
+            try {
+                // A. Fetch Events (for titles/fees)
+                const resEvents = await fetch('/api/events');
+                const allEvents = await resEvents.json();
+                allEvents.forEach(e => eventsCache[e.eventId] = e);
+
+                // B. Fetch Cart from DB
+                const resCart = await fetch('/api/cart');
+                if(!resCart.ok) throw new Error("Cart fetch failed");
+                cartItems = await resCart.json();
+
+                if (cartItems.length === 0) {
+                    showEmpty();
+                } else {
+                    renderCart();
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('cartContainer').innerHTML = '<div class="empty-msg">Error loading cart. Please try again.</div>';
+            }
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartContainer');
+            container.innerHTML = '';
+            let total = 0;
+
+            cartItems.forEach((item, index) => {
+                const eventDetails = eventsCache[item.eventId];
+                if (!eventDetails) return;
+
+                total += parseInt(eventDetails.fee || 0);
+
+                // Build Team Info String
+                let teamInfo = '';
+                if(item.teamName) {
+                    teamInfo = `<div style="margin-top:5px; font-size:0.85rem; color:#aaa;">
+                        <i class="fa-solid fa-users"></i> Team: <span style="color:white">${item.teamName}</span> 
+                        (${item.teamMembers.length + 1} members)
+                    </div>`;
+                }
+
+                const div = document.createElement('div');
+                div.className = 'cart-item';
+                div.innerHTML = `
+                    <div class="item-info">
+                        <h3>${eventDetails.title}</h3>
+                        <p>Dept: <span style="color:var(--primary-color)">${item.dept}</span> | Type: ${eventDetails.type}</p>
+                        ${teamInfo}
+                    </div>
+                    <div style="display:flex; align-items:center;">
+                        <div class="item-price">₹${eventDetails.fee}</div>
+                        <i class="fa-solid fa-trash btn-remove" onclick="removeItem(${index})"></i>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('totalAmount').innerText = '₹' + total;
+            document.getElementById('summarySection').style.display = 'block';
+        }
+
+        function showEmpty() {
+            document.getElementById('cartContainer').innerHTML = '<div class="empty-msg">Your cart is empty.<br><a href="events.html" style="color:var(--primary-color)">Browse Events</a></div>';
+            document.getElementById('summarySection').style.display = 'none';
+        }
+
+        // 2. Remove: Update DB
+        async function removeItem(index) {
+            cartItems.splice(index, 1); // Remove from array locally first
+
+            // Sync with DB
+            try {
+                await fetch('/api/cart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: cartItems })
+                });
+                
+                if(cartItems.length === 0) showEmpty();
+                else renderCart();
+            } catch(e) {
+                alert("Failed to update cart");
+            }
+        }
+
+        // 3. Checkout: Send Team Details
+        async function checkout() {
+            const btn = document.querySelector('.btn-checkout');
+            const paymentMode = document.querySelector('input[name="payment"]:checked').value;
+            
+            if(confirm(`Confirm registration for ${cartItems.length} events?`)) {
+                btn.innerText = "Processing...";
+                btn.disabled = true;
+
+                let successCount = 0;
+
+                for (const item of cartItems) {
+                    try {
+                        const res = await fetch('/api/register-event', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                eventId: item.eventId,
+                                deptName: item.dept,
+                                paymentMode: paymentMode,
+                                // Pass the stored Team Data
+                                teamName: item.teamName,
+                                teamMembers: item.teamMembers 
+                            })
+                        });
+                        if(res.ok) successCount++;
+                    } catch(e) {
+                        console.error(e);
+                    }
+                }
+
+                if(successCount === cartItems.length) {
+                    alert("Registration Successful!");
+                    // Clear DB Cart after success
+                    await fetch('/api/cart', { method: 'DELETE' });
+                    window.location.href = 'participant/my-registrations'; 
+                } else {
+                    alert(`Registered ${successCount} out of ${cartItems.length} events.`);
+                    // Clear DB Cart anyway to avoid duplicates, or keep failed ones logic can be added here
+                    await fetch('/api/cart', { method: 'DELETE' }); 
+                    window.location.href = 'participant/my-registrations';
+                }
+            }
+        }
+
+        initCart();
+    </script>
+</body>
+</html>

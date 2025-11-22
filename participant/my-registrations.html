@@ -1,1 +1,251 @@
-<!-- Status & Print Bill -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Registrations | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- COSMIC THEME --- */
+        :root {
+            --primary-color: #00d2ff;
+            --accent-color: #ff00cc;
+            --glass-bg: rgba(20, 20, 35, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #0a0a0a; color: var(--text-color); display: flex; min-height: 100vh; overflow-x: hidden; }
+
+        /* Background */
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center center/cover; z-index: -2; }
+        .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 5, 15, 0.92); z-index: -1; }
+
+        /* --- SIDEBAR (Responsive) --- */
+        .sidebar {
+            width: 260px; background: var(--glass-bg); border-right: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px); padding: 2rem; display: flex; flex-direction: column;
+            position: fixed; height: 100vh; z-index: 1000; transition: transform 0.3s ease-in-out; left: 0; top: 0;
+        }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--primary-color); margin-bottom: 3rem; text-align: center; }
+        .menu { list-style: none; flex-grow: 1; }
+        .menu li { margin-bottom: 1rem; }
+        .menu a { text-decoration: none; color: #ccc; display: flex; align-items: center; gap: 15px; padding: 10px; border-radius: 8px; transition: 0.3s; }
+        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); }
+        .logout { color: #ff4444; cursor: pointer; margin-top: auto; }
+
+        /* --- MOBILE HEADER --- */
+        .mobile-header { display: none; }
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999; opacity: 0; transition: opacity 0.3s; }
+
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main { margin-left: 0 !important; width: 100% !important; padding: 1.5rem; padding-top: 80px !important; }
+            .mobile-header {
+                display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+                background: rgba(15, 15, 30, 0.95); backdrop-filter: blur(10px); z-index: 900;
+                align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--glass-border);
+            }
+            .mobile-logo { font-family: 'Montserrat', sans-serif; font-weight: 900; color: white; }
+            .menu-toggle { font-size: 1.5rem; color: var(--primary-color); cursor: pointer; }
+        }
+
+        /* Main Content */
+        .main { flex-grow: 1; padding: 2rem; margin-left: 260px; width: calc(100% - 260px); overflow-y: auto; }
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        h2 { margin-bottom: 2rem; font-family: 'Montserrat', sans-serif; color: var(--primary-color); }
+
+        /* Table Style */
+        .glass-table-container {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
+            border-radius: 15px; padding: 1.5rem; overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { color: var(--primary-color); font-weight: 600; text-transform: uppercase; font-size: 0.9rem; }
+        td { color: #ddd; font-size: 0.95rem; }
+        tr:last-child td { border-bottom: none; }
+
+        /* Status Badges */
+        .status { padding: 5px 10px; border-radius: 50px; font-size: 0.8rem; font-weight: 600; }
+        .status.pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .status.paid { background: rgba(76, 175, 80, 0.2); color: #4caf50; }
+
+        /* Action Buttons */
+        .btn-pay {
+            background: var(--primary-color); color: black; border: none; padding: 5px 15px;
+            border-radius: 5px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .btn-print {
+            background: transparent; border: 1px solid #ccc; color: #ccc; padding: 5px 15px;
+            border-radius: 5px; cursor: pointer; transition: 0.2s;
+        }
+        .btn-print:hover { border-color: white; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <!-- Sidebar Injected by Common JS -->
+
+    <main class="main">
+        <div class="container">
+            <h2>My Registrations</h2>
+            
+            <div class="glass-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Event Name</th>
+                            <th>Department</th>
+                            <th>Payment</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="regTableBody">
+                        <tr><td colspan="5" style="text-align:center;">Loading registrations...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>const CURRENT_PAGE = 'my-registrations';</script>
+    <script src="/js/common.js"></script>
+
+    <!-- Original Logic -->
+    <script>
+        // Cache event names to display nice titles instead of IDs
+        let eventNames = {}; 
+
+        async function loadRegistrations() {
+            const tbody = document.getElementById('regTableBody');
+            
+            try {
+                // 1. First fetch events to create a name map (Optimization)
+                try {
+                    const eventsRes = await fetch('/api/events');
+                    const events = await eventsRes.json();
+                    events.forEach(e => eventNames[e.eventId] = e.title);
+                } catch (e) { console.log("Could not load event names"); }
+
+                // 2. Fetch Registrations
+                const res = await fetch('/api/participant/my-registrations-data');
+                
+                // Handle Redirects (Session Expired)
+                if (res.redirected) {
+                    alert("Session expired. Please login again.");
+                    window.location.href = '../static/login ';
+                    return;
+                }
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(`Server Error: ${res.status} - ${errText}`);
+                }
+
+                const data = await res.json();
+                
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#aaa;">No registrations found. Go to Events to register.</td></tr>';
+                    return;
+                }
+
+                data.forEach(reg => {
+                    const statusClass = reg.paymentStatus === 'COMPLETED' ? 'paid' : 'pending';
+                    const statusText = reg.paymentStatus === 'COMPLETED' ? 'Paid' : 'Pending';
+                    const eventTitle = eventNames[reg.eventId] || "Event ID: " + reg.eventId.substring(0,8);
+                    
+                    // Action Logic
+                    let actionBtn = '';
+                    if (reg.paymentStatus !== 'COMPLETED') {
+                        actionBtn = `<button class="btn-pay" onclick="payNow('${reg.registrationId}')">Pay Now</button>`;
+                    } else {
+                        actionBtn = `<button class="btn-print" onclick="printReceipt('${reg.registrationId}', '${eventTitle}')"><i class="fa-solid fa-print"></i> Receipt</button>`;
+                    }
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="font-weight:500; color:white;">${eventTitle}</td>
+                            <td>${reg.deptName}</td>
+                            <td><span class="status ${statusClass}">${statusText}</span></td>
+                            <td>${reg.attendance ? '<span style="color:#4caf50">Attended</span>' : '<span style="color:#aaa">Not Marked</span>'}</td>
+                            <td>${actionBtn}</td>
+                        </tr>
+                    `;
+                });
+
+            } catch (e) {
+                console.error(e);
+                // Better error message for user
+                let msg = "Error loading data.";
+                if (e.message.includes("StudentIndex")) msg = "Database Error: Student Index missing.";
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ff4444;">${msg} <br> <small>${e.message}</small></td></tr>`;
+            }
+        }
+
+        async function payNow(regId) {
+            if(confirm("Proceed to Payment Gateway?")) {
+                try {
+                    const res = await fetch('/api/payment/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ registrationId: regId, paymentId: "mock_pay_later" })
+                    });
+                    if(res.ok) {
+                        alert("Payment Successful!");
+                        loadRegistrations();
+                    } else {
+                        alert("Payment failed.");
+                    }
+                } catch(e) {
+                    alert("Connection error.");
+                }
+            }
+        }
+
+        function printReceipt(regId, eventTitle) {
+            const win = window.open('', '', 'width=600,height=500');
+            win.document.write(`
+                <html>
+                    <head>
+                        <title>Receipt</title>
+                        <style>
+                            body { font-family: 'Helvetica', sans-serif; padding: 40px; text-align: center; border: 2px solid #333; margin: 20px; }
+                            h2 { color: #00d2ff; }
+                            .details { text-align: left; margin: 20px auto; width: 80%; }
+                            .status { color: green; font-weight: bold; border: 1px solid green; padding: 5px; display: inline-block; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>LAKSHYA 2K26</h2>
+                        <h3>Official Payment Receipt</h3>
+                        <hr>
+                        <div class="details">
+                            <p><strong>Registration ID:</strong> ${regId}</p>
+                            <p><strong>Event:</strong> ${eventTitle}</p>
+                            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                            <p><strong>Amount Paid:</strong> ₹200</p>
+                        </div>
+                        <div class="status">PAID</div>
+                        <br><br><br>
+                        <p>Thank you for participating!</p>
+                        <button onclick="window.print()" style="padding:10px 20px; cursor:pointer;">Print Receipt</button>
+                    </body>
+                </html>
+            `);
+        }
+
+        loadRegistrations();
+    </script>
+</body>
+</html>
