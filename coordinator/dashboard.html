@@ -1,1 +1,245 @@
-<!-- View Dept Registrations -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordinator Dashboard | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* --- COSMIC COORDINATOR THEME --- */
+        :root {
+            --primary-color: #00d2ff;
+            --accent-color: #ff00cc;
+            --glass-bg: rgba(20, 20, 35, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+            --sidebar-width: 260px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #050510; color: var(--text-color); display: flex; min-height: 100vh; overflow-x: hidden; }
+
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center/cover; z-index: -2; }
+        .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,15,0.9); z-index: -1; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--glass-bg); border-right: 1px solid var(--glass-border); 
+            padding: 2rem; display: flex; flex-direction: column; z-index: 1000; height: 100vh; position: sticky; top: 0; 
+            transition: transform 0.3s ease-in-out;
+        }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--primary-color); margin-bottom: 3rem; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .menu { list-style: none; flex-grow: 1; } .menu li { margin-bottom: 1rem; }
+        .menu a { text-decoration: none; color: #ccc; display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; transition: 0.3s; }
+        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); }
+        .logout { color: #ff4444; cursor: pointer; margin-top: auto; }
+
+        /* --- MOBILE HEADER (Responsive) --- */
+        .mobile-header {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 70px;
+            background: rgba(20, 20, 35, 0.95); border-bottom: 1px solid var(--glass-border);
+            z-index: 900; align-items: center; justify-content: space-between; padding: 0 20px;
+            backdrop-filter: blur(10px);
+        }
+        .mobile-logo { font-family: 'Montserrat', sans-serif; font-weight: 900; color: white; font-size: 1.2rem; }
+        .menu-toggle { font-size: 1.5rem; color: var(--primary-color); cursor: pointer; }
+        
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+        .sidebar-overlay.active { display: block; }
+        .close-sidebar-btn { display: none; font-size: 1.2rem; color: white; cursor: pointer; }
+
+        /* --- MAIN CONTENT --- */
+        .main { flex-grow: 1; padding: 2rem; overflow-y: auto; z-index: 1; width: 100%; }
+        .header { display: flex; justify-content: space-between; margin-bottom: 2rem; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .header h2 { font-family: 'Montserrat', sans-serif; font-size: 1.8rem; margin: 0; }
+
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 15px; position: relative; overflow: hidden; }
+        .stat-card::before { content:''; position: absolute; top:0; left:0; width: 4px; height: 100%; background: var(--primary-color); }
+        .stat-card h3 { font-size: 2.5rem; margin-bottom: 5px; color: white; font-family: 'Montserrat', sans-serif; }
+        .stat-card p { color: #aaa; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Charts Section */
+        .charts-container { display: grid; grid-template-columns: 1fr; gap: 2rem; margin-bottom: 2rem; }
+        .chart-card { background: rgba(20, 20, 35, 0.8); border: 1px solid var(--glass-border); border-radius: 15px; padding: 2rem; height: 400px; }
+        
+        .view-btn {
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: white; padding: 10px 20px; border-radius: 50px; text-decoration: none;
+            font-weight: bold; font-size: 0.9rem; display: inline-block; margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0, 210, 255, 0.3); transition: 0.3s;
+        }
+        .view-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 210, 255, 0.5); }
+
+        /* --- RESPONSIVE MEDIA QUERIES --- */
+        @media (max-width: 1024px) {
+            .sidebar { 
+                position: fixed; left: 0; top: 0; height: 100vh; 
+                transform: translateX(-100%); box-shadow: 10px 0 30px rgba(0,0,0,0.5); 
+            }
+            .sidebar.active { transform: translateX(0); }
+            
+            .mobile-header { display: flex; }
+            .close-sidebar-btn { display: block; }
+            
+            .main { 
+                width: 100%; margin-left: 0; 
+                padding: 1.5rem; padding-top: 90px; /* Space for mobile header */ 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <!-- Mobile Header (Visible only on mobile/tablet) -->
+    <div class="mobile-header">
+        <div class="mobile-logo">DEPT COORD</div>
+        <i class="fa-solid fa-bars menu-toggle" onclick="toggleSidebar()"></i>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            DEPT COORD 
+            <i class="fa-solid fa-xmark close-sidebar-btn" onclick="toggleSidebar()"></i>
+        </div>
+        <ul class="menu">
+            <li><a href="dashboard" class="active"><i class="fa-solid fa-chart-pie"></i> Analytics</a></li>
+            <li><a href="registrations"><i class="fa-solid fa-users"></i> Registrations</a></li>
+            <li><a href="attendance"><i class="fa-solid fa-clipboard-user"></i> Attendance</a></li>
+            <li><a href="payment-status"><i class="fa-solid fa-money-bill-wave"></i> Payments</a></li>
+            <li><a href="assign-score"><i class="fa-solid fa-pen-to-square"></i> Assign Score</a></li>
+            <li><a onclick="logout()" class="logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="main">
+        <div class="header">
+            <div class="header-left">
+                <h2 id="deptTitle">Department Analytics</h2>
+            </div>
+            <div class="user-info">Coordinator Panel <i class="fa-solid fa-circle-user"></i></div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3 id="totalReg">0</h3>
+                <p>Total Registrations</p>
+            </div>
+            <div class="stat-card" style="--primary-color: #4caf50;">
+                <h3 id="confirmedPay" style="color:#4caf50;">0</h3>
+                <p>Confirmed (Paid)</p>
+            </div>
+            <div class="stat-card" style="--primary-color: #ffc107;">
+                <h3 id="pendingPay" style="color:#ffc107;">0</h3>
+                <p>Pending Payment</p>
+            </div>
+            <div class="stat-card" style="--primary-color: #ff00cc;">
+                <h3 id="totalRevenue">₹0</h3>
+                <p>Est. Revenue</p>
+            </div>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-card">
+                <canvas id="eventChart"></canvas>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <p style="color:#aaa;">Want to see detailed lists?</p>
+            <a href="registrations" class="view-btn">View All Student Registrations <i class="fa-solid fa-arrow-right"></i></a>
+        </div>
+
+    </main>
+
+    <script>
+        let eventsMap = {};
+
+        // --- SIDEBAR TOGGLE ---
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        async function loadAnalytics() {
+            try {
+                // Fetch Event Titles
+                const eventsRes = await fetch('/api/events');
+                const eventsData = await eventsRes.json();
+                eventsData.forEach(e => eventsMap[e.eventId] = e.title);
+
+                // Fetch Dashboard Data
+                const res = await fetch('/api/coordinator/dashboard-data');
+                if (res.redirected) { window.location.href = '../login'; return; }
+                
+                const data = await res.json();
+                const regs = data.registrations;
+                
+                document.getElementById('deptTitle').innerText = (data.dept || 'Department') + " Analytics";
+                
+                // 1. Card Stats
+                const total = regs.length;
+                const paid = regs.filter(r => r.paymentStatus === 'COMPLETED').length;
+                const pending = total - paid;
+                
+                const revenue = paid * 200; // Placeholder
+
+                document.getElementById('totalReg').innerText = total;
+                document.getElementById('confirmedPay').innerText = paid;
+                document.getElementById('pendingPay').innerText = pending;
+                document.getElementById('totalRevenue').innerText = '₹' + revenue;
+
+                // 2. Chart Data Preparation
+                const eventCounts = {};
+                regs.forEach(r => {
+                    const title = eventsMap[r.eventId] || "Unknown Event";
+                    eventCounts[title] = (eventCounts[title] || 0) + 1;
+                });
+
+                renderChart(eventCounts);
+
+            } catch (e) { console.error(e); }
+        }
+
+        function renderChart(dataObj) {
+            const ctx = document.getElementById('eventChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(dataObj),
+                    datasets: [{
+                        label: 'Registrations',
+                        data: Object.values(dataObj),
+                        backgroundColor: 'rgba(0, 210, 255, 0.5)',
+                        borderColor: '#00d2ff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: 'white' } },
+                        title: { display: true, text: 'Registrations by Event Comparison', color: 'white', font: {size: 16} }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#aaa' } },
+                        x: { grid: { display: false }, ticks: { color: '#aaa' } }
+                    }
+                }
+            });
+        }
+
+        function logout() { localStorage.clear(); window.location.href = '../login'; }
+        loadAnalytics();
+    </script>
+</body>
+</html>

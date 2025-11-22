@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registrations | Coordinator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        /* --- COSMIC THEME VARIABLES --- */
+        :root {
+            --primary-color: #00d2ff;
+            --secondary-color: #3a7bd5;
+            --accent-color: #ff00cc;
+            --glass-bg: #141423; /* Removed transparency for crispness */
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+            --sidebar-width: 260px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { 
+            background-color: #050510; color: var(--text-color); 
+            display: flex; min-height: 100vh; overflow-x: hidden; 
+            -webkit-font-smoothing: antialiased; /* Sharper Text */
+        }
+
+        /* --- BACKGROUND LAYERS --- */
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center/cover; z-index: -2; }
+        .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,15,0.9); z-index: -1; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { 
+            width: var(--sidebar-width); background: var(--glass-bg); border-right: 1px solid var(--glass-border); 
+            padding: 2rem; display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; z-index: 1000; 
+            transition: transform 0.3s ease-in-out;
+            /* Removed backdrop-filter to fix blurriness */
+        }
+        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--primary-color); margin-bottom: 3rem; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .menu { list-style: none; flex-grow: 1; } .menu li { margin-bottom: 1rem; }
+        .menu a { text-decoration: none; color: #ccc; display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; transition: 0.3s; }
+        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); border: 1px solid rgba(0,210,255,0.2); box-shadow: 0 0 15px rgba(0,210,255,0.1); }
+        .logout { color: #ff4444; cursor: pointer; margin-top: auto; border: 1px solid rgba(255,68,68,0.2); }
+        .logout:hover { background: rgba(255,68,68,0.1) !important; }
+
+        /* --- MOBILE NAV --- */
+        .mobile-header { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 70px; 
+            background: #141423; /* Solid background for crispness */
+            border-bottom: 1px solid var(--glass-border); 
+            z-index: 1100; /* Higher than sidebar */
+            align-items: center; justify-content: space-between; padding: 0 20px; 
+        }
+        .mobile-logo { font-family: 'Montserrat', sans-serif; font-weight: 900; color: white; font-size: 1.2rem; }
+        .menu-toggle { font-size: 1.5rem; color: var(--primary-color); cursor: pointer; }
+        
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+        .sidebar-overlay.active { display: block; }
+        .close-sidebar-btn { display: none; font-size: 1.2rem; color: white; cursor: pointer; }
+
+        /* --- MAIN CONTENT --- */
+        .main { flex-grow: 1; padding: 2rem; overflow-y: auto; z-index: 1; width: 100%; }
+        
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        h2 { font-family: 'Montserrat', sans-serif; color: var(--primary-color); margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+        .user-info { font-size: 0.9rem; color: #aaa; display: flex; align-items: center; gap: 10px; }
+
+        /* --- CONTROLS BAR --- */
+        .controls-bar {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+            padding: 15px; border-radius: 10px; margin-bottom: 20px;
+            display: flex; gap: 15px; align-items: center; flex-wrap: wrap;
+        }
+        
+        select, input {
+            padding: 12px; background: #151520; border: 1px solid #444; color: white; 
+            border-radius: 6px; outline: none; font-family: 'Poppins';
+        }
+        select { min-width: 200px; cursor: pointer; }
+        input { flex-grow: 1; min-width: 220px; }
+        input:focus, select:focus { border-color: var(--primary-color); }
+
+        .btn { 
+            padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; 
+            font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; 
+            transition: 0.3s; font-size: 0.9rem;
+        }
+        .btn-excel { background: rgba(31, 111, 74, 0.8); border: 1px solid #2e8b57; } 
+        .btn-excel:hover { background: #2e8b57; transform: translateY(-2px); }
+        
+        .btn-pdf { background: rgba(211, 47, 47, 0.8); border: 1px solid #b71c1c; } 
+        .btn-pdf:hover { background: #b71c1c; transform: translateY(-2px); }
+
+        /* --- TABLE --- */
+        .table-wrapper { 
+            background: rgba(20, 20, 35, 0.8); border-radius: 15px; padding: 0; 
+            overflow: hidden; border: 1px solid var(--glass-border); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .table-scroll { overflow-x: auto; }
+        
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        th, td { padding: 15px 20px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { background: rgba(0, 210, 255, 0.05); color: var(--primary-color); font-weight: 700; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+        td { color: #ddd; font-size: 0.95rem; }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+        .click-link { color: var(--primary-color); cursor: pointer; text-decoration: underline; font-weight: 500; transition: 0.2s; }
+        .click-link:hover { color: white; text-shadow: 0 0 10px var(--primary-color); }
+        
+        .badge { padding: 5px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
+        .badge-paid { background: rgba(76, 175, 80, 0.15); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); }
+        .badge-pending { background: rgba(255, 193, 7, 0.15); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3); }
+
+        /* --- MODAL --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-box { background: #151520; padding: 2rem; border-radius: 15px; border: 1px solid var(--glass-border); width: 90%; max-width: 650px; max-height: 85vh; overflow-y: auto; box-shadow: 0 0 50px rgba(0,0,0,0.8); position: relative; }
+        .modal-close { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 1.5rem; color: #aaa; transition: 0.2s; }
+        .modal-close:hover { color: #ff4444; transform: rotate(90deg); }
+        
+        .detail-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 12px 0; }
+        .detail-label { color: #888; }
+        .detail-val { color: white; font-weight: 500; text-align: right; }
+
+        .team-table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 0.9rem; }
+        .team-table th { text-align: left; color: var(--primary-color); background: rgba(255,255,255,0.05); padding: 10px; }
+        .team-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ddd; }
+
+        /* --- RESPONSIVE --- */
+        @media(max-width: 1024px) { 
+            .sidebar { 
+                position: fixed; left: 0; top: 0; height: 100vh; 
+                transform: translateX(-100%); box-shadow: 10px 0 30px rgba(0,0,0,0.5); 
+            }
+            .sidebar.active { transform: translateX(0); }
+            
+            .mobile-header { display: flex; }
+            .close-sidebar-btn { display: block; }
+            
+            .main { 
+                width: 100%; margin-left: 0; 
+                padding: 1.5rem; padding-top: 90px; /* Space for mobile header */ 
+            }
+            .controls-bar { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Backgrounds -->
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="mobile-logo">DEPT COORD</div>
+        <i class="fa-solid fa-bars menu-toggle" onclick="toggleSidebar()"></i>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">
+            DEPT COORD 
+            <i class="fa-solid fa-xmark close-sidebar-btn" onclick="toggleSidebar()"></i>
+        </div>
+        <ul class="menu">
+            <li><a href="dashboard"><i class="fa-solid fa-chart-pie"></i> Analytics</a></li>
+            <li><a href="registrations" class="active"><i class="fa-solid fa-users"></i> Registrations</a></li>
+            <li><a href="attendance"><i class="fa-solid fa-clipboard-user"></i> Attendance</a></li>
+            <li><a href="payment-status"><i class="fa-solid fa-money-bill-wave"></i> Payments</a></li>
+            <li><a href="assign-score"><i class="fa-solid fa-pen-to-square"></i> Assign Score</a></li>
+            <li><a onclick="logout()" class="logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="page-header">
+            <h2>Student Registrations</h2>
+            <div class="user-info">Coordinator Panel <i class="fa-solid fa-circle-user"></i></div>
+        </div>
+
+        <div class="controls-bar">
+            <select id="eventSelect" onchange="filterData()">
+                <option value="all">All Events</option>
+                <!-- Options populated by JS -->
+            </select>
+            
+            <input type="text" id="searchInput" placeholder="Search Team, Email, Roll No or Reg ID..." onkeyup="filterData()">
+            
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-excel" onclick="exportExcel()"><i class="fa-solid fa-file-excel"></i> Excel</button>
+                <button class="btn btn-pdf" onclick="exportPDF()"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <div class="table-scroll">
+                <table id="regTable">
+                    <thead>
+                        <tr>
+                            <th>Team / Participant</th>
+                            <th>Event Name</th>
+                            <th>Reg ID</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="5" style="text-align:center; padding:30px;">Loading registrations...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal-box">
+            <span class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></span>
+            <h3 style="color:var(--primary-color); margin-bottom:20px; font-family:'Montserrat';" id="modalTitle">Details</h3>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        let allRegistrations = [];
+        let filteredRegistrations = [];
+        let eventsMap = {};
+        let deptName = "";
+
+        // --- SIDEBAR TOGGLE ---
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        // --- INITIALIZATION ---
+        async function init() {
+            try {
+                // 1. Fetch all events to map IDs to Titles
+                const eventsRes = await fetch('/api/events');
+                const eventsData = await eventsRes.json();
+                eventsData.forEach(e => eventsMap[e.eventId] = e.title);
+
+                // 2. Fetch only My Department Events for the Dropdown Filter
+                const myEventsRes = await fetch('/api/coordinator/my-events');
+                const myEvents = await myEventsRes.json();
+                const eventSelect = document.getElementById('eventSelect');
+                myEvents.forEach(e => {
+                    const opt = document.createElement('option');
+                    opt.value = e.eventId;
+                    opt.innerText = e.title;
+                    eventSelect.appendChild(opt);
+                });
+
+                // 3. Fetch All Registrations for this Coordinator's Dept
+                const res = await fetch('/api/coordinator/dashboard-data');
+                if (res.redirected) { window.location.href = '../login'; return; }
+                
+                const data = await res.json();
+                allRegistrations = data.registrations;
+                deptName = data.dept || 'Dept';
+                
+                // Initial Render
+                filteredRegistrations = allRegistrations;
+                renderTable(filteredRegistrations);
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error loading data. Please refresh.</td></tr>';
+            }
+        }
+
+        // --- RENDER TABLE ---
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if(data.length === 0) { 
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#aaa;">No records found matching your criteria.</td></tr>'; 
+                return; 
+            }
+
+            data.forEach(reg => {
+                const eventName = eventsMap[reg.eventId] || reg.eventId;
+                const badgeClass = reg.paymentStatus === 'COMPLETED' ? 'badge-paid' : 'badge-pending';
+                
+                // Display Logic: Team Name if exists, else Student Email
+                let displayName = reg.studentEmail;
+                let icon = '<i class="fa-solid fa-user"></i>';
+                
+                if(reg.teamName) {
+                    displayName = `<span style="color:var(--accent-color); font-weight:600;">${reg.teamName}</span>`;
+                    icon = '<i class="fa-solid fa-users"></i>';
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${icon} &nbsp; ${displayName}</td>
+                        <td>${eventName}</td>
+                        <td style="font-family:monospace; color:#888;">${reg.registrationId.substring(0,8)}...</td>
+                        <td><span class="badge ${badgeClass}">${reg.paymentStatus}</span></td>
+                        <td><span class="click-link" onclick="viewDetails('${reg.registrationId}')">View Details</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- FILTERING LOGIC ---
+        function filterData() {
+            const eventId = document.getElementById('eventSelect').value;
+            const term = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredRegistrations = allRegistrations.filter(reg => {
+                // 1. Event Filter
+                const matchEvent = (eventId === 'all') || (reg.eventId === eventId);
+                
+                // 2. Search Filter
+                const eventName = (eventsMap[reg.eventId] || '').toLowerCase();
+                const team = (reg.teamName || '').toLowerCase();
+                
+                const matchSearch = reg.studentEmail.toLowerCase().includes(term) || 
+                                    team.includes(term) || 
+                                    eventName.includes(term) ||
+                                    reg.registrationId.toLowerCase().includes(term);
+
+                return matchEvent && matchSearch;
+            });
+
+            renderTable(filteredRegistrations);
+        }
+
+        // --- DETAILS MODAL LOGIC ---
+        async function viewDetails(regId) {
+            const reg = allRegistrations.find(r => r.registrationId === regId);
+            if(!reg) return;
+
+            const modal = document.getElementById('detailModal');
+            const content = document.getElementById('modalContent');
+            const title = document.getElementById('modalTitle');
+            
+            modal.style.display = 'flex';
+            content.innerHTML = '<p style="text-align:center; padding:20px;">Loading student details...</p>';
+
+            try {
+                // Fetch the Leader/Student Profile Data from DB
+                const res = await fetch(`/api/coordinator/student-details?email=${reg.studentEmail}`);
+                const user = await res.json();
+
+                if(reg.teamName) {
+                    // --- TEAM VIEW ---
+                    title.innerText = `Team: ${reg.teamName}`;
+                    let html = `
+                        <div style="margin-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">
+                            <p style="color:#aaa;">Event: <strong style="color:white;">${eventsMap[reg.eventId]}</strong></p>
+                            <p style="color:#aaa;">Status: <strong style="color:${reg.paymentStatus==='COMPLETED'?'#4caf50':'#ffc107'}">${reg.paymentStatus}</strong></p>
+                        </div>
+                        
+                        <h4 style="color:var(--primary-color); margin-bottom:10px;">Team Members</h4>
+                        <div class="table-scroll">
+                        <table class="team-table">
+                            <thead>
+                                <tr><th>Role</th><th>Name</th><th>Year</th><th>Mobile</th><th>Email</th></tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    // 1. Leader Row (Data from DB)
+                    html += `
+                        <tr>
+                            <td style="color:#4caf50; font-weight:bold;">Leader</td>
+                            <td>${user.fullName || 'N/A'}</td>
+                            <td>${user.year || 'N/A'}</td>
+                            <td>${user.mobile || 'N/A'}</td>
+                            <td>${reg.studentEmail}</td>
+                        </tr>
+                    `;
+                    
+                    // 2. Member Rows (Data from Registration JSON)
+                    if(reg.teamMembers && reg.teamMembers.length > 0) {
+                        reg.teamMembers.forEach(m => {
+                            html += `
+                                <tr>
+                                    <td>Member</td>
+                                    <td>${m.name}</td>
+                                    <td>${m.year || 'N/A'}</td>
+                                    <td>${m.mobile}</td>
+                                    <td>${m.email}</td>
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        html += `<tr><td colspan="5" style="text-align:center; color:#666;">No additional members listed.</td></tr>`;
+                    }
+                    
+                    html += `</tbody></table></div>`;
+                    content.innerHTML = html;
+
+                } else {
+                    // --- INDIVIDUAL VIEW ---
+                    title.innerText = "Student Profile";
+                    content.innerHTML = `
+                        <div class="detail-row"><span class="detail-label">Full Name</span><span class="detail-val">${user.fullName || 'N/A'}</span></div>
+                        <div class="detail-row"><span class="detail-label">Register No</span><span class="detail-val">${user.rollNo || 'N/A'}</span></div>
+                        <div class="detail-row"><span class="detail-label">Email</span><span class="detail-val">${reg.studentEmail}</span></div>
+                        <div class="detail-row"><span class="detail-label">Phone</span><span class="detail-val">${user.mobile || 'N/A'}</span></div>
+                        <div class="detail-row"><span class="detail-label">Year</span><span class="detail-val">${user.year || 'N/A'}</span></div>
+                        <div class="detail-row"><span class="detail-label">College</span><span class="detail-val">${user.college || 'N/A'}</span></div>
+                        <div class="detail-row" style="border:none; margin-top:15px;"><span class="detail-label">Event Registered</span><span class="detail-val" style="color:var(--primary-color)">${eventsMap[reg.eventId]}</span></div>
+                    `;
+                }
+            } catch(e) { 
+                console.error(e);
+                content.innerHTML = '<p style="color:#ff4444; text-align:center;">Failed to load details.</p>'; 
+            }
+        }
+
+        function closeModal() { document.getElementById('detailModal').style.display = 'none'; }
+
+        // --- EXPORT LOGIC ---
+        
+        // Helper: Get full user details for all displayed rows to ensure Year/Name is present
+        async function fetchUserDataForExport(dataToExport) {
+            const emails = dataToExport.map(r => r.studentEmail);
+            const unique = [...new Set(emails)]; // Deduplicate
+            
+            if(unique.length === 0) return {};
+
+            const res = await fetch('/api/coordinator/export-data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ emails: unique })
+            });
+            return await res.json();
+        }
+
+        async function exportExcel() {
+            if(filteredRegistrations.length === 0) return alert("No data to export.");
+            
+            // Fetch full details (Name, Year, etc.)
+            const userMap = await fetchUserDataForExport(filteredRegistrations);
+            
+            const data = filteredRegistrations.map(reg => {
+                const user = userMap[reg.studentEmail] || {};
+                return {
+                    "Team Name": reg.teamName || "N/A",
+                    "Leader Name": user.fullName || "N/A",
+                    "Leader Year": user.year || "N/A",
+                    "Email": reg.studentEmail,
+                    "Mobile": user.mobile || "N/A",
+                    "Event": eventsMap[reg.eventId] || reg.eventId,
+                    "Payment Status": reg.paymentStatus
+                };
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Registrations");
+            XLSX.writeFile(wb, `${deptName}_Registrations.xlsx`);
+        }
+
+        async function exportPDF() {
+            if(filteredRegistrations.length === 0) return alert("No data to export.");
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const userMap = await fetchUserDataForExport(filteredRegistrations);
+
+            doc.setFontSize(16);
+            doc.text(`${deptName} - Registration List`, 14, 20);
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+
+            const tableData = filteredRegistrations.map(reg => {
+                const user = userMap[reg.studentEmail] || {};
+                return [
+                    reg.teamName || "-",
+                    user.fullName || "N/A",
+                    user.year || "-",
+                    reg.studentEmail,
+                    eventsMap[reg.eventId] || reg.eventId
+                ];
+            });
+
+            doc.autoTable({
+                head: [['Team', 'Leader Name', 'Year', 'Email', 'Event']],
+                body: tableData,
+                startY: 30,
+            });
+
+            doc.save(`${deptName}_Registrations.pdf`);
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '../login';
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
