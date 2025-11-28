@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Committee | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="\assets\logo.png">
+    <style>
+        /* --- COSMIC THEME VARIABLES --- */
+        :root {
+            --primary-color: #00d2ff;
+            --secondary-color: #3a7bd5;
+            --accent-color: #ff00cc;
+            --text-color: #ffffff;
+            --glass-bg: rgba(10, 10, 20, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --mobile-glass: rgba(5, 5, 12, 0.95);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; }
+
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center top/cover; z-index: -2; }
+        .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(5,5,15,0.7), rgba(5,5,15,0.98)); z-index: -1; }
+
+        /* --- UPDATED RESPONSIVE NAVIGATION --- */
+        nav {
+            position: fixed; top: 0; left: 0; width: 100%;
+            height: 90px; padding: 0 4%;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000; transition: 0.4s;
+            background: rgba(5, 5, 10, 0.6); 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .logo {
+            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900;
+            background: linear-gradient(45deg, var(--primary-color), #ffffff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: 1px; cursor: pointer; z-index: 1002;
+        }
+
+        .nav-links { display: flex; list-style: none; gap: 2rem; align-items: center; transition: 0.4s; }
+
+        .nav-links li a {
+            text-decoration: none; color: var(--text-color); font-weight: 500;
+            font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+            transition: 0.3s; position: relative; white-space: nowrap;
+        }
+
+        .nav-links li a:hover, .nav-links li a.active { color: var(--primary-color); text-shadow: 0 0 10px var(--primary-color); }
+        .nav-links li a::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0%; height: 2px; background: var(--primary-color); transition: 0.3s; }
+        .nav-links li a:hover::after { width: 100%; }
+
+        .btn-login { padding: 0.6rem 1.5rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; }
+        .btn-register { padding: 0.6rem 1.5rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; }
+
+        .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 30px; height: 21px; cursor: pointer; z-index: 1003; }
+        .bar { width: 100%; height: 3px; background-color: white; border-radius: 3px; transition: 0.4s; }
+        
+        .menu-toggle.is-active .bar:nth-child(1) { transform: translateY(9px) rotate(45deg); background-color: var(--primary-color); }
+        .menu-toggle.is-active .bar:nth-child(2) { opacity: 0; }
+        .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-9px) rotate(-45deg); background-color: var(--primary-color); }
+
+        /* Committee Styles */
+        .container { padding: 150px 10% 50px 10%; min-height: 100vh; }
+        .section-title { text-align: center; margin-bottom: 3rem; font-family: 'Montserrat'; font-size: 3rem; background: linear-gradient(to right, #fff, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .accordion-item { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 10px; margin-bottom: 1.5rem; overflow: hidden; transition: 0.3s; }
+        .accordion-header { padding: 1.5rem 2rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); }
+        .accordion-header:hover { background: rgba(0, 210, 255, 0.1); }
+        .accordion-header h3 { font-family: 'Montserrat'; margin: 0; font-size: 1.2rem; letter-spacing: 1px; }
+        .accordion-header i { transition: 0.3s; color: var(--primary-color); }
+        
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out; background: rgba(0,0,0,0.3); }
+        .accordion-content.open { max-height: 6000px; }
+
+        .members-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2rem; padding: 2rem; }
+        .member-card { background: transparent; padding: 0; border: none; border-radius: 12px; transition: 0.3s; overflow: hidden; }
+        .member-card:hover { transform: translateY(-5px); }
+        .member-img { width: 100%; height: auto; display: block; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); }
+
+        /* --- RESPONSIVE BREAKPOINTS --- */
+        @media (max-width: 1100px) {
+            nav { padding: 0 2rem; }
+            .menu-toggle { display: flex; }
+            
+            .nav-links {
+                position: fixed; top: 0; right: -100%;
+                height: 100vh; width: 75%; max-width: 350px;
+                background: var(--mobile-glass); backdrop-filter: blur(20px);
+                flex-direction: column; justify-content: flex-start;
+                align-items: center; gap: 2rem;
+                padding-top: 100px; padding-bottom: 50px;
+                border-left: 1px solid var(--glass-border);
+                transition: right 0.4s ease-in-out;
+                z-index: 1001; overflow-y: auto;
+            }
+            .nav-links.active { right: 0; }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 120px 5% 50px 5%; }
+            .members-grid { grid-template-columns: 1fr; gap: 1.5rem; padding: 1rem; }
+            .section-title { font-size: 2.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+
+    <nav>
+        <div class="logo" onclick="window.location.href='home'">LAKSHYA 2K26</div>
+        
+        <ul class="nav-links" id="navLinks">
+            <li><a href="home" onclick="closeMenu()">Home</a></li>
+            <li><a href="about" onclick="closeMenu()">About Us</a></li>
+            <li><a href="brochure" onclick="closeMenu()">Brochure</a></li>
+            <li><a href="events" onclick="closeMenu()">Events</a></li>
+            <li><a href="culturals" onclick="closeMenu()">Culturals</a></li>
+            <li><a href="committee" class="active" onclick="closeMenu()">Committee</a></li>
+            <li><a href="contact" onclick="closeMenu()">Contact</a></li>
+            <li><a href="register" class="btn-register" onclick="closeMenu()">Register</a></li>
+            <li><a href="login" class="btn-login" onclick="closeMenu()">Login</a></li>
+        </ul>
+
+        <div class="menu-toggle" id="mobile-menu" onclick="toggleMenu()">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="section-title">ORGANIZING COMMITTEE</h1>
+        <div id="committeeContainer">
+            <p style="text-align:center; color:#aaa;">Loading Committee...</p>
+        </div>
+    </div>
+<script src="/js/chatbot.js"></script>
+    <script>
+        const nav = document.getElementById('navLinks');
+        const menuToggle = document.getElementById('mobile-menu');
+
+        function toggleMenu() {
+            nav.classList.toggle('active');
+            menuToggle.classList.toggle('is-active');
+        }
+
+        function closeMenu() {
+            nav.classList.remove('active');
+            menuToggle.classList.remove('is-active');
+        }
+
+        document.addEventListener('click', function(event) {
+            if (!nav.contains(event.target) && !menuToggle.contains(event.target) && nav.classList.contains('active')) {
+                closeMenu();
+            }
+        });
+
+        const priorityCategories = ["Chief Patrons", "Patrons", "Conveners", "Co-Conveners"];
+
+        async function loadCommittee() {
+            const container = document.getElementById('committeeContainer');
+            // Simplified Mock Data for Preview if API fails or isn't real
+            // In real usage, keep your fetch('/api/committee') logic.
+            // For now, I'll keep your fetch logic but wrap it safely.
+            try {
+                // Simulating fetch for preview purposes if API is not live in this environment
+                // Replace this block with your actual fetch call
+                const res = await fetch('/api/committee'); 
+                const members = await res.json();
+
+                if(members.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;">No committee data found.</p>';
+                    return;
+                }
+                
+                // ... (Rest of your existing sorting logic) ...
+                const grouped = {};
+                members.forEach(m => {
+                    if (!m.category || m.category === 'undefined' || m.category === 'null') return;
+                    if (!m.imageUrl || m.imageUrl === 'undefined' || m.imageUrl === 'null') return;
+                    if(!grouped[m.category]) grouped[m.category] = [];
+                    grouped[m.category].push(m);
+                });
+
+                let categories = Object.keys(grouped);
+                categories.sort((a, b) => {
+                    const idxA = priorityCategories.indexOf(a);
+                    const idxB = priorityCategories.indexOf(b);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1; 
+                    if (idxB !== -1) return 1; 
+                    return a.localeCompare(b);
+                });
+
+                container.innerHTML = '';
+                categories.forEach((cat, index) => {
+                    const sectionMembers = grouped[cat];
+                    const isOpen = index === 0 ? 'open' : ''; 
+                    const rotate = index === 0 ? 'style="transform: rotate(180deg)"' : '';
+                    let cardsHtml = '';
+                    sectionMembers.forEach(m => {
+                        cardsHtml += `<div class="member-card"><img src="${m.imageUrl}" class="member-img" onerror="this.style.display='none'"></div>`;
+                    });
+                    const sectionHtml = `
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
+                                <h3>${cat}</h3>
+                                <i class="fa-solid fa-chevron-down" ${rotate}></i>
+                            </div>
+                            <div class="accordion-content ${isOpen}"><div class="members-grid">${cardsHtml}</div></div>
+                        </div>`;
+                    container.innerHTML += sectionHtml;
+                });
+
+            } catch(e) {
+                // Fallback for preview if API is missing
+                console.log("API not found, standard behavior.");
+                container.innerHTML = '<p style="text-align:center;">Committee data loading...</p>'; 
+            }
+        }
+
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('i');
+            content.classList.toggle('open');
+            icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+        
+        loadCommittee();
+    </script>
+</body>
+</html>

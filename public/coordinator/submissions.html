@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Submissions | Coordinator</title>
+    <link rel="icon" type="image/png" href="\assets\logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary-color: #00d2ff; --glass-bg: rgba(20, 20, 35, 0.95); --text-color: #ffffff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #050510; color: var(--text-color); min-height: 100vh; }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h2 { font-family: 'Montserrat'; color: var(--primary-color); }
+
+        .submission-card {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; padding: 20px; margin-bottom: 15px;
+            display: grid; grid-template-columns: 2fr 3fr 1fr; gap: 20px; align-items: start;
+            transition: 0.3s;
+        }
+        .submission-card:hover { border-color: var(--primary-color); background: rgba(255, 255, 255, 0.08); }
+
+        .meta-info h4 { color: white; font-size: 1.1rem; margin-bottom: 5px; }
+        .meta-info p { color: #aaa; font-size: 0.9rem; margin-bottom: 3px; }
+        
+        .content-info h5 { color: var(--primary-color); margin-bottom: 5px; }
+        .abstract-box { 
+            background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; 
+            font-size: 0.9rem; color: #ccc; max-height: 100px; overflow-y: auto;
+        }
+
+        .action-info { text-align: right; }
+        .btn-view {
+            display: inline-block; padding: 10px 20px; 
+            background: linear-gradient(45deg, var(--primary-color), #007bff);
+            color: white; text-decoration: none; border-radius: 6px; font-weight: bold;
+            transition: 0.3s;
+        }
+        .btn-view:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 210, 255, 0.3); }
+
+        .back-link { color: #aaa; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+        .back-link:hover { color: white; }
+
+        @media(max-width: 768px) {
+            .submission-card { grid-template-columns: 1fr; gap: 15px; }
+            .action-info { text-align: left; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="dashboard" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+        
+        <div class="header">
+            <h2>Paper & Project Submissions</h2>
+            <button onclick="loadSubmissions()" style="background:transparent; border:1px solid var(--primary-color); color:var(--primary-color); padding:8px 15px; border-radius:5px; cursor:pointer;"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+
+        <div id="subsContainer">
+            <p style="color:#aaa; text-align:center;">Loading submissions...</p>
+        </div>
+    </div>
+
+    <script>
+        let eventsMap = {};
+
+        async function loadEvents() {
+            try {
+                const res = await fetch('/api/events');
+                const data = await res.json();
+                data.forEach(e => eventsMap[e.eventId] = e.title);
+            } catch(e) {}
+        }
+
+        async function loadSubmissions() {
+            const container = document.getElementById('subsContainer');
+            container.innerHTML = '<p style="color:#aaa; text-align:center;">Loading...</p>';
+            
+            await loadEvents();
+
+            try {
+                const res = await fetch('/api/coordinator/submissions');
+                const data = await res.json();
+
+                if(data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:50px; color:#666;"><h3>No Submissions Found</h3><p>Registrations with uploads will appear here.</p></div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                data.forEach(sub => {
+                    const eventName = eventsMap[sub.eventId] || sub.eventId;
+                    const date = new Date(sub.registeredAt).toLocaleDateString();
+                    const abstract = sub.submissionAbstract || "No abstract provided.";
+                    const title = sub.submissionTitle || "Untitled Submission";
+                    
+                    let fileBtn = '';
+                    if(sub.submissionUrl) {
+                        fileBtn = `<a href="${sub.submissionUrl}" target="_blank" class="btn-view"><i class="fa-solid fa-cloud-arrow-down"></i> View File</a>`;
+                    } else {
+                        fileBtn = `<span style="color:#666; font-size:0.9rem;">No File Uploaded</span>`;
+                    }
+
+                    const teamBadge = sub.teamName ? `<span style="background:#ff00cc33; color:#ff88dd; padding:2px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px;">${sub.teamName}</span>` : '';
+
+                    const card = `
+                        <div class="submission-card">
+                            <div class="meta-info">
+                                <h4>${sub.studentEmail}</h4>
+                                <p><i class="fa-solid fa-calendar-check"></i> ${eventName}</p>
+                                <p><i class="fa-solid fa-clock"></i> ${date}</p>
+                                <div style="margin-top:10px;">${teamBadge}</div>
+                            </div>
+                            <div class="content-info">
+                                <h5>${title}</h5>
+                                <div class="abstract-box">${abstract}</div>
+                            </div>
+                            <div class="action-info">
+                                ${fileBtn}
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += card;
+                });
+
+            } catch(e) {
+                console.error(e);
+                container.innerHTML = '<p style="color:red; text-align:center;">Failed to load data.</p>';
+            }
+        }
+
+        loadSubmissions();
+    </script>
+</body>
+</html>

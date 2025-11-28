@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Registrations | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <link rel="icon" type="image/png" href="\assets\logo.png"><link rel="icon" type="image/png" href="\assets\logo.png"><link rel="icon" type="image/png" href="\assets\logo.png">
+    <!-- 1. CONNECT COMMON JS & SET PAGE ID -->
+    <script>const CURRENT_PAGE = 'my-registrations';</script>
+    <script src="/js/common.js"></script>
+    <script src="/js/chatbot.js"></script>
+
+    <style>
+        /* --- COSMIC THEME --- */
+        :root { 
+            --primary-color: #00d2ff; 
+            --secondary-color: #3a7bd5; 
+            --accent-color: #ff00cc; 
+            --glass-bg: rgba(20, 20, 35, 0.85); 
+            --glass-border: rgba(255, 255, 255, 0.1); 
+            --text-color: #ffffff; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        
+        body { 
+            background-color: #0a0a0a; 
+            color: var(--text-color); 
+            display: flex; 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+        }
+
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center center/cover; z-index: -2; opacity: 0.6; }
+        .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 5, 12, 0.92); z-index: -1; }
+
+        /* --- MAIN LAYOUT (Adjusted for Common Sidebar) --- */
+        .main { 
+            flex-grow: 1; 
+            padding: 3rem; 
+            margin-left: 260px; /* Matches common.js sidebar width */
+            width: calc(100% - 260px); 
+            overflow-y: auto; 
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; padding-bottom: 80px; }
+        .page-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .page-header h2 { font-family: 'Montserrat', sans-serif; font-size: 2rem; color: white; }
+
+        /* --- REGISTRATION CARDS --- */
+        .reg-list { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+        .reg-card { 
+            background: rgba(30, 30, 40, 0.6); 
+            border: 1px solid var(--glass-border); 
+            border-radius: 15px; 
+            padding: 1.5rem; 
+            display: flex; 
+            flex-wrap: wrap; 
+            align-items: center; 
+            justify-content: space-between; 
+            gap: 20px; 
+            transition: 0.3s; 
+            position: relative; 
+            overflow: hidden; 
+        }
+        .reg-card:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .reg-card::before { content:''; position: absolute; left: 0; top: 0; height: 100%; width: 4px; background: var(--primary-color); }
+        .reg-card.pending::before { background: #ffc107; }
+        
+        .reg-details { flex: 1; min-width: 200px; }
+        .reg-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 5px; color: white; font-family: 'Montserrat'; }
+        .reg-meta { color: #aaa; font-size: 0.9rem; display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 8px; }
+        
+        .team-badge { background: rgba(255, 0, 204, 0.1); border: 1px dashed var(--accent-color); color: #ff88dd; padding: 5px 10px; border-radius: 6px; font-size: 0.8rem; display: inline-block; margin-top: 5px; }
+        .coupon-badge { background: rgba(0, 255, 136, 0.1); border: 1px dashed #00ff88; color: #00ff88; padding: 5px 10px; border-radius: 6px; font-size: 0.8rem; display: inline-block; margin-top: 5px; margin-left: 10px; }
+        
+        .status-badge { padding: 6px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+        .status-paid { background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); }
+        .status-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3); }
+        
+        .reg-actions { display: flex; gap: 10px; }
+        .btn-action { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 0.9rem; border: none; display: flex; align-items: center; gap: 8px; }
+        .btn-pay { background: #ffc107; color: black; }
+        .btn-pay:hover { background: #ffdb4d; transform: translateY(-2px); }
+        .btn-receipt { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); border: 1px solid var(--primary-color); }
+        .btn-receipt:hover { background: var(--primary-color); color: black; }
+        
+        .empty-state { text-align: center; padding: 50px 20px; color: #888; }
+        .btn-browse { margin-top: 20px; display: inline-block; padding: 12px 30px; border: 1px solid var(--primary-color); color: var(--primary-color); text-decoration: none; border-radius: 50px; font-weight: 600; transition: 0.3s; }
+        .btn-browse:hover { background: var(--primary-color); color: black; }
+        
+        /* Payment Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 11000; justify-content: center; align-items: center; backdrop-filter: blur(5px); padding: 20px; }
+        .modal-content { background: #1a1a2e; padding: 2rem; border-radius: 15px; border: 1px solid var(--primary-color); width: 100%; max-width: 400px; text-align: center; animation: slideUp 0.3s ease-out; }
+        
+        /* --- RESPONSIVE BREAKPOINT FOR SIDEBAR --- */
+        /* Must match common.js breakpoint (1024px) */
+        @media (max-width: 1024px) { 
+            .main { width: 100%; margin-left: 0; padding-top: 90px; padding-left: 20px; padding-right: 20px; } 
+        }
+        
+        @media (max-width: 600px) { 
+            .reg-card { flex-direction: column; align-items: flex-start; } 
+            .reg-actions { width: 100%; justify-content: flex-end; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; } 
+            .btn-action { flex: 1; justify-content: center; } 
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-layer"></div>
+    <div class="overlay-layer"></div>
+    
+    <!-- Sidebar is injected by common.js -->
+    
+    <main class="main">
+        <div class="container">
+            <div class="page-header">
+                <h2>My Registrations</h2>
+            </div>
+            <div id="regContainer" class="reg-list">
+                <div class="empty-state">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;"></i>
+                    <p style="margin-top:10px;">Loading records...</p>
+                </div>
+            </div>
+        </div>
+        <div style="text-align:center; padding-top:40px;">
+             <a href="/terms" target="_blank" style="color:#666; text-decoration:none; font-size:0.9rem;">Terms & Conditions</a>
+        </div>
+    </main>
+
+    <!-- PAYMENT MODAL -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content" style="text-align:left; border:1px solid var(--primary-color);">
+            <h3 style="text-align:center; margin-bottom:20px; color:white; font-family:'Montserrat';">Complete Payment</h3>
+            
+            <div style="margin-bottom:10px; display:flex; justify-content:space-between;">
+                <label style="color:#aaa; font-size:0.9rem;">Event Fee</label>
+                <div style="font-size:1rem; color:white;" id="payOriginalAmount">₹0</div>
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <label style="color:#aaa; font-size:0.9rem; margin-bottom:5px; display:block;">Have a Coupon?</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="payCouponInput" placeholder="Enter Code" style="width:100%; padding:8px; background:rgba(255,255,255,0.1); border:1px solid #444; color:white; border-radius:5px; text-transform: uppercase;">
+                    <button onclick="validatePayCoupon()" id="btnApplyCoupon" style="padding:8px 15px; background:var(--primary-color); border:none; border-radius:5px; cursor:pointer; font-weight:bold; color:black;">Apply</button>
+                </div>
+                <div id="payCouponMsg" style="font-size:0.85rem; margin-top:5px; min-height:1.2em;"></div>
+            </div>
+
+            <!-- Platform Fee Row -->
+            <div style="margin-bottom:10px; display:flex; justify-content:space-between;">
+                <label style="color:#aaa; font-size:0.9rem;">Platform Fee (2.36%)</label>
+                <div style="font-size:1rem; color:white;" id="payFeeAmount">₹0</div>
+            </div>
+
+            <div style="margin-bottom:25px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:#ccc;">Total Payable</span>
+                <span style="font-size:1.6rem; color:#00ff88; font-weight:bold;" id="payFinalAmount">₹0</span>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button onclick="closePaymentModal()" style="padding:12px 20px; background:transparent; border:1px solid #555; color:#ccc; border-radius:8px; cursor:pointer; flex:1;">Cancel</button>
+                <button onclick="processPayment()" id="btnFinalPay" style="padding:12px 20px; background:linear-gradient(45deg, #00d2ff, #007bff); border:none; color:white; border-radius:8px; cursor:pointer; font-weight:bold; flex:1;">Pay Now</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allRegistrations = [];
+        let eventCache = {};
+        let currentUser = { name: 'Student', rollNo: '', email: '' };
+        let pendingTx = { regId: null, amount: 0, coupon: null };
+
+        async function init() {
+            try {
+                const resEvents = await fetch('/api/events');
+                const events = await resEvents.json();
+                events.forEach(e => eventCache[e.eventId] = e);
+                const resUser = await fetch('/api/participant/dashboard-stats');
+                if(resUser.ok) currentUser = await resUser.json();
+                const resReg = await fetch('/api/participant/my-registrations-data');
+                if(resReg.redirected) { window.location.href = '../login'; return; }
+                allRegistrations = await resReg.json();
+                renderRegistrations();
+            } catch (e) {
+                document.getElementById('regContainer').innerHTML = '<div class="empty-state" style="color:red;">Error loading data.</div>';
+            }
+        }
+
+        function renderRegistrations() {
+            const container = document.getElementById('regContainer');
+            container.innerHTML = '';
+            if (allRegistrations.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-clipboard-list" style="font-size:4rem; opacity:0.2; margin-bottom:15px;"></i><h3>No Registrations Yet</h3><p>You haven't registered for any events.</p><a href="events" class="btn-browse">Browse Events</a></div>`;
+                return;
+            }
+            allRegistrations.forEach(reg => {
+                const eventDetails = eventCache[reg.eventId] || { title: reg.eventId, fee: '0' };
+                const isPaid = reg.paymentStatus === 'COMPLETED';
+                const statusBadge = isPaid ? `<span class="status-badge status-paid"><i class="fa-solid fa-check"></i> Paid</span>` : `<span class="status-badge status-pending"><i class="fa-solid fa-clock"></i> Pending</span>`;
+                const cardClass = isPaid ? 'reg-card' : 'reg-card pending';
+                
+                let teamHtml = '';
+                if(reg.teamName) {
+                    const count = (reg.teamMembers ? reg.teamMembers.length : 0) + 1;
+                    teamHtml = `<div class="team-badge"><i class="fa-solid fa-users"></i> ${reg.teamName} (${count})</div>`;
+                }
+
+                let couponHtml = '';
+                if(reg.couponUsed && reg.couponUsed !== 'NONE' && reg.couponUsed !== null) {
+                    couponHtml = `<div class="coupon-badge"><i class="fa-solid fa-tag"></i> ${reg.couponUsed}</div>`;
+                }
+
+                let actionBtn = '';
+                if (isPaid) {
+                    actionBtn = `<button class="btn-action btn-receipt" onclick="printReceipt('${reg.registrationId}')"><i class="fa-solid fa-print"></i> Receipt</button>`;
+                } else {
+                    actionBtn = `<button class="btn-action btn-pay" onclick="openPaymentModal('${reg.registrationId}', ${eventDetails.fee || 0})"><i class="fa-solid fa-credit-card"></i> Pay Now</button>`;
+                }
+
+                const div = document.createElement('div');
+                div.className = cardClass;
+                div.innerHTML = `
+                    <div class="reg-details">
+                        <div class="reg-title">${eventDetails.title}</div>
+                        <div class="reg-meta">
+                            <span><i class="fa-solid fa-building-columns"></i> ${reg.deptName}</span>
+                            <span><i class="fa-solid fa-calendar"></i> ${new Date(reg.registeredAt).toLocaleDateString()}</span>
+                            <span><i class="fa-solid fa-tag"></i> ₹${eventDetails.fee || 0}</span>
+                        </div>
+                        ${teamHtml} ${couponHtml}
+                    </div>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px;">${statusBadge}</div>
+                    <div class="reg-actions">${actionBtn}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function updateModalTotals(baseAmount) {
+            let currentBase = baseAmount;
+            if (pendingTx.coupon) {
+                const discount = (baseAmount * pendingTx.coupon.percentage) / 100;
+                currentBase = Math.round(baseAmount - discount);
+            }
+            const platformFee = Math.ceil(currentBase * 0.0236);
+            const finalTotal = currentBase + platformFee;
+            pendingTx.discountedBase = currentBase;
+
+            document.getElementById('payFeeAmount').innerText = '₹' + platformFee;
+            document.getElementById('payFinalAmount').innerText = '₹' + finalTotal;
+        }
+
+        function openPaymentModal(regId, amount) {
+            pendingTx = { regId: regId, amount: amount, coupon: null, discountedBase: amount };
+            document.getElementById('payOriginalAmount').innerText = '₹' + amount;
+            document.getElementById('payCouponInput').value = '';
+            document.getElementById('payCouponMsg').innerText = '';
+            document.getElementById('btnApplyCoupon').disabled = false;
+            document.getElementById('btnApplyCoupon').innerText = "Apply";
+            
+            updateModalTotals(amount); 
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+        }
+
+        async function validatePayCoupon() {
+            const code = document.getElementById('payCouponInput').value.trim();
+            if(!code) return;
+            const btn = document.getElementById('btnApplyCoupon');
+            const msg = document.getElementById('payCouponMsg');
+            btn.innerText = "..."; btn.disabled = true;
+            try {
+                const res = await fetch('/api/coupon/validate', { 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) 
+                });
+                const data = await res.json();
+                if(res.ok) {
+                    pendingTx.coupon = data; 
+                    msg.innerText = `Success! ${data.percentage}% Discount Applied.`; msg.style.color = '#00ff88';
+                    btn.innerText = "Applied";
+                } else {
+                    pendingTx.coupon = null;
+                    msg.innerText = data.error || "Invalid Coupon"; msg.style.color = '#ff4444';
+                    btn.innerText = "Apply"; btn.disabled = false;
+                }
+                updateModalTotals(pendingTx.amount);
+            } catch(e) {
+                msg.innerText = "Network error."; msg.style.color = '#ff4444';
+                btn.innerText = "Apply"; btn.disabled = false;
+            }
+        }
+
+        async function processPayment() {
+            const btn = document.getElementById('btnFinalPay');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...'; btn.disabled = true;
+
+            const couponCodeToSend = pendingTx.coupon ? pendingTx.coupon.code : null;
+
+            try {
+                const orderRes = await fetch('/api/payment/create-order', { 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ amount: pendingTx.amount, couponCode: couponCodeToSend }) 
+                });
+                const orderData = await orderRes.json();
+                if (!orderData.id) throw new Error("Failed to create payment order.");
+                closePaymentModal();
+
+                const regAmounts = {};
+                regAmounts[pendingTx.regId] = orderData.amount / 100;
+
+                const options = {
+                    "key": orderData.key_id, "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee", "image": "/assets/logo.png", "order_id": orderData.id, 
+                    "handler": async function (response) {
+                        try {
+                            const verifyRes = await fetch('/api/payment/verify', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    razorpay_order_id: response.razorpay_order_id, 
+                                    razorpay_payment_id: response.razorpay_payment_id, 
+                                    razorpay_signature: response.razorpay_signature, 
+                                    registrationIds: [pendingTx.regId], 
+                                    couponCode: couponCodeToSend,
+                                    registrationAmounts: regAmounts 
+                                })
+                            });
+                            const verifyData = await verifyRes.json();
+                            if (verifyData.status === 'success') { alert("Payment Successful!"); init(); } 
+                            else { alert("Verification failed. Contact support."); }
+                        } catch (err) { alert("Network error."); init(); }
+                    },
+                    "prefill": { "name": currentUser.name, "email": currentUser.email, "contact": currentUser.mobile }, 
+                    "theme": { "color": "#00d2ff" },
+                    "modal": { "ondismiss": function() { btn.innerHTML = originalText; btn.disabled = false; } }
+                };
+                const rzp1 = new Razorpay(options);
+                rzp1.on('payment.failed', function (response){ alert("Payment Failed: " + response.error.description); btn.innerHTML = originalText; btn.disabled = false; });
+                rzp1.open();
+            } catch (e) { console.error(e); alert("Could not initiate payment."); btn.innerHTML = originalText; btn.disabled = false; }
+        }
+
+        function printReceipt(regId) {
+            const reg = allRegistrations.find(r => r.registrationId === regId);
+            if (!reg) return;
+            const eventDetails = eventCache[reg.eventId] || { title: "Event", fee: "0" };
+            const timestamp = reg.paymentDate || reg.registeredAt || new Date().toISOString();
+            const dateObj = new Date(timestamp);
+            const dateStr = dateObj.toLocaleDateString('en-US');
+            const timeStr = dateObj.toLocaleTimeString('en-US');
+
+            let teamTableHtml = '';
+            if (reg.teamName) {
+                teamTableHtml = `
+                    <p style="margin:15px 0 5px 0; font-weight:bold; color:#333;">Team: ${reg.teamName}</p>
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:15px; font-size:14px; border:1px solid #ddd;">
+                        <thead>
+                            <tr style="background-color:#f5f5f5; text-align:left;">
+                                <th style="padding:8px; border:1px solid #ddd;">Name</th>
+                                <th style="padding:8px; border:1px solid #ddd;">Roll No</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding:8px; border:1px solid #ddd;">${currentUser.name} (Lead)</td>
+                                <td style="padding:8px; border:1px solid #ddd;">${currentUser.rollNo || '-'}</td>
+                            </tr>`;
+                if (reg.teamMembers && reg.teamMembers.length > 0) {
+                    reg.teamMembers.forEach(m => {
+                        teamTableHtml += `
+                            <tr>
+                                <td style="padding:8px; border:1px solid #ddd;">${m.name}</td>
+                                <td style="padding:8px; border:1px solid #ddd;">${m.roll || '-'}</td>
+                            </tr>`;
+                    });
+                }
+                teamTableHtml += `</tbody></table>`;
+            } else {
+                teamTableHtml = `
+                    <table style="width:100%; border-collapse:collapse; margin:15px 0; font-size:14px; border:1px solid #ddd;">
+                        <thead>
+                            <tr style="background-color:#f5f5f5; text-align:left;">
+                                <th style="padding:8px; border:1px solid #ddd;">Name</th>
+                                <th style="padding:8px; border:1px solid #ddd;">Roll No</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding:8px; border:1px solid #ddd;">${currentUser.name}</td>
+                                <td style="padding:8px; border:1px solid #ddd;">${currentUser.rollNo || '-'}</td>
+                            </tr>
+                        </tbody>
+                    </table>`;
+            }
+
+            let couponHtml = '';
+            if (reg.couponUsed && reg.couponUsed !== 'NONE' && reg.couponUsed !== null) {
+                couponHtml = `<span style="font-size:0.9rem; color:#00d2ff; margin-right:10px;">(Coupon: ${reg.couponUsed})</span>`;
+            }
+
+            const finalAmount = reg.amountPaid ? reg.amountPaid : (eventDetails.fee || 0);
+
+            const win = window.open('', '', 'width=800,height=800');
+            win.document.write(`
+                <html>
+                <head>
+                    <title>Receipt - ${eventDetails.title}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Roboto', sans-serif; padding: 40px; background:#f0f2f5; display:flex; justify-content:center; }
+                        .receipt-container {
+                            background: white; width: 100%; max-width: 600px; padding: 40px;
+                            border: 2px solid #00d2ff; border-radius: 10px; position: relative;
+                            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                        }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .header h1 { color: #00d2ff; margin: 0; font-size: 28px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+                        .header p { color: #666; margin: 5px 0 0; font-size: 14px; }
+                        .meta-row { display: flex; justify-content: space-between; font-size: 13px; color: #333; border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 20px; }
+                        .event-info { margin-bottom: 20px; }
+                        .event-info h3 { margin: 0 0 5px; font-size: 18px; color: #333; }
+                        .event-info p { margin: 0; color: #666; font-size: 14px; }
+                        .payment-row { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 10px; border-top: 1px dashed #ccc; }
+                        .amount { font-size: 24px; font-weight: 700; color: #333; }
+                        .stamp { margin: 30px auto 0; width: fit-content; padding: 10px 30px; border: 3px solid #4caf50; color: #4caf50; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; transform: rotate(-3deg); border-radius: 8px; opacity: 0.9; }
+                        .btn-print { position: fixed; bottom: 20px; right: 20px; padding: 12px 25px; background: #333; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+                        @media print { .btn-print, body { background: white; padding: 0; } .receipt-container { border: 2px solid #00d2ff !important; box-shadow: none; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="receipt-container">
+                        <div class="header">
+                            <h1>LAKSHYA 2K26</h1>
+                            <p>Official Payment Receipt</p>
+                        </div>
+                        <div class="meta-row">
+                            <span><strong>ID:</strong> ${regId.substring(0,8).toUpperCase()}</span>
+                            <span><strong>Date:</strong> ${dateStr} ${timeStr}</span>
+                        </div>
+                        <div class="event-info">
+                            <h3>${eventDetails.title}</h3>
+                            <p><strong>Department:</strong> ${reg.deptName}</p>
+                        </div>
+                        ${teamTableHtml}
+                        <div class="payment-row">
+                            <div>
+                                <span style="display:block; font-size:14px; color:#666;">Payment Mode: <strong>${reg.paymentMode || 'Online'}</strong></span>
+                                ${couponHtml}
+                            </div>
+                            <div class="amount">₹${finalAmount}</div>
+                        </div>
+                        <div class="stamp">PAID & CONFIRMED</div>
+                    </div>
+                    <button class="btn-print" onclick="window.print()">Print Receipt</button>
+                </body>
+                </html>
+            `);
+        }
+
+        init();
+    </script>
+</body>
+</html>
