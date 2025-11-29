@@ -40,9 +40,14 @@ app.use(session({
 }));
 
 // --- RAZORPAY SETUP ---
+// --- RAZORPAY SETUP ---
+// Define keys in variables first so we can reuse them
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_Rj1XO8nMv3xR7J';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'XqfcDBCtT3RD570yw8fGT43u';
+
 const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_Rj1XO8nMv3xR7J',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'XqfcDBCtT3RD570yw8fGT43u'
+    key_id: RAZORPAY_KEY_ID,
+    key_secret: RAZORPAY_KEY_SECRET
 });
 
 // --- 2. AWS SETUP (UPDATED WITH YOUR CREDENTIALS) ---
@@ -379,6 +384,7 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
 });
 
 // Create Order (Razorpay)
+// Create Order (Razorpay)
 app.post('/api/payment/create-order', isAuthenticated('participant'), async (req, res) => {
     const { amount, couponCode } = req.body;
     let baseAmount = amount; 
@@ -418,12 +424,13 @@ app.post('/api/payment/create-order', isAuthenticated('participant'), async (req
                 ExpressionAttributeValues: { ":inc": 1 }
             }));
         }
-        res.json({ id: order.id, amount: order.amount, currency: order.currency, key_id: process.env.RAZORPAY_KEY_ID });
+        // FIX IS HERE: Use RAZORPAY_KEY_ID variable instead of process.env directly
+        res.json({ id: order.id, amount: order.amount, currency: order.currency, key_id: RAZORPAY_KEY_ID });
     } catch (err) {
+        console.error("Order creation failed:", err);
         res.status(500).json({ error: "Order creation failed" });
     }
 });
-
 // Payment Verification
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode, registrationAmounts } = req.body;
