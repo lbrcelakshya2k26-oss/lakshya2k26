@@ -314,7 +314,35 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
         const existing = await docClient.send(new QueryCommand(checkParams));
         
         if (existing.Items && existing.Items.length > 0) {
-            return res.status(400).json({ error: `You are already registered for this event in the ${deptName} department.` });
+            const existingReg = existing.Items[0];
+            
+            // IF PAID: Block the request
+            if (existingReg.paymentStatus === 'COMPLETED') {
+                return res.status(400).json({ error: `You are already registered for this event in the ${deptName} department.` });
+            }
+
+            // IF PENDING: Update the existing record with new details and allow proceeding
+            try {
+                await docClient.send(new UpdateCommand({
+                    TableName: 'Lakshya_Registrations',
+                    Key: { registrationId: existingReg.registrationId },
+                    UpdateExpression: "set teamName = :tn, teamMembers = :tm, submissionTitle = :st, submissionAbstract = :sa, submissionUrl = :su, paymentMode = :pm, registeredAt = :now",
+                    ExpressionAttributeValues: {
+                        ':tn': teamName || null,
+                        ':tm': teamMembers || [],
+                        ':st': submissionTitle || null,
+                        ':sa': submissionAbstract || null,
+                        ':su': submissionUrl || null,
+                        ':pm': paymentMode,
+                        ':now': new Date().toISOString()
+                    }
+                }));
+                // Return success with EXISTING ID
+                return res.json({ message: 'Registration updated', registrationId: existingReg.registrationId });
+            } catch (updateErr) {
+                console.error(updateErr);
+                return res.status(500).json({ error: 'Failed to update pending registration.' });
+            }
         }
     } catch (e) {
         return res.status(500).json({ error: 'Server validation failed' });
@@ -382,7 +410,6 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
         res.status(500).json({ error: 'Registration failed' });
     }
 });
-
 // Create Order (Razorpay)
 // Create Order (Razorpay)
 app.post('/api/payment/create-order', isAuthenticated('participant'), async (req, res) => {
