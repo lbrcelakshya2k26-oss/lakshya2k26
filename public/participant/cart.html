@@ -404,6 +404,11 @@
                     const orderData = await orderRes.json();
                     if (!orderData.id) throw new Error("Order creation failed");
                     
+                    // CHECK: If key_id is missing, show clearer error
+                    if (!orderData.key_id) {
+                         throw new Error("Payment Key Missing from Server.");
+                    }
+
                     // Logic to store proper amount for EACH item in DB.
                     // We take the Total Order Amount (which includes discount & fees)
                     // And divide it by the number of items.
@@ -436,7 +441,12 @@
                     const rzp1 = new Razorpay(options);
                     rzp1.on('payment.failed', function (response){ showPopup("Payment Failed", response.error.description, 'error'); btn.disabled = false; btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>'; });
                     rzp1.open();
-                } catch (e) { console.error(e); showPopup("Error", "Payment gateway error.", 'error'); btn.disabled = false; }
+                } catch (e) { 
+                    console.error(e); 
+                    showPopup("Error", e.message || "Payment gateway error.", 'error'); 
+                    btn.disabled = false; 
+                    btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>';
+                }
             }
         }
 
