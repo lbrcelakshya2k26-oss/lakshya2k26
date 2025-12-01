@@ -10,6 +10,7 @@ const upload = multer({ storage: storage });
 const { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
+const chatRoute = require('./chatRoute'); 
 
 
 // const Razorpay = require('razorpay'); // Payment Disabled for now
@@ -130,6 +131,8 @@ app.get('/contact', (req, res) => res.sendFile(path.join(__dirname, 'public/stat
 app.get('/about', (req, res) => res.sendFile(path.join(__dirname, 'public/static/about.html')));
 app.get('/terms', (req, res) => res.sendFile(path.join(__dirname, 'public/static/terms&conditions.html')));
 app.get('/get-sponsors', (req, res) => res.sendFile(path.join(__dirname, 'public/static/sponsors.html')));
+app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, 'public/static/privacy.html')));
+app.get('/refunds', (req, res) => res.sendFile(path.join(__dirname, 'public/static/refunds.html')));
 
 // --- 5. ROUTES: PARTICIPANT (PROTECTED) ---
 app.get('/participant/dashboard', isAuthenticated('participant'), (req, res) => {
@@ -1339,32 +1342,7 @@ app.post('/api/utility/upload-file', isAuthenticated('participant'), upload.sing
 });
 
 // Chatbot & FAQ
-const customFAQs = [
-    { keywords: ['accommodation'], answer: "Accommodation is provided in the college hostels for ₹200/day.", action: { text: "Contact Coordinator", link: "/contact" } },
-    { keywords: ['certificate'], answer: "Certificates will be available 24 hours after the event.", action: { text: "Certificates", link: "/participant/certificates" } },
-    { keywords: ['refund'], answer: "Registration fees are strictly non-refundable.", action: null },
-    { keywords: ['location'], answer: "The fest is held at the Main Campus, Admin Block.", action: { text: "View Map", link: "/contact" } }
-];
-
-app.post('/api/chat', async (req, res) => {
-    const { message } = req.body;
-    const msg = message.toLowerCase();
-    let reply = "I'm not sure. Try asking about events, accommodation, or certificates.";
-    let actions = [];
-    
-    try {
-        const faq = customFAQs.find(f => f.keywords.some(k => msg.includes(k)));
-        if (faq) {
-            reply = faq.answer;
-            if(faq.action) actions.push(faq.action);
-        } else if (msg.includes('event')) {
-            const data = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
-            reply = `We have ${(data.Items || []).length} events!`;
-            actions = [{ text: "View Events", link: "/events" }];
-        }
-        res.json({ reply, actions });
-    } catch (err) { res.json({ reply: "Database Error", actions: [] }); }
-});
+app.use('/api/chat', chatRoute);
 
 app.get('/api/culturals', async (req, res) => {
     try {
