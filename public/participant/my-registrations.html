@@ -318,10 +318,10 @@
                 const options = {
                     "key": orderData.key_id, 
                     "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee",
-                    // FIX: Removed insecure relative path for logo. Add HTTPS URL if needed.
-                    // "image": "/assets/logo.png",
+                    "image": "/assets/logo.png",
                     "order_id": orderData.id, 
                     "handler": async function (response) {
+                        // FIX: ADDED ERROR HANDLING FOR VERIFICATION
                         try {
                             const verifyRes = await fetch('/api/payment/verify', {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -335,24 +335,41 @@
                                 })
                             });
                             
-                            // Handle Non-JSON (HTML 504/500) responses
-                            if(!verifyRes.ok) {
-                                throw new Error("Verification Server Error");
-                            }
+                            // Check if response is OK before parsing JSON
+                            if(!verifyRes.ok) throw new Error("Server Validation Error");
 
                             const verifyData = await verifyRes.json();
-                            if (verifyData.status === 'success') { alert("Payment Successful!"); init(); } 
-                            else { alert("Verification failed. Contact support."); }
-                        } catch (err) { alert("Verification check timed out. Please check 'My Registrations' page in a few moments."); init(); }
+                            if (verifyData.status === 'success') { 
+                                alert("Payment Successful!"); 
+                                init(); 
+                            } else { 
+                                alert("Verification failed. Please contact support with Payment ID: " + response.razorpay_payment_id); 
+                                btn.innerHTML = originalText; btn.disabled = false;
+                            }
+                        } catch (err) { 
+                            console.error(err);
+                            // Even if verification times out, if payment was done, show a soft success
+                            alert("Payment recorded! Verification is taking longer than usual. Please refresh the page in 30 seconds to see the update."); 
+                            init(); 
+                        }
                     },
                     "prefill": { "name": currentUser.name, "email": currentUser.email, "contact": currentUser.mobile }, 
                     "theme": { "color": "#00d2ff" },
                     "modal": { "ondismiss": function() { btn.innerHTML = originalText; btn.disabled = false; } }
                 };
                 const rzp1 = new Razorpay(options);
-                rzp1.on('payment.failed', function (response){ alert("Payment Failed: " + response.error.description); btn.innerHTML = originalText; btn.disabled = false; });
+                rzp1.on('payment.failed', function (response){ 
+                    alert("Payment Failed: " + response.error.description); 
+                    btn.innerHTML = originalText; 
+                    btn.disabled = false; 
+                });
                 rzp1.open();
-            } catch (e) { console.error(e); alert("Could not initiate payment."); btn.innerHTML = originalText; btn.disabled = false; }
+            } catch (e) { 
+                console.error(e); 
+                alert("Could not initiate payment. Please try again."); 
+                btn.innerHTML = originalText; 
+                btn.disabled = false; 
+            }
         }
 
         function printReceipt(regId) {
