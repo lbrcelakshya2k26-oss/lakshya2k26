@@ -470,7 +470,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
     if (expectedSignature === razorpay_signature) {
         try {
             if (registrationIds && Array.isArray(registrationIds)) {
-                // 1. Update Database Status
+                // 1. CRITICAL: Update Database Status FIRST (Wait for this)
                 const updatePromises = registrationIds.map(regId => {
                     const paidAmt = (registrationAmounts && registrationAmounts[regId]) ? parseFloat(registrationAmounts[regId]) : 0;
                     return docClient.send(new UpdateCommand({
@@ -484,75 +484,85 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 });
                 await Promise.all(updatePromises);
 
-                // 2. Send Success Emails (Iterate through each registration to send specific emails)
-                for (const regId of registrationIds) {
-                    try {
-                        // Fetch Reg Details (to get eventId and email)
-                        const regData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: regId } }));
-                        const reg = regData.Item;
-                        if (!reg) continue;
+                // 2. CRITICAL FIX: Send Success Response IMMEDIATELY to prevent 504 Timeout
+                res.json({ status: 'success' });
 
-                        // Fetch Event Details (to get Title)
-                        const eventData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
-                        const eventTitle = eventData.Item ? eventData.Item.title : "Event";
+                // 3. Send Emails in BACKGROUND (Do NOT await, do NOT block response)
+                // This runs asynchronously after the response is sent.
+                (async () => {
+                    for (const regId of registrationIds) {
+                        try {
+                            const regData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: regId } }));
+                            const reg = regData.Item;
+                            if (!reg) continue;
 
-                        // --- MAIL 1: REGISTRATION CONFIRMATION (With COMPLETED Status) ---
-                        const regSubject = `Registration Confirmed: ${eventTitle}`;
-                        const regBody = `
-                            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-                                <h2 style="color: #00d2ff;">LAKSHYA 2K26</h2>
-                                <p>Dear Participant,</p>
-                                <p>Thank you for registering for <strong>${eventTitle}</strong>. Your registration is now confirmed.</p>
-                                <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                                    <p><strong>Registration ID:</strong> ${regId}</p>
-                                    <p><strong>Event:</strong> ${eventTitle}</p>
-                                    <p><strong>Team:</strong> ${reg.teamName || 'Individual'}</p>
-                                    <p><strong>Payment Status:</strong> <span style="color: green; font-weight: bold;">COMPLETED</span></p>
-                                </div>
-                                <p>Best Regards,<br>Team LAKSHYA</p>
-                            </div>`;
-                        
-                        await sendEmail(reg.studentEmail, regSubject, regBody);
-                        
-                        // Send to team members if exists
-                        if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
-                             reg.teamMembers.filter(m => m.email).forEach(m => sendEmail(m.email, regSubject, regBody));
+                            const eventData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
+                            const eventTitle = eventData.Item ? eventData.Item.title : "Event";
+
+                            // --- MAIL 1: REGISTRATION CONFIRMATION ---
+                            const regSubject = `Registration Confirmed: ${eventTitle}`;
+                            const regBody = `
+                                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                                    <h2 style="color: #00d2ff;">LAKSHYA 2K26</h2>
+                                    <p>Dear Participant,</p>
+                                    <p>Thank you for registering for <strong>${eventTitle}</strong>. Your registration is now confirmed.</p>
+                                    <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                                        <p><strong>Registration ID:</strong> ${regId}</p>
+                                        <p><strong>Event:</strong> ${eventTitle}</p>
+                                        <p><strong>Team:</strong> ${reg.teamName || 'Individual'}</p>
+                                        <p><strong>Payment Status:</strong> <span style="color: green; font-weight: bold;">COMPLETED</span></p>
+                                    </div>
+                                    <p>Best Regards,<br>Team LAKSHYA</p>
+                                </div>`;
+                            
+                            // Fire and forget individual emails to avoid blocking
+                            sendEmail(reg.studentEmail, regSubject, regBody).catch(e => console.error("Email Fail", e));
+                            
+                            if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
+                                 reg.teamMembers.filter(m => m.email).forEach(m => {
+                                     sendEmail(m.email, regSubject, regBody).catch(e => console.error("Team Email Fail", e));
+                                 });
+                            }
+
+                            // --- MAIL 2: PAYMENT RECEIPT ---
+                            const paySubject = `Payment Receipt: ${eventTitle}`;
+                            const paidAmt = (registrationAmounts && registrationAmounts[regId]) ? registrationAmounts[regId] : 'N/A';
+                            const payBody = `
+                                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                                    <h2 style="color: #4CAF50;">Payment Successful</h2>
+                                    <p>Dear Participant,</p>
+                                    <p>We have successfully received your payment for <strong>${eventTitle}</strong>.</p>
+                                    <div style="background: #f0fff4; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #c3e6cb;">
+                                        <p><strong>Transaction ID:</strong> ${razorpay_payment_id}</p>
+                                        <p><strong>Amount Paid:</strong> ₹${paidAmt}</p>
+                                        <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+                                        <p><strong>Payment Mode:</strong> Online (Razorpay)</p>
+                                    </div>
+                                    <p>Please keep this receipt for your records.</p>
+                                    <p>Best Regards,<br>Team LAKSHYA</p>
+                                </div>`;
+                            
+                            sendEmail(reg.studentEmail, paySubject, payBody).catch(e => console.error("Receipt Email Fail", e));
+
+                        } catch (innerErr) {
+                            console.error("Background Email Error for regId: " + regId, innerErr);
                         }
-
-                        // --- MAIL 2: PAYMENT RECEIPT ---
-                        const paySubject = `Payment Receipt: ${eventTitle}`;
-                        const paidAmt = (registrationAmounts && registrationAmounts[regId]) ? registrationAmounts[regId] : 'N/A';
-                        const payBody = `
-                            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-                                <h2 style="color: #4CAF50;">Payment Successful</h2>
-                                <p>Dear Participant,</p>
-                                <p>We have successfully received your payment for <strong>${eventTitle}</strong>.</p>
-                                <div style="background: #f0fff4; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #c3e6cb;">
-                                    <p><strong>Transaction ID:</strong> ${razorpay_payment_id}</p>
-                                    <p><strong>Amount Paid:</strong> ₹${paidAmt}</p>
-                                    <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-                                    <p><strong>Payment Mode:</strong> Online (Razorpay)</p>
-                                </div>
-                                <p>Please keep this receipt for your records.</p>
-                                <p>Best Regards,<br>Team LAKSHYA</p>
-                            </div>`;
-                        
-                        await sendEmail(reg.studentEmail, paySubject, payBody);
-
-                    } catch (innerErr) {
-                        console.error("Error sending email for regId: " + regId, innerErr);
                     }
-                }
+                })(); 
+            } else {
+                 // No registration IDs? Still return success if signature matched to avoid user panic, but log error.
+                 res.json({ status: 'success', warning: 'No reg IDs found' });
             }
-            res.json({ status: 'success' });
         } catch (err) {
-            console.error(err);
+            console.error("DB Update Error:", err);
+            // If DB update fails, we MUST tell the frontend
             res.status(500).json({ error: 'DB update failed' });
         }
     } else {
         res.status(400).json({ error: 'Invalid signature' });
     }
 });
+
 app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), async (req, res) => {
     const userEmail = req.session.user.email;
     try {
