@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <link rel="icon" type="image/png" href="\assets\logo.png"><link rel="icon" type="image/png" href="\assets\logo.png"><link rel="icon" type="image/png" href="\assets\logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo.png">
     <!-- 1. CONNECT COMMON JS & SET PAGE ID -->
     <script>const CURRENT_PAGE = 'my-registrations';</script>
     <script src="/js/common.js"></script>
@@ -316,7 +316,11 @@
                 regAmounts[pendingTx.regId] = orderData.amount / 100;
 
                 const options = {
-                    "key": orderData.key_id, "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee", "image": "/assets/logo.png", "order_id": orderData.id, 
+                    "key": orderData.key_id, 
+                    "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee",
+                    // FIX: Removed insecure relative path for logo. Add HTTPS URL if needed.
+                    // "image": "/assets/logo.png",
+                    "order_id": orderData.id, 
                     "handler": async function (response) {
                         try {
                             const verifyRes = await fetch('/api/payment/verify', {
@@ -330,10 +334,16 @@
                                     registrationAmounts: regAmounts 
                                 })
                             });
+                            
+                            // Handle Non-JSON (HTML 504/500) responses
+                            if(!verifyRes.ok) {
+                                throw new Error("Verification Server Error");
+                            }
+
                             const verifyData = await verifyRes.json();
                             if (verifyData.status === 'success') { alert("Payment Successful!"); init(); } 
                             else { alert("Verification failed. Contact support."); }
-                        } catch (err) { alert("Network error."); init(); }
+                        } catch (err) { alert("Verification check timed out. Please check 'My Registrations' page in a few moments."); init(); }
                     },
                     "prefill": { "name": currentUser.name, "email": currentUser.email, "contact": currentUser.mobile }, 
                     "theme": { "color": "#00d2ff" },
