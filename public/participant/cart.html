@@ -416,10 +416,7 @@
                     const options = {
                         "key": orderData.key_id, 
                         "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee",
-                        // CRITICAL FIX: Image must be HTTPS. If you have S3, use that URL.
-                        // "image": "https://your-s3-bucket.com/logo.png", 
-                        // Using a generic secure placeholder or remove this line if you don't have one.
-                        // "image": "/assets/logo.png", <--- REMOVED RELATIVE PATH CAUSING MIXED CONTENT
+                        "image": "/assets/logo.png",
                         "order_id": orderData.id, 
                         "handler": async function (response) {
                             try {
@@ -436,18 +433,20 @@
                                     }) 
                                 });
 
-                                // CRITICAL FIX: Handle non-JSON responses (504/500 errors)
-                                if (!verifyRes.ok) {
-                                    throw new Error(`Server Error: ${verifyRes.status}`);
-                                }
+                                // FIX: Handle non-JSON responses (504/500 errors)
+                                if (!verifyRes.ok) throw new Error("Server Validation Error");
 
                                 const verifyData = await verifyRes.json();
                                 if (verifyData.status === 'success') finishOrder();
-                                else { showPopup("Failed", "Verification failed.", 'error'); btn.disabled = false; }
+                                else { 
+                                    showPopup("Failed", "Verification failed.", 'error'); 
+                                    btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>';
+                                    btn.disabled = false; 
+                                }
                             } catch (error) {
                                 console.error(error);
-                                showPopup("Verification Error", "Payment successful but verification timed out. Check 'My Registrations'.", 'error');
-                                btn.disabled = false;
+                                showPopup("Verification Status", "Payment detected, but verification took too long. Check 'My Registrations' in a few seconds.", 'error');
+                                setTimeout(() => window.location.href = 'my-registrations', 4000);
                             }
                         },
                         "prefill": { "email": "student@example.com" }, "theme": { "color": "#00d2ff" }
