@@ -33,7 +33,7 @@
             background: var(--dark-overlay); z-index: -1;
         }
 
-        /* --- UPDATED RESPONSIVE NAVIGATION --- */
+        /* --- NAVIGATION (UNCHANGED) --- */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
             height: 90px; padding: 0 4%;
@@ -81,6 +81,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            transition: filter 0.5s ease; /* Smooth blur transition */
         }
 
         .section-title {
@@ -132,6 +133,66 @@
 
         .lightbox-content { max-width: 95%; max-height: 95vh; object-fit: contain; border-radius: 8px; box-shadow: 0 0 30px rgba(0, 210, 255, 0.5); animation: zoomIn 0.3s ease-out; }
 
+        /* --- REVEAL POPUP STYLES --- */
+        .reveal-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 10, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 999; /* LOWERED Z-INDEX so Nav (1000) is on top */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            /* Initially visible unless JS hides it */
+            display: flex; 
+        }
+
+        .reveal-content {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            box-shadow: 0 0 50px rgba(0, 210, 255, 0.2);
+            max-width: 600px;
+            animation: pulseModal 3s infinite;
+        }
+
+        .reveal-icon { font-size: 4rem; color: var(--primary-color); margin-bottom: 20px; }
+        
+        .reveal-title { 
+            font-family: 'Montserrat', sans-serif; 
+            font-size: 2rem; 
+            font-weight: 700; 
+            margin-bottom: 15px; 
+            color: #fff;
+        }
+
+        .reveal-date {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 20px;
+            background: rgba(0, 210, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        .countdown-timer {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            color: #aaa;
+            margin-top: 15px;
+        }
+
+        @keyframes pulseModal {
+            0% { box-shadow: 0 0 30px rgba(0, 210, 255, 0.1); }
+            50% { box-shadow: 0 0 60px rgba(0, 210, 255, 0.3); }
+            100% { box-shadow: 0 0 30px rgba(0, 210, 255, 0.1); }
+        }
+
         /* --- ANIMATIONS --- */
         @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
@@ -161,6 +222,8 @@
             .section-title { font-size: 2rem; }
             .btn-download { width: 100%; justify-content: center; padding: 1rem; }
             .brochure-image-wrapper::after { content: ''; }
+            .reveal-title { font-size: 1.5rem; }
+            .reveal-date { font-size: 1.2rem; }
         }
     </style>
 </head>
@@ -168,6 +231,17 @@
 
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
+
+    <!-- REVEAL POPUP MODAL -->
+    <div class="reveal-modal" id="revealModal">
+        <div class="reveal-content">
+            <div class="reveal-icon"><i class="fa-solid fa-lock"></i></div>
+            <div class="reveal-title">Brochure Locked</div>
+            <p style="margin-bottom: 15px; color: #ccc;">The official brochure will be revealed on:</p>
+            <div class="reveal-date">03 December 2025 <br> <span style="font-size:0.8em">at 4:00 PM</span></div>
+            <div class="countdown-timer" id="countdown">Calculating...</div>
+        </div>
+    </div>
 
     <!-- NAVBAR -->
     <nav>
@@ -192,8 +266,10 @@
         </div>
     </nav>
 
-    <!-- BROCHURE SECTION -->
-    <div class="brochure-container">
+    <!-- BROCHURE SECTION (Initially Hidden/Blurred) -->
+    <div class="brochure-container" id="brochureContainer">
+        <div class="section-title">Official Brochure</div>
+        
         <div class="brochure-image-wrapper" onclick="openLightbox()">
             <img src="../assets/brochure.jpg" alt="Lakshya 2K26 Brochure" class="brochure-img" id="mainBrochure" onerror="this.onerror=null; this.src='https://placehold.co/800x1200?text=Brochure+Coming+Soon';">
         </div>
@@ -209,8 +285,52 @@
     <div class="lightbox" id="lightbox" onclick="closeLightbox()">
         <img src="../assets/brochure.jpg" class="lightbox-content" id="lightboxImg" onerror="this.onerror=null; this.src='https://placehold.co/800x1200?text=Brochure+Coming+Soon';">
     </div>
-<script src="/js/chatbot.js"></script>
+    
+    <script src="/js/chatbot.js"></script>
     <script>
+        // --- BROCHURE REVEAL LOGIC ---
+        
+        // Target Date: December 03, 2025 at 4:00 PM (16:00:00)
+        const targetDate = new Date('December 03, 2025 16:00:00').getTime();
+        
+        const modal = document.getElementById('revealModal');
+        const container = document.getElementById('brochureContainer');
+        const countdownEl = document.getElementById('countdown');
+
+        function updateRevealStatus() {
+            const now = new Date().getTime();
+            const distance = targetDate - now;
+
+            if (distance < 0) {
+                // TIME IS UP! UNLOCK EVERYTHING
+                modal.style.display = 'none'; // Hide popup
+                container.style.filter = 'none'; // Remove blur
+                container.style.pointerEvents = 'auto'; // Enable clicking
+                
+                // Clear interval if it's running to save performance
+                if(window.revealInterval) clearInterval(window.revealInterval);
+            } else {
+                // STILL LOCKED
+                modal.style.display = 'flex'; // Show popup
+                container.style.filter = 'blur(15px)'; // Blur background
+                container.style.pointerEvents = 'none'; // Disable clicking background
+                
+                // Update Countdown Text
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                
+                countdownEl.innerHTML = `Unlocking in: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+            }
+        }
+
+        // Run immediately on load
+        updateRevealStatus();
+        
+        // Run every second to check for auto-unlock
+        window.revealInterval = setInterval(updateRevealStatus, 1000);
+
         // --- MOBILE MENU LOGIC ---
         const nav = document.getElementById('navLinks');
         const menuToggle = document.getElementById('mobile-menu');

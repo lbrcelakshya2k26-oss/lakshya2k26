@@ -313,8 +313,15 @@
             const grid = document.getElementById('eventsGrid');
             grid.innerHTML = '';
 
+            // --- FILTER: BLOCK CULTURAL EVENTS ---
+            // We ensure that only non-cultural events are shown
+            events = events.filter(e => {
+                const type = (e.type || '').toLowerCase();
+                return !type.includes('cultural');
+            });
+
             if (events.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">No events found.</div>';
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">No technical events found.</div>';
                 return;
             }
 
@@ -328,7 +335,7 @@
                 if (type.includes('technical') || title.includes('quiz') || title.includes('code')) iconClass = 'fa-solid fa-brain';
                 else if (type.includes('paper') || title.includes('presentation')) iconClass = 'fa-solid fa-scroll';
                 else if (type.includes('workshop')) iconClass = 'fa-solid fa-screwdriver-wrench';
-                else if (type.includes('cultural') || type.includes('music')) iconClass = 'fa-solid fa-music';
+                // Cultural check removed from icon logic since they are filtered out, but keeping fallback logic is fine.
                 else if (type.includes('ideathon') || title.includes('idea')) iconClass = 'fa-solid fa-lightbulb';
                 else if (title.includes('poster')) iconClass = 'fa-solid fa-image';
 
