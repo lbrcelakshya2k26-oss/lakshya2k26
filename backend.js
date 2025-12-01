@@ -215,6 +215,68 @@ app.get('/admin/registrations', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/registrations.html'));
 });
 
+const getEmailTemplate = (type, data) => {
+    const { title, name, regId, eventName, dept, teamName, status, amount, txId, date, coupon, link } = data;
+    
+    // Logic to list Team Members
+    let teamHtml = '';
+    if (data.teamMembers && Array.isArray(data.teamMembers) && data.teamMembers.length > 0) {
+        // Create a clean comma-separated list of names
+        const names = data.teamMembers.map(m => m.name).join(', ');
+        teamHtml = `<p style="margin: 5px 0;"><strong>Team Members:</strong> ${names}</p>`;
+    }
+
+    if (type === 'REGISTER') {
+        // TEMPLATE 1: Registration Confirmed (Matches your blue text screenshot)
+        return `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; background-color: #ffffff;">
+            <div style="background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #00d2ff;">
+                 <h1 style="color: #00d2ff; margin: 0; font-size: 24px; font-weight: bold;">LAKSHYA 2K26</h1>
+            </div>
+            <div style="padding: 30px;">
+                <p style="font-size: 16px; color: #333;">Dear Participant,</p>
+                <p style="font-size: 16px; color: #555;">Thank you for registering for <strong>${eventName}</strong>. Below are your registration details:</p>
+                
+                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                    <p style="margin: 5px 0;"><strong>Registration ID:</strong> ${regId}</p>
+                    <p style="margin: 5px 0;"><strong>Event:</strong> ${eventName}</p>
+                    <p style="margin: 5px 0;"><strong>Department:</strong> ${dept}</p>
+                    ${teamName ? `<p style="margin: 5px 0;"><strong>Team Name:</strong> ${teamName}</p>` : ''}
+                    ${teamHtml}
+                    <p style="margin: 5px 0;"><strong>Payment Status:</strong> <span style="color: ${status === 'COMPLETED' ? 'green' : '#ffc107'}; font-weight: bold;">${status === 'COMPLETED' ? 'Paid' : 'Payment Pending'}</span></p>
+                </div>
+
+                <p style="margin-top: 30px; color: #555;">Best Regards,<br>Team LAKSHYA</p>
+            </div>
+        </div>`;
+    } 
+    
+    if (type === 'PAYMENT') {
+        // TEMPLATE 2: Payment Confirmed (Matches your blue header screenshot)
+        return `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; overflow: hidden; border-radius: 8px;">
+            <div style="background-color: #00d2ff; padding: 20px; text-align: center;">
+                 <h2 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase; font-weight: bold;">PAYMENT CONFIRMED</h2>
+            </div>
+            <div style="padding: 30px; background-color: #ffffff;">
+                <p style="font-size: 16px; color: #333;">Dear <strong>${name}</strong>,</p>
+                <p style="font-size: 14px; color: #666;">We have successfully received your payment for <strong>${eventName}</strong>.</p>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #4CAF50; margin: 20px 0; border-radius: 4px;">
+                    <p style="margin: 5px 0;"><strong>Transaction ID:</strong> ${txId}</p>
+                    <p style="margin: 5px 0;"><strong>Date:</strong> ${date}</p>
+                    ${coupon && coupon !== 'NONE' ? `<p style="margin: 5px 0; color: #00d2ff;"><strong>Coupon Applied:</strong> ${coupon}</p>` : ''}
+                    <p style="margin: 5px 0; font-size: 12px; color: #888;">(Includes Platform Fee)</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <a href="${link}" target="_blank" style="background-color: #3a7bd5; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px;">Download Receipt</a>
+                </div>
+            </div>
+        </div>`;
+    }
+};
+
 
 // --- 8. API ROUTES: AUTHENTICATION ---
 app.post('/api/auth/register', async (req, res) => {
@@ -340,7 +402,7 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
                         ':now': new Date().toISOString()
                     }
                 }));
-                // Return success with EXISTING ID
+                // Return success with EXISTING ID (Don't resend email for updates to avoid spam)
                 return res.json({ message: 'Registration updated', registrationId: existingReg.registrationId });
             } catch (updateErr) {
                 console.error(updateErr);
@@ -383,28 +445,35 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
     try {
         await docClient.send(new PutCommand(params));
         
-        // --- MODIFIED EMAIL LOGIC ---
-        // Only send "Pending" email if mode is NOT Online. 
-        // If Online, we wait for payment/verify to send the "Completed" email.
+        // --- SEND EMAIL 1: REGISTRATION DETAILS ---
+        // LOGIC CHANGE: Only send this here if payment mode is NOT Online (e.g., Cash/Pay at Venue).
+        // If Online, we wait for payment verification to send the "Completed" email to avoid confusion.
         if (paymentMode !== 'Online') {
-            const subject = `Registration Confirmed: ${eventTitle}`;
-            const emailBody = `
-                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-                    <h2 style="color: #00d2ff;">LAKSHYA 2K26</h2>
-                    <p>Dear Participant,</p>
-                    <p>Thank you for registering for <strong>${eventTitle}</strong>.</p>
-                    <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                        <p><strong>Registration ID:</strong> ${registrationId}</p>
-                        <p><strong>Event:</strong> ${eventTitle}</p>
-                        <p><strong>Payment Status:</strong> <span style="color: orange; font-weight: bold;">PAYMENT PENDING (Pay at Venue)</span></p>
-                    </div>
-                    <p>Best Regards,<br>Team LAKSHYA</p>
-                </div>`;
+            const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
             
-            await sendEmail(user.email, subject, emailBody);
+            const emailHtml = `
+            <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background-color: #fff; max-width: 600px; margin: 0 auto; border: 1px solid #eee;">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <img src="${logoUrl}" alt="Lakshya Logo" style="height: 60px; width: auto;">
+                </div>
+                <h2 style="color: #4fc3f7; margin-bottom: 20px; font-weight: bold; text-align: center; font-size: 26px;">LAKSHYA 2K26</h2>
+                <p style="font-size: 15px; color: #333;">Dear Participant,</p>
+                <p style="font-size: 15px; color: #333;">Thank you for registering for <strong>${eventTitle}</strong>. Below are your registration details:</p>
+                <div style="background-color: #f9f9f9; padding: 25px; border-radius: 4px; margin: 25px 0;">
+                    <p style="margin: 8px 0; color: #333;"><strong>Registration ID:</strong> ${registrationId}</p>
+                    <p style="margin: 8px 0; color: #333;"><strong>Event:</strong> ${eventTitle}</p>
+                    <p style="margin: 8px 0; color: #333;"><strong>Department:</strong> ${deptName}</p>
+                    ${teamName ? `<p style="margin: 8px 0; color: #333;"><strong>Team Name:</strong> ${teamName}</p>` : ''}
+                    ${teamMembers && teamMembers.length > 0 ? `<p style="margin: 8px 0; color: #333;"><strong>Team Members:</strong> ${teamMembers.map(m => m.name).join(', ')}</p>` : ''}
+                    <p style="margin: 8px 0; color: #333;"><strong>Payment Status:</strong> <strong style="color: #ff9800;">Payment Pending (Pay at Venue)</strong></p>
+                </div>
+                <p style="margin-top: 30px; color: #333;">Best Regards,<br>Team LAKSHYA</p>
+            </div>`;
+            
+            await sendEmail(user.email, `Registration Details: ${eventTitle}`, emailHtml);
 
             if (teamMembers && Array.isArray(teamMembers)) {
-                teamMembers.filter(m => m.email).forEach(m => sendEmail(m.email, subject, emailBody));
+                teamMembers.filter(m => m.email).forEach(m => sendEmail(m.email, `Registration Details: ${eventTitle}`, emailHtml));
             }
         }
 
@@ -465,8 +534,6 @@ app.post('/api/payment/create-order', isAuthenticated('participant'), async (req
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode, registrationAmounts } = req.body;
     
-    // FIX: Use the constant 'RAZORPAY_KEY_SECRET' defined at the top of your file, 
-    // instead of process.env.RAZORPAY_KEY_SECRET which might be undefined.
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
 
@@ -474,7 +541,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
         try {
             if (registrationIds && Array.isArray(registrationIds)) {
                 
-                // 2. CRITICAL: Update Database Status FIRST (Wait for this)
+                // 1. Update Database Status FIRST
                 const updatePromises = registrationIds.map(regId => {
                     const paidAmt = (registrationAmounts && registrationAmounts[regId]) ? parseFloat(registrationAmounts[regId]) : 0;
                     
@@ -494,17 +561,18 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                     }));
                 });
                 
-                // Wait for ALL database updates to finish
                 await Promise.all(updatePromises);
+                res.json({ status: 'success' }); // Respond quickly to frontend
 
-                // 3. CRITICAL FIX: Send Success Response IMMEDIATELY 
-                res.json({ status: 'success' });
+                // 2. Send Emails in BACKGROUND (Registration Confirmed AND Payment Receipt)
+                const domain = req.get('host'); 
+                const protocol = req.protocol; 
+                const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
 
-                // 4. Send Emails in BACKGROUND (Fire and Forget)
                 (async () => {
                     for (const regId of registrationIds) {
                         try {
-                            // A. Fetch Registration Details
+                            // Fetch Updated Registration Data
                             const regData = await docClient.send(new GetCommand({ 
                                 TableName: 'Lakshya_Registrations', 
                                 Key: { registrationId: regId } 
@@ -512,57 +580,79 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             const reg = regData.Item;
                             if (!reg) continue;
 
-                            // B. Fetch Event Details
                             const eventData = await docClient.send(new GetCommand({ 
                                 TableName: 'Lakshya_Events', 
                                 Key: { eventId: reg.eventId } 
                             }));
                             const eventTitle = eventData.Item ? eventData.Item.title : "Event";
+                            
+                            const userData = await docClient.send(new GetCommand({ 
+                                TableName: 'Lakshya_Users', 
+                                Key: { email: reg.studentEmail } 
+                            }));
+                            const userName = userData.Item ? userData.Item.fullName : "Participant";
+                            
+                            // Get Amount for this specific registration
+                            const paidAmt = (registrationAmounts && registrationAmounts[regId]) ? registrationAmounts[regId] : 0;
 
-                            // C. Send Email 1: Registration Confirmation
-                            const regSubject = `Registration Confirmed: ${eventTitle}`;
-                            const regBody = `
-                                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-                                    <h2 style="color: #00d2ff;">LAKSHYA 2K26</h2>
-                                    <p>Dear Participant,</p>
-                                    <p>Thank you for registering for <strong>${eventTitle}</strong>.</p>
-                                    <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                                        <p><strong>Registration ID:</strong> ${regId}</p>
-                                        <p><strong>Event:</strong> ${eventTitle}</p>
-                                        <p><strong>Status:</strong> <span style="color: green; font-weight: bold;">CONFIRMED</span></p>
-                                    </div>
-                                    <p>Best Regards,<br>Team LAKSHYA</p>
-                                </div>`;
+                            // --- EMAIL 1: REGISTRATION DETAILS (With CONFIRMED Status) ---
+                            // We send this now because we skipped it during the initial register-event call for Online mode
+                            const regHtml = `
+                            <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background-color: #fff; max-width: 600px; margin: 0 auto; border: 1px solid #eee;">
+                                <div style="text-align: center; margin-bottom: 10px;">
+                                    <img src="${logoUrl}" alt="Lakshya Logo" style="height: 60px; width: auto;">
+                                </div>
+                                <h2 style="color: #4fc3f7; margin-bottom: 20px; font-weight: bold; text-align: center; font-size: 26px;">LAKSHYA 2K26</h2>
+                                <p style="font-size: 15px; color: #333;">Dear Participant,</p>
+                                <p style="font-size: 15px; color: #333;">Thank you for registering for <strong>${eventTitle}</strong>. Below are your registration details:</p>
+                                <div style="background-color: #f9f9f9; padding: 25px; border-radius: 4px; margin: 25px 0;">
+                                    <p style="margin: 8px 0; color: #333;"><strong>Registration ID:</strong> ${regId}</p>
+                                    <p style="margin: 8px 0; color: #333;"><strong>Event:</strong> ${eventTitle}</p>
+                                    <p style="margin: 8px 0; color: #333;"><strong>Department:</strong> ${reg.deptName}</p>
+                                    ${reg.teamName ? `<p style="margin: 8px 0; color: #333;"><strong>Team Name:</strong> ${reg.teamName}</p>` : ''}
+                                    ${reg.teamMembers && reg.teamMembers.length > 0 ? `<p style="margin: 8px 0; color: #333;"><strong>Team Members:</strong> ${reg.teamMembers.map(m => m.name).join(', ')}</p>` : ''}
+                                    <p style="margin: 8px 0; color: #333;"><strong>Payment Status:</strong> <strong style="color: #4CAF50;">Completed / Paid</strong></p>
+                                </div>
+                                <p style="margin-top: 30px; color: #333;">Best Regards,<br>Team LAKSHYA</p>
+                            </div>`;
                             
-                            await sendEmail(reg.studentEmail, regSubject, regBody).catch(e => console.error(`Email 1 Failed for ${regId}`, e));
-                            
+                            await sendEmail(reg.studentEmail, `Registration Confirmed: ${eventTitle}`, regHtml).catch(e => console.error(e));
+                            // Also send to team members
                             if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
-                                reg.teamMembers.filter(m => m.email).forEach(m => {
-                                    sendEmail(m.email, regSubject, regBody).catch(e => console.error(`Team Email Failed for ${m.email}`, e));
-                                });
+                                reg.teamMembers.filter(m => m.email).forEach(m => sendEmail(m.email, `Registration Confirmed: ${eventTitle}`, regHtml));
                             }
 
-                            // D. Send Email 2: Payment Receipt
-                            const paySubject = `Payment Receipt: ${eventTitle}`;
-                            const paidAmt = (registrationAmounts && registrationAmounts[regId]) ? registrationAmounts[regId] : 'N/A';
-                            const payBody = `
-                                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-                                    <h2 style="color: #4CAF50;">Payment Successful</h2>
-                                    <p>Dear Participant,</p>
-                                    <p>We have received your payment for <strong>${eventTitle}</strong>.</p>
-                                    <div style="background: #f0fff4; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #c3e6cb;">
-                                        <p><strong>Transaction ID:</strong> ${razorpay_payment_id}</p>
-                                        <p><strong>Amount:</strong> ₹${paidAmt}</p>
-                                        <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-                                        <p><strong>Mode:</strong> Online (Razorpay)</p>
-                                    </div>
-                                    <p>Keep this email for your records.</p>
-                                </div>`;
+                            // --- EMAIL 2: PAYMENT RECEIPT ---
+                            const receiptLink = `${protocol}://${domain}/receipt-view?id=${regId}`;
                             
-                            await sendEmail(reg.studentEmail, paySubject, payBody).catch(e => console.error(`Email 2 Failed for ${regId}`, e));
+                            const payHtml = `
+                            <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background-color: #fff;">
+                                <div style="text-align: center; padding: 15px;">
+                                     <img src="${logoUrl}" alt="Lakshya Logo" style="height: 50px; width: auto;">
+                                </div>
+                                <div style="background-color: #4fc3f7; padding: 25px; text-align: center;">
+                                     <h2 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">PAYMENT CONFIRMED</h2>
+                                </div>
+                                <div style="padding: 30px;">
+                                    <p style="font-size: 16px; color: #333;">Dear <strong>${userName}</strong>,</p>
+                                    <p style="font-size: 14px; color: #555;">We have successfully received your payment for <strong>${eventTitle}</strong>.</p>
+                                    <div style="background-color: #fcfcfc; padding: 20px; border-left: 5px solid #4CAF50; margin: 25px 0; border-radius: 2px;">
+                                        <p style="margin: 8px 0; font-size: 14px; color: #333;"><strong>Transaction ID:</strong> ${razorpay_payment_id}</p>
+                                        <p style="margin: 8px 0; font-size: 14px; color: #333;"><strong>Amount Paid:</strong> ₹${paidAmt}</p>
+                                        <p style="margin: 8px 0; font-size: 14px; color: #333;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+                                        ${couponCode ? `<p style="margin: 8px 0; font-size: 14px; color: #4fc3f7;"><strong>Coupon Applied:</strong> ${couponCode}</p>` : ''}
+                                        <p style="margin: 8px 0; font-size: 12px; color: #999;">(Includes Platform Fee)</p>
+                                    </div>
+                                    <div style="text-align: center; margin-top: 35px;">
+                                        <a href="${receiptLink}" target="_blank" style="background-color: #3f51b5; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">View Receipts</a>
+                                    </div>
+                                </div>
+                            </div>`;
+                            
+                            await sendEmail(reg.studentEmail, `Payment Receipt: ${eventTitle}`, payHtml).catch(e => console.error(e));
 
                         } catch (innerErr) {
-                            console.error(`Background Email Logic Error for ${regId}:`, innerErr);
+                            console.error(`Email Error for ${regId}:`, innerErr);
                         }
                     }
                 })(); 
@@ -578,6 +668,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
         res.status(400).json({ error: 'Invalid signature' });
     }
 });
+
 app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), async (req, res) => {
     const userEmail = req.session.user.email;
     try {
@@ -1380,7 +1471,123 @@ app.get('/api/culturals', async (req, res) => {
         res.json(culturalEvents);
     } catch (err) { res.status(500).json({ error: 'Failed' }); }
 });
+app.get('/admin/reports', isAuthenticated('admin'), (req, res) => {
+    // Make sure you save the HTML file as 'reports.html' in 'public/admin/' folder
+    res.sendFile(path.join(__dirname, 'public/admin/reports.html'));
+});
 
+// 2. API: Get Coupon Usage Details
+app.get('/api/admin/reports/coupon-usage', isAuthenticated('admin'), async (req, res) => {
+    try {
+        // Scan registrations where couponUsed exists and is not "NONE"
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            FilterExpression: "attribute_exists(couponUsed) AND couponUsed <> :none",
+            ExpressionAttributeValues: { ":none": "NONE" }
+        };
+        const data = await docClient.send(new ScanCommand(params));
+        
+        // Optional: Sort by date (newest first)
+        const items = data.Items || [];
+        items.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+        
+        res.json(items);
+    } catch (err) {
+        console.error("Coupon Report Error:", err);
+        res.status(500).json({ error: 'Failed to fetch coupon data' });
+    }
+});
+
+// 3. API: Get Entire Payment History
+app.get('/api/admin/reports/payments', isAuthenticated('admin'), async (req, res) => {
+    try {
+        // Scan registrations where payment was completed
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            FilterExpression: "paymentStatus = :s",
+            ExpressionAttributeValues: { ":s": "COMPLETED" }
+        };
+        const data = await docClient.send(new ScanCommand(params));
+        
+        // Sort by payment date (newest first)
+        const items = data.Items || [];
+        items.sort((a, b) => new Date(b.paymentDate || b.registeredAt) - new Date(a.paymentDate || a.registeredAt));
+
+        res.json(items);
+    } catch (err) {
+        console.error("Payment Report Error:", err);
+        res.status(500).json({ error: 'Failed to fetch payment data' });
+    }
+});
+
+app.get('/receipt-view', (req, res) => {
+    // Ensure you have saved the receipt-view.html file in public/static/
+    res.sendFile(path.join(__dirname, 'public/static/receipt-view.html'));
+});
+
+// B. Public API to fetch Receipt Data (No login required, for email links)
+app.get('/api/public/receipt-details/:regId', async (req, res) => {
+    const { regId } = req.params;
+    try {
+        const regData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: regId } }));
+        const reg = regData.Item;
+        if (!reg) return res.status(404).json({ error: 'Not found' });
+
+        const eventData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
+        const userData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: reg.studentEmail } }));
+
+        res.json({
+            reg: reg,
+            event: eventData.Item || { title: 'Unknown Event', fee: 0 },
+            user: { fullName: userData.Item?.fullName || 'Student', rollNo: userData.Item?.rollNo || '-' }
+        });
+    } catch (e) { res.status(500).json({ error: 'Server Error' }); }
+});
+
+app.get('/api/participant/my-registrations-data', isAuthenticated('participant'), async (req, res) => {
+    const userEmail = req.session.user.email;
+    try {
+        const data = await docClient.send(new QueryCommand({
+            TableName: 'Lakshya_Registrations', 
+            IndexName: 'StudentIndex',
+            KeyConditionExpression: 'studentEmail = :email',
+            ExpressionAttributeValues: { ':email': userEmail }
+        }));
+        // Sort by date (newest first)
+        const items = data.Items || [];
+        items.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+        res.json(items);
+    } catch (err) { res.status(500).json({ error: 'Failed' }); }
+});
+
+// B. Endpoint to serve the Public Receipt Verification Page
+app.get('/receipt-view', (req, res) => {
+    // Make sure receipt-view.html exists in public/static/
+    res.sendFile(path.join(__dirname, 'public/static/receipt-view.html'));
+});
+
+// C. Public API to fetch receipt details (Used by the QR code page)
+app.get('/api/public/receipt-details/:regId', async (req, res) => {
+    const { regId } = req.params;
+    try {
+        // 1. Get Registration
+        const regData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: regId } }));
+        const reg = regData.Item;
+        if (!reg) return res.status(404).json({ error: 'Not found' });
+
+        // 2. Get Event Details
+        const eventData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
+        
+        // 3. Get User Details
+        const userData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: reg.studentEmail } }));
+
+        res.json({
+            reg: reg,
+            event: eventData.Item || { title: 'Unknown Event', fee: 0 },
+            user: { fullName: userData.Item?.fullName || 'Student', rollNo: userData.Item?.rollNo || '-' }
+        });
+    } catch (e) { res.status(500).json({ error: 'Server Error' }); }
+});
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
     app.listen(PORT, () => { console.log(`Server running on http://localhost:${PORT}`); });
