@@ -133,10 +133,6 @@ app.get('/terms', (req, res) => res.sendFile(path.join(__dirname, 'public/static
 app.get('/get-sponsors', (req, res) => res.sendFile(path.join(__dirname, 'public/static/sponsors.html')));
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, 'public/static/privacy.html')));
 app.get('/refunds', (req, res) => res.sendFile(path.join(__dirname, 'public/static/refunds.html')));
-app.get('/shipping', (req, res) => 
-    res.sendFile(path.join(__dirname, 'public/static/shipping.html'))
-);
-
 
 // --- 5. ROUTES: PARTICIPANT (PROTECTED) ---
 app.get('/participant/dashboard', isAuthenticated('participant'), (req, res) => {
@@ -469,9 +465,10 @@ app.post('/api/payment/create-order', isAuthenticated('participant'), async (req
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode, registrationAmounts } = req.body;
     
-    // 1. Verify Signature
+    // FIX: Use the constant 'RAZORPAY_KEY_SECRET' defined at the top of your file, 
+    // instead of process.env.RAZORPAY_KEY_SECRET which might be undefined.
     const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
+    const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
 
     if (expectedSignature === razorpay_signature) {
         try {
@@ -501,15 +498,13 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 await Promise.all(updatePromises);
 
                 // 3. CRITICAL FIX: Send Success Response IMMEDIATELY 
-                // We do NOT wait for emails here to prevent 504 Gateway Timeouts.
                 res.json({ status: 'success' });
 
                 // 4. Send Emails in BACKGROUND (Fire and Forget)
-                // This code runs *after* the response has been sent to the user.
                 (async () => {
                     for (const regId of registrationIds) {
                         try {
-                            // A. Fetch Registration Details (to get student email)
+                            // A. Fetch Registration Details
                             const regData = await docClient.send(new GetCommand({ 
                                 TableName: 'Lakshya_Registrations', 
                                 Key: { registrationId: regId } 
@@ -517,7 +512,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             const reg = regData.Item;
                             if (!reg) continue;
 
-                            // B. Fetch Event Details (to get Event Title)
+                            // B. Fetch Event Details
                             const eventData = await docClient.send(new GetCommand({ 
                                 TableName: 'Lakshya_Events', 
                                 Key: { eventId: reg.eventId } 
@@ -539,10 +534,8 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                                     <p>Best Regards,<br>Team LAKSHYA</p>
                                 </div>`;
                             
-                            // Use .catch() to ensure one email failure doesn't stop the loop
                             await sendEmail(reg.studentEmail, regSubject, regBody).catch(e => console.error(`Email 1 Failed for ${regId}`, e));
                             
-                            // Send to team members if applicable
                             if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
                                 reg.teamMembers.filter(m => m.email).forEach(m => {
                                     sendEmail(m.email, regSubject, regBody).catch(e => console.error(`Team Email Failed for ${m.email}`, e));
@@ -575,12 +568,10 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 })(); 
 
             } else {
-                 // No registration IDs provided
                  res.json({ status: 'success', warning: 'No registration IDs found to verify.' });
             }
         } catch (err) {
             console.error("DB Update Error during Verification:", err);
-            // Only send 500 if the DATABASE update fails.
             res.status(500).json({ error: 'Database update failed. Please contact support.' });
         }
     } else {
