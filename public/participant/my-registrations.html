@@ -321,7 +321,6 @@
                     "image": "/assets/logo.png",
                     "order_id": orderData.id, 
                     "handler": async function (response) {
-                        // FIX: ADDED ERROR HANDLING FOR VERIFICATION
                         try {
                             const verifyRes = await fetch('/api/payment/verify', {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -335,7 +334,7 @@
                                 })
                             });
                             
-                            // Check if response is OK before parsing JSON
+                            // FIX: Check if response is OK before parsing JSON
                             if(!verifyRes.ok) throw new Error("Server Validation Error");
 
                             const verifyData = await verifyRes.json();
@@ -348,9 +347,10 @@
                             }
                         } catch (err) { 
                             console.error(err);
-                            // Even if verification times out, if payment was done, show a soft success
-                            alert("Payment recorded! Verification is taking longer than usual. Please refresh the page in 30 seconds to see the update."); 
-                            init(); 
+                            // Critical Fix: Reset button so user is not stuck
+                            btn.innerHTML = originalText; 
+                            btn.disabled = false;
+                            alert("Payment recorded by bank, but verification took too long. Please refresh the page in 30 seconds."); 
                         }
                     },
                     "prefill": { "name": currentUser.name, "email": currentUser.email, "contact": currentUser.mobile }, 
