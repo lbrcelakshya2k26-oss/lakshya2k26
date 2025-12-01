@@ -10,8 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
             position: fixed;
             top: 0;
             left: 0;
-            background: rgba(10, 10, 18, 0.95);
-            backdrop-filter: blur(15px);
+            background: rgba(10, 10, 18, 0.95); /* Deep dark background */
+            backdrop-filter: blur(15px);        /* Glass effect */
             border-right: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
             flex-direction: column;
@@ -21,17 +21,35 @@ document.addEventListener('DOMContentLoaded', function() {
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* --- LOGO STYLING --- */
+        /* --- LOGO STYLING (TEXT + SMALL IMAGE) --- */
         .sidebar .logo {
+            margin-bottom: 2rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px; /* Space between logo and text */
+            flex-shrink: 0; /* Prevent logo from shrinking */
+        }
+
+        .sidebar .logo img {
+            height: 35px; /* Very small size as requested */
+            width: auto;
+            filter: drop-shadow(0 0 5px rgba(0, 210, 255, 0.6));
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar .logo span {
             font-family: 'Rajdhani', sans-serif;
-            font-size: 2.2rem;
+            font-size: 1.8rem;
             font-weight: 800;
             color: #ffffff;
-            text-shadow: 0 0 15px #00d2ff;
-            margin-bottom: 3rem;
-            text-align: center;
-            letter-spacing: 2px;
-            cursor: pointer;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(0, 210, 255, 0.5);
+        }
+
+        .sidebar .logo:hover img {
+            transform: rotate(10deg) scale(1.1);
         }
 
         /* --- MENU LIST --- */
@@ -42,13 +60,16 @@ document.addEventListener('DOMContentLoaded', function() {
             gap: 12px;
             padding: 0;
             margin: 0;
-            flex-grow: 1; /* [FIX] This forces the menu to take up all remaining height */
+            flex-grow: 1; /* Allows menu to take available space */
+            overflow-y: auto; /* Scroll if menu is too tall */
+            scrollbar-width: none; /* Hide scrollbar Firefox */
         }
+        .sidebar .menu::-webkit-scrollbar { display: none; } /* Hide scrollbar Chrome */
 
         /* --- MENU LINKS --- */
         .sidebar .menu li a {
             text-decoration: none;
-            color: #a0a0b0;
+            color: #a0a0b0; /* Light Gray text (Fixes purple links) */
             font-family: 'Outfit', sans-serif;
             font-weight: 500;
             font-size: 1rem;
@@ -85,18 +106,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         /* --- LOGOUT BUTTON SPECIFIC --- */
-        .menu-spacer { 
-            flex-grow: 1; /* This pushes the logout button to the bottom */
-        } 
+        .menu-spacer { flex-grow: 1; } /* Pushes logout to bottom of the menu container */
         
         .logout {
             color: #ff4444 !important;
-            margin-top: auto; /* Ensures it stays at bottom even without spacer */
+            margin-top: 10px;
         }
         .logout:hover {
             background: rgba(255, 68, 68, 0.1) !important;
             border-color: rgba(255, 68, 68, 0.3) !important;
             box-shadow: 0 0 15px rgba(255, 68, 68, 0.2) !important;
+        }
+
+        /* --- FOOTER / CREDITS --- */
+        .sidebar-footer {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-footer p {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.6rem; /* Reduced size */
+            color: #ffffffff;
+            line-height: 1.4;
+        }
+
+        .sidebar-footer a {
+            color: #00d2ff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        
+        .sidebar-footer a:hover {
+            text-shadow: 0 0 8px rgba(0, 210, 255, 0.6);
+            color: #fff;
         }
 
         /* --- MOBILE STYLES --- */
@@ -128,15 +176,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- 2. DEFINE & INJECT HTML ---
     const sidebarHTML = `
+    <!-- Mobile Header -->
     <div class="mobile-header">
         <div class="mobile-logo">LAKSHYA 2K26</div>
         <i class="fa-solid fa-bars menu-toggle" onclick="toggleSidebar()"></i>
     </div>
 
+    <!-- Background Overlay for Mobile -->
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
+    <!-- Sidebar Navigation -->
     <aside class="sidebar" id="sidebar">
-        <div class="logo" onclick="window.location.href='/participant/dashboard'">LAKSHYA</div>
+        <!-- LOGO + TEXT UPDATE -->
+        <div class="logo" onclick="window.location.href='/participant/dashboard'">
+            <img src="/assets/logo.png" alt="Logo">
+            <span>LAKSHYA</span>
+        </div>
         
         <ul class="menu">
             <li><a href="/participant/dashboard" data-page="dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
@@ -149,6 +204,17 @@ document.addEventListener('DOMContentLoaded', function() {
             <li class="menu-spacer"></li>
             <li><a href="#" onclick="logout()" class="logout"><i class="fa-solid fa-power-off"></i> Logout</a></li>
         </ul>
+
+        <!-- Credits Footer -->
+        <div class="sidebar-footer">
+            <p>
+                Designed & Developed by 
+                <a href="https://xetasolutions.in" target="_blank">Xeta</a>
+            </p>
+            <p style="margin-top: 3px; opacity: 0.7;">
+                Start-up from Dept. of AI & DS, LBRCE
+            </p>
+        </div>
     </aside>
     `;
 
@@ -181,11 +247,8 @@ function toggleSidebar() {
 
 function logout() {
     if(confirm('Are you sure you want to secure logout?')) {
-        // Clear any stored data if needed
         localStorage.clear();
         sessionStorage.clear();
-        
-        // Redirect to logout API or Login page
         window.location.href = '/login'; 
     }
 }
