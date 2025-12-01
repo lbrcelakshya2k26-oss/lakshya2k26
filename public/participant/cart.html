@@ -445,14 +445,25 @@
                                 }
                             } catch (error) {
                                 console.error(error);
-                                showPopup("Verification Status", "Payment detected, but verification took too long. Check 'My Registrations' in a few seconds.", 'error');
-                                setTimeout(() => window.location.href = 'my-registrations', 4000);
+                                // CRITICAL FIX: Reset the button if server validation fails so user isn't stuck
+                                btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>';
+                                btn.disabled = false;
+                                showPopup("Payment Status", "Payment detected, but we couldn't verify it instantly. Please check 'My Registrations' in a few moments.", 'error');
                             }
                         },
-                        "prefill": { "email": "student@example.com" }, "theme": { "color": "#00d2ff" }
+                        "prefill": { "email": "student@example.com" }, "theme": { "color": "#00d2ff" },
+                        // Handle modal dismissal by user
+                        "modal": { "ondismiss": function() { 
+                            btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>'; 
+                            btn.disabled = false; 
+                        }}
                     };
                     const rzp1 = new Razorpay(options);
-                    rzp1.on('payment.failed', function (response){ showPopup("Payment Failed", response.error.description, 'error'); btn.disabled = false; btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>'; });
+                    rzp1.on('payment.failed', function (response){ 
+                        showPopup("Payment Failed", response.error.description, 'error'); 
+                        btn.disabled = false; 
+                        btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>'; 
+                    });
                     rzp1.open();
                 } catch (e) { 
                     console.error(e); 
