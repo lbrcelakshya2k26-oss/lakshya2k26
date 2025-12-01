@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <link rel="icon" type="image/png" href="\assets\logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo.png">
     
     <style>
         /* --- COSMIC THEME --- */
@@ -404,37 +404,51 @@
                     const orderData = await orderRes.json();
                     if (!orderData.id) throw new Error("Order creation failed");
                     
-                    // CHECK: If key_id is missing, show clearer error
                     if (!orderData.key_id) {
                          throw new Error("Payment Key Missing from Server.");
                     }
 
-                    // Logic to store proper amount for EACH item in DB.
-                    // We take the Total Order Amount (which includes discount & fees)
-                    // And divide it by the number of items.
+                    // Calculate per item amount for tracking
                     const amountPerItem = Math.round((orderData.amount / 100) / createdRegIds.length);
                     const regAmounts = {};
                     createdRegIds.forEach(id => regAmounts[id] = amountPerItem);
 
                     const options = {
                         "key": orderData.key_id, 
-                        "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee", "image": "/assets/logo.png", "order_id": orderData.id, 
+                        "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee",
+                        // CRITICAL FIX: Image must be HTTPS. If you have S3, use that URL.
+                        // "image": "https://your-s3-bucket.com/logo.png", 
+                        // Using a generic secure placeholder or remove this line if you don't have one.
+                        // "image": "/assets/logo.png", <--- REMOVED RELATIVE PATH CAUSING MIXED CONTENT
+                        "order_id": orderData.id, 
                         "handler": async function (response) {
-                            const verifyRes = await fetch('/api/payment/verify', { 
-                                method: 'POST', 
-                                headers: { 'Content-Type': 'application/json' }, 
-                                body: JSON.stringify({ 
-                                    razorpay_order_id: response.razorpay_order_id, 
-                                    razorpay_payment_id: response.razorpay_payment_id, 
-                                    razorpay_signature: response.razorpay_signature, 
-                                    registrationIds: createdRegIds, 
-                                    couponCode: activeCoupon ? activeCoupon.code : null,
-                                    registrationAmounts: regAmounts
-                                }) 
-                            });
-                            const verifyData = await verifyRes.json();
-                            if (verifyData.status === 'success') finishOrder();
-                            else { showPopup("Failed", "Verification failed.", 'error'); btn.disabled = false; }
+                            try {
+                                const verifyRes = await fetch('/api/payment/verify', { 
+                                    method: 'POST', 
+                                    headers: { 'Content-Type': 'application/json' }, 
+                                    body: JSON.stringify({ 
+                                        razorpay_order_id: response.razorpay_order_id, 
+                                        razorpay_payment_id: response.razorpay_payment_id, 
+                                        razorpay_signature: response.razorpay_signature, 
+                                        registrationIds: createdRegIds, 
+                                        couponCode: activeCoupon ? activeCoupon.code : null,
+                                        registrationAmounts: regAmounts
+                                    }) 
+                                });
+
+                                // CRITICAL FIX: Handle non-JSON responses (504/500 errors)
+                                if (!verifyRes.ok) {
+                                    throw new Error(`Server Error: ${verifyRes.status}`);
+                                }
+
+                                const verifyData = await verifyRes.json();
+                                if (verifyData.status === 'success') finishOrder();
+                                else { showPopup("Failed", "Verification failed.", 'error'); btn.disabled = false; }
+                            } catch (error) {
+                                console.error(error);
+                                showPopup("Verification Error", "Payment successful but verification timed out. Check 'My Registrations'.", 'error');
+                                btn.disabled = false;
+                            }
                         },
                         "prefill": { "email": "student@example.com" }, "theme": { "color": "#00d2ff" }
                     };
