@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <link rel="icon" type="image/png" href="/assets/logo.png">
+    
     <!-- 1. CONNECT COMMON JS & SET PAGE ID -->
     <script>const CURRENT_PAGE = 'my-registrations';</script>
     <script src="/js/common.js"></script>
@@ -43,6 +44,11 @@
             margin-left: 260px; /* Matches common.js sidebar width */
             width: calc(100% - 260px); 
             overflow-y: auto; 
+        }
+
+        /* Responsive Sidebar Adjustment */
+        @media (max-width: 1024px) { 
+            .main { width: 100%; margin-left: 0; padding-top: 90px; padding-left: 20px; padding-right: 20px; } 
         }
 
         .container { max-width: 1000px; margin: 0 auto; padding-bottom: 80px; }
@@ -94,18 +100,6 @@
         /* Payment Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 11000; justify-content: center; align-items: center; backdrop-filter: blur(5px); padding: 20px; }
         .modal-content { background: #1a1a2e; padding: 2rem; border-radius: 15px; border: 1px solid var(--primary-color); width: 100%; max-width: 400px; text-align: center; animation: slideUp 0.3s ease-out; }
-        
-        /* --- RESPONSIVE BREAKPOINT FOR SIDEBAR --- */
-        /* Must match common.js breakpoint (1024px) */
-        @media (max-width: 1024px) { 
-            .main { width: 100%; margin-left: 0; padding-top: 90px; padding-left: 20px; padding-right: 20px; } 
-        }
-        
-        @media (max-width: 600px) { 
-            .reg-card { flex-direction: column; align-items: flex-start; } 
-            .reg-actions { width: 100%; justify-content: flex-end; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; } 
-            .btn-action { flex: 1; justify-content: center; } 
-        }
     </style>
 </head>
 <body>
@@ -372,6 +366,7 @@
             }
         }
 
+        // --- RECEIPT GENERATION (REFINED "ENTRY PASS" STYLE) ---
         function printReceipt(regId) {
             const reg = allRegistrations.find(r => r.registrationId === regId);
             if (!reg) return;
@@ -380,110 +375,139 @@
             const dateObj = new Date(timestamp);
             const dateStr = dateObj.toLocaleDateString('en-US');
             const timeStr = dateObj.toLocaleTimeString('en-US');
-
-            let teamTableHtml = '';
-            if (reg.teamName) {
-                teamTableHtml = `
-                    <p style="margin:15px 0 5px 0; font-weight:bold; color:#333;">Team: ${reg.teamName}</p>
-                    <table style="width:100%; border-collapse:collapse; margin-bottom:15px; font-size:14px; border:1px solid #ddd;">
-                        <thead>
-                            <tr style="background-color:#f5f5f5; text-align:left;">
-                                <th style="padding:8px; border:1px solid #ddd;">Name</th>
-                                <th style="padding:8px; border:1px solid #ddd;">Roll No</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="padding:8px; border:1px solid #ddd;">${currentUser.name} (Lead)</td>
-                                <td style="padding:8px; border:1px solid #ddd;">${currentUser.rollNo || '-'}</td>
-                            </tr>`;
-                if (reg.teamMembers && reg.teamMembers.length > 0) {
-                    reg.teamMembers.forEach(m => {
-                        teamTableHtml += `
-                            <tr>
-                                <td style="padding:8px; border:1px solid #ddd;">${m.name}</td>
-                                <td style="padding:8px; border:1px solid #ddd;">${m.roll || '-'}</td>
-                            </tr>`;
-                    });
-                }
-                teamTableHtml += `</tbody></table>`;
-            } else {
-                teamTableHtml = `
-                    <table style="width:100%; border-collapse:collapse; margin:15px 0; font-size:14px; border:1px solid #ddd;">
-                        <thead>
-                            <tr style="background-color:#f5f5f5; text-align:left;">
-                                <th style="padding:8px; border:1px solid #ddd;">Name</th>
-                                <th style="padding:8px; border:1px solid #ddd;">Roll No</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="padding:8px; border:1px solid #ddd;">${currentUser.name}</td>
-                                <td style="padding:8px; border:1px solid #ddd;">${currentUser.rollNo || '-'}</td>
-                            </tr>
-                        </tbody>
-                    </table>`;
-            }
-
-            let couponHtml = '';
-            if (reg.couponUsed && reg.couponUsed !== 'NONE' && reg.couponUsed !== null) {
-                couponHtml = `<span style="font-size:0.9rem; color:#00d2ff; margin-right:10px;">(Coupon: ${reg.couponUsed})</span>`;
-            }
+            
+            // --- QR CODE GENERATION ---
+            const verifyLink = `${window.location.origin}/receipt-view?id=${regId}`;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(verifyLink)}`;
 
             const finalAmount = reg.amountPaid ? reg.amountPaid : (eventDetails.fee || 0);
 
-            const win = window.open('', '', 'width=800,height=800');
+            const win = window.open('', '', 'width=850,height=900');
             win.document.write(`
                 <html>
                 <head>
-                    <title>Receipt - ${eventDetails.title}</title>
+                    <title>Entry Pass - ${eventDetails.title}</title>
                     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
                     <style>
                         body { font-family: 'Roboto', sans-serif; padding: 40px; background:#f0f2f5; display:flex; justify-content:center; }
-                        .receipt-container {
-                            background: white; width: 100%; max-width: 600px; padding: 40px;
-                            border: 2px solid #00d2ff; border-radius: 10px; position: relative;
-                            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                        .pass-container {
+                            background: white; width: 100%; max-width: 600px; padding: 0;
+                            border: 2px solid #00d2ff; border-radius: 12px; position: relative;
+                            box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden;
                         }
-                        .header { text-align: center; margin-bottom: 30px; }
-                        .header h1 { color: #00d2ff; margin: 0; font-size: 28px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-                        .header p { color: #666; margin: 5px 0 0; font-size: 14px; }
-                        .meta-row { display: flex; justify-content: space-between; font-size: 13px; color: #333; border-bottom: 1px dashed #ccc; padding-bottom: 10px; margin-bottom: 20px; }
-                        .event-info { margin-bottom: 20px; }
-                        .event-info h3 { margin: 0 0 5px; font-size: 18px; color: #333; }
-                        .event-info p { margin: 0; color: #666; font-size: 14px; }
-                        .payment-row { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 10px; border-top: 1px dashed #ccc; }
-                        .amount { font-size: 24px; font-weight: 700; color: #333; }
-                        .stamp { margin: 30px auto 0; width: fit-content; padding: 10px 30px; border: 3px solid #4caf50; color: #4caf50; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; transform: rotate(-3deg); border-radius: 8px; opacity: 0.9; }
-                        .btn-print { position: fixed; bottom: 20px; right: 20px; padding: 12px 25px; background: #333; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-                        @media print { .btn-print, body { background: white; padding: 0; } .receipt-container { border: 2px solid #00d2ff !important; box-shadow: none; } }
+                        
+                        /* HEADER SECTION */
+                        .pass-header { 
+                            padding: 25px 30px; 
+                            display: flex; 
+                            justify-content: space-between; 
+                            align-items: center; 
+                            border-bottom: 2px solid #f0f0f0;
+                        }
+                        .pass-header img { height: 60px; width: auto; object-fit: contain; }
+                        .pass-title { text-align: center; flex: 1; }
+                        .pass-title h1 { margin: 0; font-size: 24px; color: #888; letter-spacing: 2px; font-weight: 700; text-transform: uppercase; }
+                        .pass-title p { margin: 5px 0 0; font-size: 10px; color: #aaa; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; }
+                        
+                        .pass-body { padding: 30px; }
+                        
+                        /* META INFO ROW (ID / DATE) */
+                        .meta-row { display: flex; justify-content: space-between; font-size: 11px; color: #555; font-weight: 600; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px; }
+                        .separator { border-bottom: 2px dashed #ddd; margin-bottom: 30px; position: relative; }
+                        /* Optional scissors icon */
+                        /* .separator::after { content: '✂'; position: absolute; right: 0; top: -10px; font-size: 14px; color: #ccc; } */
+                        
+                        /* EVENT TITLE SECTION */
+                        .event-info { margin-bottom: 35px; text-align: center; }
+                        .event-info h3 { margin: 0 0 8px; font-size: 22px; color: #222; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+                        .event-info p { margin: 0; color: #666; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+                        
+                        /* DETAILS LIST */
+                        .details-grid { display: grid; grid-template-columns: 140px 1fr; row-gap: 12px; font-size: 12px; margin-bottom: 35px; align-items: baseline; }
+                        .label { color: #777; font-weight: 500; }
+                        .value { color: #000; font-weight: 700; text-align: right; text-transform: uppercase; font-size: 13px; }
+                        .amount-val { color: #00d2ff; font-size: 18px; font-weight: 800; }
+                        
+                        /* FOOTER (QR & STAMP) */
+                        .footer-row { 
+                            display: flex; justify-content: space-between; align-items: flex-end; 
+                            margin-top: 20px;
+                        }
+                        .qr-section { text-align: center; }
+                        .qr-img { width: 90px; height: 90px; border: 1px solid #eee; padding: 3px; background: #fff; }
+                        .scan-text { font-size: 9px; color: #888; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; font-weight: 500; }
+                        
+                        .stamp { 
+                            border: 3px solid #4caf50; color: #4caf50; 
+                            padding: 8px 20px; font-weight: 800; 
+                            text-transform: uppercase; transform: rotate(-5deg); 
+                            display: inline-block; font-size: 16px; letter-spacing: 2px; border-radius: 6px;
+                            opacity: 0.8;
+                            background: rgba(76, 175, 80, 0.05); /* Slight green tint */
+                        }
+                        
+                        .btn-print { position: fixed; bottom: 30px; right: 30px; padding: 14px 30px; background: #222; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 5px 20px rgba(0,0,0,0.3); font-size: 14px; transition: 0.3s; }
+                        .btn-print:hover { background: #000; transform: translateY(-3px); }
+                        
+                        @media print { 
+                            .btn-print, body { background: white; padding: 0; } 
+                            .pass-container { border: 1px solid #00d2ff !important; box-shadow: none; border-radius: 0; width: 100%; max-width: 100%; margin: 0; } 
+                            /* Force background colors for print */
+                            .pass-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        }
                     </style>
                 </head>
                 <body>
-                    <div class="receipt-container">
-                        <div class="header">
-                            <h1>LAKSHYA 2K26</h1>
-                            <p>Official Payment Receipt</p>
-                        </div>
-                        <div class="meta-row">
-                            <span><strong>ID:</strong> ${regId.substring(0,8).toUpperCase()}</span>
-                            <span><strong>Date:</strong> ${dateStr} ${timeStr}</span>
-                        </div>
-                        <div class="event-info">
-                            <h3>${eventDetails.title}</h3>
-                            <p><strong>Department:</strong> ${reg.deptName}</p>
-                        </div>
-                        ${teamTableHtml}
-                        <div class="payment-row">
-                            <div>
-                                <span style="display:block; font-size:14px; color:#666;">Payment Mode: <strong>${reg.paymentMode || 'Online'}</strong></span>
-                                ${couponHtml}
+                    <div class="pass-container">
+                        <div class="pass-header">
+                            <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764610592/1000150316_94d436c3b0efe15eb7fb1d332f32709f-10_6_2025_7_05_27_AM_wt8kgm.png" alt="College Logo">
+                            <div class="pass-title">
+                                <h1>Lakshya 2K26</h1>
+                                <p>Official Entry Pass</p>
                             </div>
-                            <div class="amount">₹${finalAmount}</div>
+                            <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png" alt="Event Logo">
                         </div>
-                        <div class="stamp">PAID & CONFIRMED</div>
+                        
+                        <div class="pass-body">
+                            <div class="meta-row">
+                                <span><strong>ID:</strong> ${regId.substring(0,8).toUpperCase()}</span>
+                                <span>${dateStr}</span>
+                            </div>
+                            <div class="separator"></div>
+                            
+                            <div class="event-info">
+                                <h3>${eventDetails.title}</h3>
+                                <p>${reg.deptName}</p>
+                            </div>
+                            
+                            <div class="details-grid">
+                                <div class="label">Participant Name</div>
+                                <div class="value">${currentUser.name}</div>
+                                
+                                <div class="label">Roll Number</div>
+                                <div class="value">${currentUser.rollNo || '-'}</div>
+                                
+                                ${reg.teamName ? `<div class="label">Team Name</div><div class="value">${reg.teamName}</div>` : ''}
+                                
+                                ${reg.couponUsed && reg.couponUsed !== 'NONE' ? `<div class="label">Coupon Used</div><div class="value" style="color:#00d2ff;">${reg.couponUsed}</div>` : ''}
+
+                                <div class="label">Payment Mode</div>
+                                <div class="value">${reg.paymentMode || 'ONLINE'}</div>
+                                
+                                <div class="label">Amount Paid</div>
+                                <div class="value amount-val">₹${finalAmount}</div>
+                            </div>
+                            
+                            <div class="footer-row">
+                                <div class="qr-section">
+                                    <img src="${qrUrl}" class="qr-img" alt="QR Code for Verification">
+                                    <div class="scan-text">Scan to Verify</div>
+                                </div>
+                                <div class="stamp">PAID & CONFIRMED</div>
+                            </div>
+                        </div>
                     </div>
-                    <button class="btn-print" onclick="window.print()">Print Receipt</button>
+                    <button class="btn-print" onclick="window.print()">Print Entry Pass</button>
                 </body>
                 </html>
             `);
