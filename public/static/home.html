@@ -256,6 +256,40 @@
             transform: translateY(45px);
         }
 
+        /* --- FOOTER STYLES --- */
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            background: rgba(5, 5, 10, 0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            text-align: center;
+            z-index: 999; /* Below Nav */
+            border-top: 1px solid var(--glass-border);
+        }
+        footer p {
+            font-size: 0.8rem;
+            margin: 2px 0;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+        footer a:hover {
+            color: var(--accent-color);
+        }
+        .sub-footer {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            letter-spacing: 0.5px;
+        }
+
         /* Modal */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -381,6 +415,12 @@
             <a href="register" class="cta-btn">Start Your Journey</a>
         </div>
     </header>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>Designed & Developed by <a href="https://xetasolutions.in" target="_blank">Xeta</a></p>
+        <p class="sub-footer">A start up from AI&DS, LBRCE</p>
+    </footer>
 
     <!-- POPUP MODAL -->
     <div class="modal-overlay" id="customPopup">
