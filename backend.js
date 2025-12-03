@@ -133,6 +133,9 @@ app.get('/terms', (req, res) => res.sendFile(path.join(__dirname, 'public/static
 app.get('/get-sponsors', (req, res) => res.sendFile(path.join(__dirname, 'public/static/sponsors.html')));
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, 'public/static/privacy.html')));
 app.get('/refunds', (req, res) => res.sendFile(path.join(__dirname, 'public/static/refunds.html')));
+app.get('/refunds', (req, res) => res.sendFile(path.join(__dirname, 'public/static/shipping.html')));
+
+
 
 // --- 5. ROUTES: PARTICIPANT (PROTECTED) ---
 app.get('/participant/dashboard', isAuthenticated('participant'), (req, res) => {
