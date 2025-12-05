@@ -373,16 +373,10 @@
             else renderCart();
         }
 
-        // --- UPDATED FUNCTION TO BLOCK REGISTRATION ---
+        // --- UPDATED FUNCTION TO ENABLE REGISTRATION ---
         function initiateCheckout() {
-            // Block checkout and show date message
-            showPopup("Registration Closed", "Events registrations will enable from 05-12-2025", 'error');
-            
-            // NOTE: Original logic below is preserved but unreachable
-            /*
             const mode = document.querySelector('input[name="payment"]:checked').value;
             showPopup("Confirm Checkout", `Proceed with ${mode} payment?`, 'confirm', () => performCheckout(mode));
-            */
         }
 
         async function performCheckout(paymentMode) {
