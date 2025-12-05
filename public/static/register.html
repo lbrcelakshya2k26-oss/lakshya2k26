@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +38,99 @@
             background: var(--dark-overlay); z-index: -1;
         }
 
+        /* --- COMING SOON / BLUR OVERLAY (NEW) --- */
+        .coming-soon-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(5, 5, 10, 0.6); /* Semi-transparent dark overlay */
+            backdrop-filter: blur(15px); /* This creates the blur effect */
+            -webkit-backdrop-filter: blur(15px);
+            z-index: 9999; /* High z-index, but lower than Nav now */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .coming-soon-card {
+            background: rgba(15, 15, 30, 0.95);
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 50px rgba(0, 210, 255, 0.3);
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+
+        .lock-icon {
+            font-size: 4rem;
+            color: var(--accent-color);
+            margin-bottom: 1.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        .cs-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        .cs-date-box {
+            background: linear-gradient(45deg, rgba(0, 210, 255, 0.1), rgba(58, 123, 213, 0.1));
+            border: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+        }
+
+        .cs-text { color: #aaa; margin-bottom: 5px; font-size: 0.9rem; letter-spacing: 1px; }
+        
+        .cs-date {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--primary-color), var(--success-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-home {
+            margin-top: 2rem;
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .btn-home:hover {
+            background: var(--primary-color);
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); text-shadow: 0 0 10px var(--accent-color); }
+            50% { transform: scale(1.1); text-shadow: 0 0 30px var(--accent-color); }
+            100% { transform: scale(1); text-shadow: 0 0 10px var(--accent-color); }
+        }
+
         /* --- UPDATED RESPONSIVE NAVIGATION --- */
+        /* CHANGED: Z-Index set to 10000 to sit ABOVE the overlay */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
             height: 90px; padding: 0 4%;
@@ -71,6 +164,7 @@
         .btn-register { padding: 0.6rem 1.5rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; }
 
         /* Mobile Menu Toggle */
+        /* CHANGED: Z-Index set to 10003 to be clickable */
         .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 30px; height: 21px; cursor: pointer; z-index: 10003; }
         .bar { width: 100%; height: 3px; background-color: white; border-radius: 3px; transition: 0.4s; }
         
@@ -178,6 +272,22 @@
     </style>
 </head>
 <body>
+
+    <!-- OVERLAY: BLURS EVERYTHING BEHIND IT -->
+    <div class="coming-soon-overlay">
+        <div class="coming-soon-card">
+            <div class="lock-icon">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h2 class="cs-title">Registration Closed</h2>
+            <div class="cs-date-box">
+                <p class="cs-text">REGISTRATIONS START FROM</p>
+                <div class="cs-date">05 - 12 - 2025</div>
+            </div>
+            <button class="btn-home" onclick="window.location.href='home'">Back to Home</button>
+        </div>
+    </div>
+    <!-- END OVERLAY -->
 
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
@@ -362,18 +472,6 @@
                     body: JSON.stringify({ email })
                 });
                 const result = await response.json();
-                
-                // --- ROBUST HANDLING FOR EXISTING ACCOUNTS ---
-                if (response.status === 409) {
-                    showPopup('Account Exists', 'This email is already registered. Please Login.', 'error', () => {
-                        window.location.href = 'login';
-                    });
-                    otpBtn.innerText = "Login Instead"; 
-                    otpBtn.disabled = false;
-                    otpBtn.onclick = () => window.location.href = 'login';
-                    return;
-                }
-
                 if (response.ok) {
                     showPopup('OTP Sent!', 'Please check your email inbox (and spam folder) for the verification code.', 'success');
                     document.getElementById('otpGroup').style.display = 'block'; otpBtn.innerText = "Sent";
@@ -411,17 +509,6 @@
                     body: JSON.stringify({ fullName, college, rollNo, mobile, stream, dept, year, email, password, otp })
                 });
                 const result = await response.json();
-                
-                // --- ROBUST HANDLING FOR EXISTING ACCOUNTS ---
-                if (response.status === 409) {
-                    showPopup('Registration Failed', 'Account already exists. Redirecting to Login...', 'error', () => {
-                        window.location.href = 'login';
-                    });
-                    submitBtn.innerText = "Login";
-                    submitBtn.onclick = () => window.location.href = 'login';
-                    return;
-                }
-
                 if (response.ok) {
                     showPopup('Welcome Aboard!', 'Registration Successful! Redirecting you to the login page...', 'success', () => { window.location.href = "login"; });
                 } else {
