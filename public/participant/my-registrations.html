@@ -74,6 +74,7 @@
         .reg-card:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .reg-card::before { content:''; position: absolute; left: 0; top: 0; height: 100%; width: 4px; background: var(--primary-color); }
         .reg-card.pending::before { background: #ffc107; }
+        .reg-card.review::before { background: var(--accent-color); }
         
         .reg-details { flex: 1; min-width: 200px; }
         .reg-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 5px; color: white; font-family: 'Montserrat'; }
@@ -85,11 +86,15 @@
         .status-badge { padding: 6px 12px; border-radius: 50px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
         .status-paid { background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); }
         .status-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3); }
+        .status-review { background: rgba(255, 0, 204, 0.2); color: #ff88dd; border: 1px solid rgba(255, 0, 204, 0.3); }
         
         .reg-actions { display: flex; gap: 10px; }
         .btn-action { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 0.9rem; border: none; display: flex; align-items: center; gap: 8px; }
+        
         .btn-pay { background: #ffc107; color: black; }
         .btn-pay:hover { background: #ffdb4d; transform: translateY(-2px); }
+        .btn-pay.disabled { background: #333; color: #666; cursor: not-allowed; }
+        
         .btn-receipt { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); border: 1px solid var(--primary-color); }
         .btn-receipt:hover { background: var(--primary-color); color: black; }
         
@@ -168,6 +173,14 @@
         let currentUser = { name: 'Student', rollNo: '', email: '' };
         let pendingTx = { regId: null, amount: 0, coupon: null };
 
+        const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'art', 'rangamarthanda', 'painting', 'literary'];
+
+        function isCulturalEvent(title, type) {
+            const t = (type || '').toLowerCase();
+            const ti = (title || '').toLowerCase();
+            return culturalKeywords.some(key => t.includes(key) || ti.includes(key));
+        }
+
         async function init() {
             try {
                 const resEvents = await fetch('/api/events');
@@ -191,11 +204,38 @@
                 container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-clipboard-list" style="font-size:4rem; opacity:0.2; margin-bottom:15px;"></i><h3>No Registrations Yet</h3><p>You haven't registered for any events.</p><a href="events" class="btn-browse">Browse Events</a></div>`;
                 return;
             }
+            
             allRegistrations.forEach(reg => {
-                const eventDetails = eventCache[reg.eventId] || { title: reg.eventId, fee: '0' };
+                const eventDetails = eventCache[reg.eventId] || { title: reg.eventId, fee: '0', type: '' };
                 const isPaid = reg.paymentStatus === 'COMPLETED';
-                const statusBadge = isPaid ? `<span class="status-badge status-paid"><i class="fa-solid fa-check"></i> Paid</span>` : `<span class="status-badge status-pending"><i class="fa-solid fa-clock"></i> Pending</span>`;
-                const cardClass = isPaid ? 'reg-card' : 'reg-card pending';
+                const isCultural = isCulturalEvent(eventDetails.title, eventDetails.type);
+                const isApproved = reg.approvalStatus === 'APPROVED';
+
+                let statusHtml = '';
+                let cardClass = 'reg-card';
+                let actionBtn = '';
+
+                // LOGIC: Cultural events need approval before payment
+                if (isPaid) {
+                    statusHtml = `<span class="status-badge status-paid"><i class="fa-solid fa-check"></i> Paid</span>`;
+                    actionBtn = `<button class="btn-action btn-receipt" onclick="printReceipt('${reg.registrationId}')"><i class="fa-solid fa-print"></i> Receipt</button>`;
+                } else {
+                    cardClass = 'reg-card pending';
+                    if (isCultural) {
+                        if (isApproved) {
+                            statusHtml = `<span class="status-badge status-pending" style="border-color:#00ff88; color:#00ff88;"><i class="fa-solid fa-check"></i> Approved</span>`;
+                            actionBtn = `<button class="btn-action btn-pay" onclick="openPaymentModal('${reg.registrationId}', ${eventDetails.fee || 0})"><i class="fa-solid fa-credit-card"></i> Pay Now</button>`;
+                        } else {
+                            cardClass = 'reg-card review';
+                            statusHtml = `<span class="status-badge status-review"><i class="fa-solid fa-hourglass-half"></i> Under Review</span>`;
+                            actionBtn = `<button class="btn-action btn-pay disabled" disabled title="Waiting for coordinator approval"><i class="fa-solid fa-lock"></i> Locked</button>`;
+                        }
+                    } else {
+                        // Technical Events: Pending Payment
+                        statusHtml = `<span class="status-badge status-pending"><i class="fa-solid fa-clock"></i> Pending</span>`;
+                        actionBtn = `<button class="btn-action btn-pay" onclick="openPaymentModal('${reg.registrationId}', ${eventDetails.fee || 0})"><i class="fa-solid fa-credit-card"></i> Pay Now</button>`;
+                    }
+                }
                 
                 let teamHtml = '';
                 if(reg.teamName) {
@@ -206,13 +246,6 @@
                 let couponHtml = '';
                 if(reg.couponUsed && reg.couponUsed !== 'NONE' && reg.couponUsed !== null) {
                     couponHtml = `<div class="coupon-badge"><i class="fa-solid fa-tag"></i> ${reg.couponUsed}</div>`;
-                }
-
-                let actionBtn = '';
-                if (isPaid) {
-                    actionBtn = `<button class="btn-action btn-receipt" onclick="printReceipt('${reg.registrationId}')"><i class="fa-solid fa-print"></i> Receipt</button>`;
-                } else {
-                    actionBtn = `<button class="btn-action btn-pay" onclick="openPaymentModal('${reg.registrationId}', ${eventDetails.fee || 0})"><i class="fa-solid fa-credit-card"></i> Pay Now</button>`;
                 }
 
                 const div = document.createElement('div');
@@ -227,7 +260,7 @@
                         </div>
                         ${teamHtml} ${couponHtml}
                     </div>
-                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px;">${statusBadge}</div>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px;">${statusHtml}</div>
                     <div class="reg-actions">${actionBtn}</div>`;
                 container.appendChild(div);
             });
@@ -328,7 +361,6 @@
                                 })
                             });
                             
-                            // FIX: Check if response is OK before parsing JSON
                             if(!verifyRes.ok) throw new Error("Server Validation Error");
 
                             const verifyData = await verifyRes.json();
@@ -341,7 +373,6 @@
                             }
                         } catch (err) { 
                             console.error(err);
-                            // Critical Fix: Reset button so user is not stuck
                             btn.innerHTML = originalText; 
                             btn.disabled = false;
                             alert("Payment recorded by bank, but verification took too long. Please refresh the page in 30 seconds."); 
@@ -366,7 +397,7 @@
             }
         }
 
-        // --- RECEIPT GENERATION (REFINED "ENTRY PASS" STYLE) ---
+        // --- RECEIPT GENERATION ---
         function printReceipt(regId) {
             const reg = allRegistrations.find(r => r.registrationId === regId);
             if (!reg) return;
@@ -374,9 +405,7 @@
             const timestamp = reg.paymentDate || reg.registeredAt || new Date().toISOString();
             const dateObj = new Date(timestamp);
             const dateStr = dateObj.toLocaleDateString('en-US');
-            const timeStr = dateObj.toLocaleTimeString('en-US');
             
-            // --- QR CODE GENERATION ---
             const verifyLink = `${window.location.origin}/receipt-view?id=${regId}`;
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(verifyLink)}`;
 
@@ -414,8 +443,6 @@
                         /* META INFO ROW (ID / DATE) */
                         .meta-row { display: flex; justify-content: space-between; font-size: 11px; color: #555; font-weight: 600; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px; }
                         .separator { border-bottom: 2px dashed #ddd; margin-bottom: 30px; position: relative; }
-                        /* Optional scissors icon */
-                        /* .separator::after { content: '✂'; position: absolute; right: 0; top: -10px; font-size: 14px; color: #ccc; } */
                         
                         /* EVENT TITLE SECTION */
                         .event-info { margin-bottom: 35px; text-align: center; }
@@ -452,7 +479,6 @@
                         @media print { 
                             .btn-print, body { background: white; padding: 0; } 
                             .pass-container { border: 1px solid #00d2ff !important; box-shadow: none; border-radius: 0; width: 100%; max-width: 100%; margin: 0; } 
-                            /* Force background colors for print */
                             .pass-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                         }
                     </style>
