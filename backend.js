@@ -43,8 +43,12 @@ app.use(session({
 // --- RAZORPAY SETUP ---
 // --- RAZORPAY SETUP ---
 // Define keys in variables first so we can reuse them
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_Rj1XO8nMv3xR7J';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'XqfcDBCtT3RD570yw8fGT43u';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_missing_key'; 
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'missing_secret';
+
+if (RAZORPAY_KEY_ID === 'rzp_test_missing_key') {
+    console.warn("⚠️ WARNING: RAZORPAY_KEY_ID is missing from .env file. Payment features will not work.");
+}
 
 const razorpay = new Razorpay({
     key_id: RAZORPAY_KEY_ID,
@@ -285,17 +289,29 @@ const getEmailTemplate = (type, data) => {
 app.post('/api/auth/register', async (req, res) => {
     const { fullName, rollNo, email, mobile, college, password, stream, dept, year } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
+    
     const params = {
         TableName: 'Lakshya_Users',
         Item: {
             email: email, role: 'participant', fullName, rollNo, mobile, college, stream, dept, year,
             password: hashedPassword, createdAt: new Date().toISOString()
-        }
+        },
+        // THIS LINE IS CRITICAL:
+        ConditionExpression: 'attribute_not_exists(email)' 
     };
-    try { await docClient.send(new PutCommand(params)); res.status(200).json({ message: 'Registration successful' }); }
-    catch (err) { res.status(500).json({ error: 'Registration failed', details: err }); }
-});
 
+    try { 
+        await docClient.send(new PutCommand(params)); 
+        res.status(200).json({ message: 'Registration successful' }); 
+    }
+    catch (err) { 
+        // Catch specific "Already Exists" error
+        if (err.name === 'ConditionalCheckFailedException') {
+            return res.status(409).json({ error: 'Account already exists. Please Login.' });
+        }
+        res.status(500).json({ error: 'Registration failed', details: err }); 
+    }
+});
 app.post('/api/auth/login', async (req, res) => {
     const { email, password, role } = req.body;
     const params = { TableName: 'Lakshya_Users', Key: { email } };
@@ -323,10 +339,28 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/send-otp', async (req, res) => {
     const { email } = req.body;
+
+    // 1. ROBUST CHECK: Does user exist?
+    try {
+        const userCheck = await docClient.send(new GetCommand({
+            TableName: 'Lakshya_Users',
+            Key: { email: email }
+        }));
+        
+        // If user exists, block OTP and tell them to login
+        if (userCheck.Item) {
+            return res.status(409).json({ error: 'Account already registered. Please Login.' });
+        }
+    } catch (e) {
+        console.error("DB Error checking user:", e);
+        return res.status(500).json({ error: 'Server error checking account status.' });
+    }
+
+    // 2. Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     req.session.otp = otp;
     
-    // HTML Template (kept same)
+    // 3. Email Template
     const htmlContent = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f4f4; padding: 20px;">
         <div style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
@@ -340,13 +374,15 @@ app.post('/api/auth/send-otp', async (req, res) => {
                         ${otp}
                     </span>
                 </div>
+                <p style="color: #666;">Use this code to complete your registration.</p>
             </div>
         </div>
     </div>`;
 
+    // 4. Send Email
     try {
         await sendEmail(email, "LAKSHYA 2K26 - Email Verification", htmlContent);
-        res.json({ message: 'OTP sent', debug_otp: otp });
+        res.json({ message: 'OTP sent', debug_otp: otp }); // debug_otp for testing
     } catch (e) {
         console.error("OTP Error:", e);
         res.status(500).json({ error: 'Failed to send OTP' });
@@ -1590,6 +1626,67 @@ app.get('/api/public/receipt-details/:regId', async (req, res) => {
             user: { fullName: userData.Item?.fullName || 'Student', rollNo: userData.Item?.rollNo || '-' }
         });
     } catch (e) { res.status(500).json({ error: 'Server Error' }); }
+});
+
+// Add this to your backend.js file
+
+// --- API: Get Submissions for Coordinator ---
+app.get('/api/coordinator/submissions', isAuthenticated('coordinator'), async (req, res) => {
+    const user = req.session.user;
+    try {
+        let items = [];
+        
+        // 1. Fetch Registrations based on role (Event Coord vs Dept Coord)
+        if (user.managedEventId) {
+             // If Specific Event Coordinator: Get only their event
+             const params = {
+                TableName: 'Lakshya_Registrations',
+                FilterExpression: 'eventId = :eid',
+                ExpressionAttributeValues: { ':eid': user.managedEventId }
+             };
+             const data = await docClient.send(new ScanCommand(params));
+             items = data.Items || [];
+        } else {
+            // If Department Coordinator: Get all events for their department
+            const params = {
+                TableName: 'Lakshya_Registrations',
+                IndexName: 'DepartmentIndex',
+                KeyConditionExpression: 'deptName = :dept',
+                ExpressionAttributeValues: { ':dept': user.dept }
+            };
+            const data = await docClient.send(new QueryCommand(params));
+            items = data.Items || [];
+        }
+        
+        // 2. Filter only those with submissions (Title OR Url)
+        // We filter here in code to avoid complex DynamoDB FilterExpressions
+        const submissions = items.filter(r => r.submissionTitle || r.submissionUrl);
+
+        // 3. Sort by Date (Newest First)
+        submissions.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+
+        res.json(submissions);
+    } catch (err) { 
+        console.error("Submissions Fetch Error:", err);
+        res.status(500).json({ error: "Failed to fetch submissions" }); 
+    }
+});
+
+// --- API: Coordinator Approve Registration (Enable Payment) ---
+app.post('/api/coordinator/approve-registration', isAuthenticated('coordinator'), async (req, res) => {
+    const { registrationId } = req.body;
+    try {
+        await docClient.send(new UpdateCommand({
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId },
+            UpdateExpression: "set approvalStatus = :a",
+            ExpressionAttributeValues: { ":a": "APPROVED" }
+        }));
+        res.json({ message: "Registration Approved. Payment enabled for student." });
+    } catch (e) { 
+        console.error("Approval Error:", e);
+        res.status(500).json({ error: "Failed to approve registration" }); 
+    }
 });
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
