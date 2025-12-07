@@ -685,8 +685,8 @@ app.post('/api/payment/create-order', async (req, res) => {
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode } = req.body;
     
-    // Domain for Ticket Links (Update if hosted elsewhere)
-    const CLIENT_URL = "https://lakshya2k26.com"; 
+    // Define your frontend domain here for the ticket links
+    const CLIENT_URL = "https://lakshya.lbrce.ac.in/"; 
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
@@ -696,7 +696,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
             if (registrationIds && Array.isArray(registrationIds)) {
                 
                 // 1. RECONSTRUCT & RECALCULATE PRICES (Server-Side Source of Truth)
-                // This ensures the DB stores 200 for the first and 100 for the second, not 150/150.
+                // This ensures the email shows the exact 200/100 split, not an average.
                 let regItems = [];
                 
                 // A. Fetch all details first
@@ -720,10 +720,10 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                     }
                 }
 
-                // B. Sort High to Low (CRITICAL: Expensive item gets Full Price, Cheaper gets Discount)
+                // B. Sort High to Low (Crucial for Discount Logic - Expensive item is Full Price)
                 regItems.sort((a, b) => b.fee - a.fee);
 
-                // C. History Check (Count previously PAID eligible events)
+                // C. History Check (Same logic as create-order)
                 let historyCount = 0;
                 const userEmail = regItems.length > 0 ? regItems[0].studentEmail : "";
                 
@@ -738,9 +738,9 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                         const regs = existingRegs.Items || [];
                         for (const reg of regs) {
                             if (reg.paymentStatus === 'COMPLETED') {
-                                // Exclude current transaction items
+                                // Exclude current transaction items to avoid double counting
                                 if (!regItems.some(ri => ri.eventId === reg.eventId)) {
-                                    // Check eligibility (fallback to category or fetch event)
+                                    // Check eligibility
                                     if (reg.category) {
                                         const cat = reg.category.toLowerCase();
                                         const eligibleKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary'];
@@ -755,7 +755,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                     } catch (e) { console.error("History Check Error", e); }
                 }
 
-                // D. Standard Coupon Fetch
+                // D. Fetch Standard Coupon if applicable
                 let standardCoupon = null;
                 if (couponCode && couponCode !== 'LAKSHYA2K26') {
                     const cRes = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() }}));
@@ -772,7 +772,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
 
                     if (couponCode === 'LAKSHYA2K26' && isEligible) {
                         currentEligibleIndex++;
-                        // Effective Position logic: 1st is Full, 2nd+ is Half
+                        // Effective Position logic
                         if ((historyCount + currentEligibleIndex) > 1) {
                             price = item.fee / 2; // 50% OFF
                         }
@@ -781,15 +781,15 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             price = item.fee - (item.fee * standardCoupon.percentage / 100);
                         }
                     }
-                    item.paidAmount = price; // Store exact calculated price (e.g., 200 or 100)
+                    item.paidAmount = price; // Store exact calculated price (e.g., 100)
                     totalBase += price;
                 });
 
-                // F. Calculate Platform Fee (Visual only here, used for email)
+                // F. Calculate Platform Fee Separately
                 const platformFee = Math.ceil(totalBase * 0.0236);
                 const totalPaid = totalBase + platformFee;
 
-                // 2. UPDATE DATABASE (With Exact Amount)
+                // 2. UPDATE DATABASE
                 const updatePromises = regItems.map(item => {
                     return docClient.send(new UpdateCommand({
                         TableName: 'Lakshya_Registrations', 
@@ -802,7 +802,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             ":a": false,
                             ":c": couponCode || "NONE", 
                             ":d": new Date().toISOString(), 
-                            ":amt": item.paidAmount // Saves 200 or 100 specifically
+                            ":amt": item.paidAmount // Store Base Amount (cleaner for stats)
                         }
                     }));
                 });
@@ -810,7 +810,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 
                 res.json({ status: 'success' }); 
 
-                // 3. SEND EMAILS
+                // 3. SEND EMAILS (Now with Correct Breakdown)
                 let userName = "Participant";
                 try {
                     const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: userEmail }}));
@@ -819,7 +819,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
 
                 const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
 
-                // Email 1: Confirmation
+                // --- Email 1: Registration Confirmation ---
                 const eventsHtml = regItems.map(item => `
                     <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #00d2ff;">
                         <p style="margin: 5px 0;"><strong>Event:</strong> ${item.title}</p>
@@ -847,7 +847,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 
                 await sendEmail(userEmail, `Registration Confirmed - ${regItems.length} Events`, regEmailHtml).catch(e=>console.error(e));
 
-                // Email 2: Payment Receipt
+                // --- Email 2: Payment Receipt (FIXED) ---
                 const paymentRows = regItems.map(item => `
                     <tr>
                         <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.title}</td>
@@ -855,6 +855,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                     </tr>
                 `).join('');
                 
+                // Add Platform Fee as a explicit row so the math adds up visually
                 const feeRow = `
                     <tr>
                         <td style="padding: 8px; border-bottom: 1px solid #eee; color: #888; font-size: 0.9em;">Platform Fee (2.36%)</td>
@@ -902,6 +903,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
         res.status(400).json({ error: 'Invalid signature' });
     }
 });
+
 app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), async (req, res) => {
     const userEmail = req.session.user.email;
     try {
@@ -2781,6 +2783,182 @@ app.get('/api/admin/kit-stats', isAuthenticated('admin'), async (req, res) => {
     } catch (e) {
         console.error("Admin Kit Stats Error:", e);
         res.status(500).json({ error: "Failed to fetch stats" });
+    }
+});
+
+app.post('/api/support/create', isAuthenticated('participant'), async (req, res) => {
+    const { category, subject, description } = req.body;
+    const user = req.session.user;
+    
+    if (!category || !subject || !description) {
+        return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const queryId = uuidv4();
+    
+    // We repurpose 'Lakshya_Registrations' fields to store query data
+    // eventId = 'QUERY' acts as a filter to distinguish these from real events
+    const params = {
+        TableName: 'Lakshya_Registrations',
+        Item: {
+            registrationId: queryId,        // PK
+            studentEmail: user.email,       // userId (for Index)
+            eventId: 'QUERY',               // Flag to identify this is a query
+            
+            // Mapping fields:
+            deptName: category,             // Stores Category
+            teamName: subject,              // Stores Subject
+            submissionAbstract: description,// Stores Description
+            paymentStatus: 'OPEN',          // Stores Status (OPEN/RESOLVED)
+            remarks: null,                  // Stores Admin Reply
+            
+            // Extra metadata
+            studentName: user.name || 'Participant',
+            rollNo: user.rollNo || '-',
+            registeredAt: new Date().toISOString()
+        }
+    };
+
+    try {
+        await docClient.send(new PutCommand(params));
+        res.json({ message: 'Query submitted successfully', queryId });
+    } catch (err) {
+        console.error("Query Create Error:", err);
+        res.status(500).json({ error: "Failed to submit query" });
+    }
+});
+
+// 2. PARTICIPANT: Get My Queries History
+app.get('/api/support/my-queries', isAuthenticated('participant'), async (req, res) => {
+    try {
+        // Fetch from Registrations using Student Index
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            IndexName: 'StudentIndex',
+            KeyConditionExpression: 'studentEmail = :u',
+            ExpressionAttributeValues: { ':u': req.session.user.email }
+        };
+        
+        const data = await docClient.send(new QueryCommand(params));
+        const allItems = data.Items || [];
+        
+        // Filter ONLY Query items and Map back to expected frontend format
+        const queries = allItems
+            .filter(item => item.eventId === 'QUERY')
+            .map(item => ({
+                queryId: item.registrationId,
+                category: item.deptName,
+                subject: item.teamName,
+                description: item.submissionAbstract,
+                status: item.paymentStatus,
+                adminReply: item.remarks,
+                createdAt: item.registeredAt
+            }));
+        
+        // Sort: Newest first
+        queries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        res.json(queries);
+    } catch (err) {
+        console.error("Fetch Queries Error:", err);
+        res.status(500).json({ error: "Failed to fetch queries" });
+    }
+});
+
+// 3. ADMIN: Get All Queries
+app.get('/api/admin/all-queries', isAuthenticated('admin'), async (req, res) => {
+    try {
+        // Scan Registrations
+        const data = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Registrations' }));
+        const allItems = data.Items || [];
+        
+        // Filter & Map
+        const queries = allItems
+            .filter(item => item.eventId === 'QUERY')
+            .map(item => ({
+                queryId: item.registrationId,
+                userId: item.studentEmail,
+                userName: item.studentName || 'Student',
+                rollNo: item.rollNo || '-',
+                category: item.deptName,
+                subject: item.teamName,
+                description: item.submissionAbstract,
+                status: item.paymentStatus,
+                adminReply: item.remarks,
+                createdAt: item.registeredAt
+            }));
+        
+        // Sort: OPEN tickets first
+        queries.sort((a, b) => {
+            if (a.status === 'OPEN' && b.status !== 'OPEN') return -1;
+            if (a.status !== 'OPEN' && b.status === 'OPEN') return 1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+        
+        res.json(queries);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch queries" });
+    }
+});
+
+// 4. ADMIN: Resolve Query & Send Email
+app.post('/api/admin/resolve-query', isAuthenticated('admin'), async (req, res) => {
+    const { queryId, reply } = req.body;
+    
+    if (!queryId || !reply) return res.status(400).json({ error: "Reply is required" });
+
+    try {
+        // A. Fetch original query (registration) to get user details
+        const qData = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: queryId } }));
+        const query = qData.Item;
+
+        if(!query) return res.status(404).json({ error: "Query not found" });
+
+        // B. Update Status in DB (paymentStatus -> RESOLVED, remarks -> reply)
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId: queryId },
+            UpdateExpression: "set paymentStatus = :s, remarks = :r, resolvedAt = :t",
+            ExpressionAttributeValues: {
+                ":s": "RESOLVED",
+                ":r": reply,
+                ":t": new Date().toISOString()
+            }
+        };
+        await docClient.send(new UpdateCommand(params));
+
+        // C. Send Email Notification
+        const emailHtml = `
+            <div style="font-family: 'Segoe UI', sans-serif; padding: 25px; border: 1px solid #eee; max-width: 600px; background-color: #ffffff;">
+                <h2 style="color: #00d2ff; margin-top: 0;">Support Request Resolved</h2>
+                <p>Dear ${query.studentName},</p>
+                <p>Your query has been answered by the admin team.</p>
+                
+                <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <p style="margin: 5px 0; font-size: 12px; color: #888;">SUBJECT</p>
+                    <p style="margin: 0 0 15px 0; font-weight: bold;">${query.teamName}</p>
+                    
+                    <p style="margin: 5px 0; font-size: 12px; color: #888;">YOUR QUERY</p>
+                    <p style="margin: 0 0 15px 0;">${query.submissionAbstract}</p>
+                    
+                    <div style="border-top: 1px solid #ddd; margin: 10px 0;"></div>
+                    
+                    <p style="margin: 10px 0 5px 0; font-size: 12px; color: #00d2ff; font-weight: bold;">ADMIN RESPONSE</p>
+                    <p style="margin: 0; color: #333;">${reply}</p>
+                </div>
+
+                <p style="color: #666; font-size: 13px;">If you have further questions, please raise a new ticket.</p>
+                <p style="color: #aaa; font-size: 12px;">Lakshya Support Team</p>
+            </div>
+        `;
+        
+        sendEmail(query.studentEmail, `[Resolved] Query: ${query.teamName}`, emailHtml).catch(console.error);
+
+        res.json({ message: "Query resolved and email sent." });
+
+    } catch (err) {
+        console.error("Resolve Error:", err);
+        res.status(500).json({ error: "Failed to resolve query" });
     }
 });
 const PORT = process.env.PORT || 3000;
