@@ -6,7 +6,7 @@
     <title>Cultural Events | LAKSHYA 2K26</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="\assets\logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo.png">
     <!-- 1. CONNECT COMMON JS -->
     <script>const CURRENT_PAGE = 'culturals';</script>
     <script src="/js/common.js"></script>
@@ -56,7 +56,8 @@
 
         /* --- LAYOUT --- */
         .main-content {
-            margin-left: 280px; width: calc(100% - 280px);
+            margin-left: 260px; /* Aligned with Sidebar */
+            width: calc(100% - 260px);
             padding: 3rem 4rem; position: relative;
             min-height: 100vh;
         }
@@ -309,7 +310,7 @@
         <div class="glass-modal" style="max-width: 550px;">
             <span class="modal-close" onclick="closeModal('submissionModal')"><i class="fa-solid fa-xmark"></i></span>
             <h2 style="font-family:'Rajdhani'; color:var(--accent-color);">Audition Upload</h2>
-            <p style="color:#aaa; margin-bottom:20px;">Please upload your performance file (Audio/Video).</p>
+            <p style="color:#aaa; margin-bottom:20px;">Please upload your performance file (Audio/Video).<br>No payment required now.</p>
 
             <label style="color:white; display:block; margin-bottom:5px;">Upload Video/Audio File <span style="color:red;">*</span></label>
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -319,7 +320,7 @@
             </div>
 
             <button class="cyber-btn" id="btnSubmitDetails" onclick="uploadAndProceed()" style="margin-top:20px;">
-                Save & Continue <i class="fa-solid fa-chevron-right"></i>
+                Submit for Approval <i class="fa-solid fa-paper-plane"></i>
             </button>
         </div>
     </div>
@@ -338,8 +339,8 @@
             
             <div id="teamMembersContainer" style="max-height: 300px; overflow-y:auto;"></div>
 
-            <button class="cyber-btn" onclick="finalizeAddToCart()" style="margin-top:20px;">
-                Save & Add to Cart <i class="fa-solid fa-check"></i>
+            <button class="cyber-btn" onclick="finalizeRegistration()" style="margin-top:20px;">
+                Submit Registration <i class="fa-solid fa-check"></i>
             </button>
         </div>
     </div>
@@ -354,7 +355,7 @@
         let allEvents = [];
         let myRegistrations = [];
         let currentEventId = null;
-        let pendingCartItem = null;
+        let pendingItem = null;
         let selectedFile = null;
 
         // Keywords to identify cultural events for filtering IN
@@ -426,7 +427,7 @@
                             <div class="card-footer">
                                 <div class="action-buttons">
                                     <button class="icon-btn" onclick="openInfoModal('${event.eventId}')" title="Details"><i class="fa-solid fa-eye"></i></button>
-                                    <button class="icon-btn add-btn" onclick="prepareAddToCart('${event.eventId}')" title="Register">REGISTER <i class="fa-solid fa-arrow-right"></i></button>
+                                    <button class="icon-btn add-btn" onclick="prepareRegister('${event.eventId}')" title="Register">REGISTER <i class="fa-solid fa-arrow-right"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -468,7 +469,7 @@
 
         function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
 
-        function prepareAddToCart(id) {
+        function prepareRegister(id) {
             currentEventId = id;
             openDeptModal();
         }
@@ -499,7 +500,7 @@
                 return;
             }
 
-            pendingCartItem = {
+            pendingItem = {
                 eventId: currentEventId,
                 deptName: selectedDept, dept: selectedDept,
                 addedAt: new Date().toISOString(),
@@ -508,9 +509,6 @@
             };
 
             closeModal('deptModal');
-            
-            // Assume cultural events might need a file upload (audition tape)
-            // You can remove this 'true' condition if not needed for all culturals
             openSubmissionModal(); 
         }
 
@@ -539,16 +537,16 @@
                 try {
                     const res = await fetch('/api/utility/upload-file', { method: 'POST', body: formData });
                     const data = await res.json();
-                    if(data.url) pendingCartItem.submissionUrl = data.url;
+                    if(data.url) pendingItem.submissionUrl = data.url;
                 } catch(e) {
                     alert("Upload failed.");
-                    btn.innerText = "Save & Continue"; btn.disabled = false;
+                    btn.innerText = "Submit for Approval"; btn.disabled = false;
                     return;
                 }
             }
             
             closeModal('submissionModal');
-            if(selectedFile) btn.innerText = "Save & Continue"; btn.disabled = false;
+            if(selectedFile) btn.innerText = "Submit for Approval"; btn.disabled = false;
             
             checkTeamAndAdd();
         }
@@ -562,7 +560,7 @@
             }
 
             if(maxTeamSize > 1) openTeamModal(maxTeamSize);
-            else pushToServerCart(pendingCartItem);
+            else submitRegistrationDirectly();
         }
 
         function openTeamModal(maxSize) {
@@ -592,7 +590,7 @@
             document.getElementById('teamModal').classList.add('active');
         }
 
-        async function finalizeAddToCart() {
+        async function finalizeRegistration() {
             const teamName = document.getElementById('teamNameInput').value;
             if(!teamName) { alert("Please enter a Team Name"); return; }
             
@@ -606,34 +604,33 @@
                 if(name) members.push({ name, roll, mobile, email });
             });
 
-            pendingCartItem.teamName = teamName;
-            pendingCartItem.teamMembers = members;
+            pendingItem.teamName = teamName;
+            pendingItem.teamMembers = members;
             closeModal('teamModal');
-            await pushToServerCart(pendingCartItem);
+            await submitRegistrationDirectly();
         }
 
-        async function pushToServerCart(newItem) {
-            showNotification("Adding to cart...");
+        async function submitRegistrationDirectly() {
+            showNotification("Submitting Registration...");
             try {
-                const resGet = await fetch('/api/cart');
-                let currentCart = [];
-                if(resGet.ok) currentCart = await resGet.json();
-
-                if(currentCart.find(i => i.eventId === newItem.eventId)) {
-                    showNotification("⚠️ Already in cart.", true);
-                    return;
-                }
-
-                currentCart.push(newItem);
-                const resPost = await fetch('/api/cart', {
+                // Add PaymentMode as 'REVIEW' so it stays pending payment in backend
+                pendingItem.paymentMode = 'REVIEW'; 
+                
+                const res = await fetch('/api/register-event', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: currentCart })
+                    body: JSON.stringify(pendingItem)
                 });
 
-                if(resPost.ok) showNotification("Added to Cart!");
-                else alert("Failed to save.");
-            } catch(e) { console.error(e); }
+                const data = await res.json();
+                if(res.ok) {
+                    showNotification("Registration Submitted! Wait for Approval.");
+                    // Reload to update status
+                    setTimeout(() => window.location.href = 'my-registrations', 2000);
+                } else {
+                    alert(data.error || "Registration failed.");
+                }
+            } catch(e) { console.error(e); alert("Network Error"); }
         }
 
         window.onload = loadEvents;

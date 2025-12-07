@@ -6,7 +6,7 @@
     <title>Technical Events | LAKSHYA 2K26</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="\assets\logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo.png">
     <!-- 1. CONNECT COMMON JS -->
     <script>const CURRENT_PAGE = 'events';</script>
     <script src="/js/common.js"></script>
@@ -66,7 +66,8 @@
 
         /* --- MAIN LAYOUT --- */
         .main-content {
-            margin-left: 280px; width: calc(100% - 280px);
+            margin-left: 260px; /* Matches common.js sidebar width */
+            width: calc(100% - 260px);
             padding: 3rem 4rem; position: relative;
             min-height: 100vh;
         }
@@ -325,8 +326,6 @@
         .toast i { color: var(--primary-color); font-size: 1.2rem; }
 
         @media (max-width: 1024px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.active { transform: translateX(0); }
             .main-content { margin-left: 0; width: 100%; padding: 1.5rem; padding-top: 90px; }
             .header-section { gap: 1.5rem; margin-bottom: 2rem; }
             .top-bar { flex-direction: column; align-items: flex-start; gap: 1rem; }
