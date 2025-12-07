@@ -97,6 +97,21 @@
             transform: skewX(-10deg);
         }
 
+        .kit-badge {
+            background: linear-gradient(90deg, #FFD700, #ff8c00); /* Gold/Orange for Kit */
+            color: black;
+            padding: 6px 15px;
+            border-radius: 4px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            transform: skewX(-10deg);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+            display: inline-flex;
+            align-items: center;
+        }
+
         .user-name {
             font-family: 'Orbitron', sans-serif;
             font-size: 2rem;
@@ -246,7 +261,7 @@
             
             .user-name { font-size: 1.5rem; } /* Smaller font for name */
             .header-row { flex-direction: column; gap: 10px; align-items: flex-start; } /* Stack header items */
-            .pass-badge { align-self: flex-start; transform: none; } /* Reset skew */
+            .pass-badge, .kit-badge { align-self: flex-start; transform: none; } /* Reset skew */
         }
 
         .loader { color: var(--primary); font-size: 2rem; }
@@ -290,6 +305,10 @@
                 const statusText = isPaid ? 'ACCESS GRANTED' : 'PAYMENT PENDING';
                 const dateStr = new Date(reg.paymentDate || reg.registeredAt).toLocaleDateString('en-GB');
                 
+                // Determine if Kit is included
+                const hasKit = event.kit === true || event.includesKit === true || (event.description && event.description.toLowerCase().includes('kit'));
+                const kitHtml = hasKit ? `<div class="kit-badge"><i class="fa-solid fa-box-open" style="margin-right:5px;"></i> KIT INCLUDED</div>` : '';
+                
                 // Generate QR Code URL
                 const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.href)}`;
 
@@ -332,7 +351,10 @@
                                         <img src="${LOGO_CLG}" class="clg-logo" alt="College">
                                         <img src="${LOGO_EVENT}" class="event-logo" alt="Event">
                                     </div>
-                                    <div class="pass-badge">OFFICIAL ENTRY PASS</div>
+                                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                        ${kitHtml}
+                                        <div class="pass-badge">OFFICIAL ENTRY PASS</div>
+                                    </div>
                                 </div>
 
                                 <div class="user-name">${person.name}</div>

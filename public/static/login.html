@@ -6,7 +6,7 @@
     <title>Login | LAKSHYA 2K26</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="\assets\logo.png">
+        <link rel="icon" type="image/png" href="\assets\logo.png">
 
     <style>
         /* --- GLOBAL VARIABLES --- */
@@ -131,8 +131,6 @@
 
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes pulseGlow { 0% { box-shadow: 0 0 10px var(--accent-color); } 50% { box-shadow: 0 0 25px var(--accent-color); } 100% { box-shadow: 0 0 10px var(--accent-color); } }
 
         /* --- RESPONSIVE BREAKPOINTS --- */
         @media (max-width: 1100px) {
@@ -156,61 +154,9 @@
         @media (max-width: 768px) {
             .glass-card { padding: 1.5rem; }
         }
-
-        /* --- MAINTENANCE OVERLAY --- */
-        .maintenance-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 99999; /* Ensures it is on top of everything */
-            background: rgba(0, 0, 0, 0.75); /* Darken background */
-            backdrop-filter: blur(15px); /* BLUR EFFECT FOR CONTENT BEHIND */
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            text-align: center; color: white; padding: 2rem;
-        }
-
-        .maint-content {
-            background: rgba(20, 20, 40, 0.9); border: 1px solid var(--glass-border);
-            padding: 3rem; border-radius: 20px; max-width: 600px; width: 100%;
-            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
-            animation: slideUp 0.6s ease-out;
-        }
-
-        .maint-icon { font-size: 4rem; color: var(--primary-color); margin-bottom: 1.5rem; animation: float 3s ease-in-out infinite; }
-        .maint-title { font-size: 2.2rem; font-weight: 900; color: white; margin-bottom: 1rem; font-family: 'Montserrat', sans-serif; text-transform: uppercase; }
-        .maint-desc { color: #aaa; margin-bottom: 2rem; line-height: 1.6; font-size: 1.05rem; }
-        
-        .feature-box {
-            background: rgba(255, 0, 204, 0.08); border: 1px solid var(--accent-color);
-            padding: 1.5rem; border-radius: 12px; margin-top: 1rem;
-            animation: pulseGlow 3s infinite;
-        }
-        .feature-title { color: var(--accent-color); font-weight: 700; font-size: 1.2rem; margin-bottom: 0.5rem; text-transform: uppercase; }
-        .feature-text { font-size: 0.95rem; color: #ddd; font-style: italic; }
-
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-
     </style>
 </head>
 <body>
-
-    <!-- MAINTENANCE OVERLAY - ADDED HERE -->
-    <div class="maintenance-overlay">
-        <div class="maint-content">
-            <div class="maint-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
-            <h1 class="maint-title">We'll Be Back Soon</h1>
-            <p class="maint-desc">
-                LAKSHYA 2K26 is currently undergoing scheduled maintenance to improve your experience. 
-                Our team is working hard behind the scenes!
-            </p>
-            
-            <div class="feature-box">
-                <div class="feature-title">⚡ Something Electric is Coming!</div>
-                <p class="feature-text">
-                    "We're crafting a powerful new feature designed to reward your participation in a big way. 
-                    Get ready for a surprise that will energize your journey with us. Stay tuned!"
-                </p>
-            </div>
-        </div>
-    </div>
 
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
