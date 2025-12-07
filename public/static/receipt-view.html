@@ -283,6 +283,16 @@
         const LOGO_EVENT = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
         const LOGO_CLG = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764610592/1000150316_94d436c3b0efe15eb7fb1d332f32709f-10_6_2025_7_05_27_AM_wt8kgm.png";
 
+        // Keywords that likely indicate a kit is included
+        const kitEligibleKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary', 'technical'];
+
+        // Helper to check if event type/title suggests it gets a kit
+        function isKitCategory(event) {
+            const t = (event.type || '').toLowerCase();
+            const ti = (event.title || '').toLowerCase();
+            return kitEligibleKeywords.some(key => t.includes(key) || ti.includes(key));
+        }
+
         async function loadPass() {
             const params = new URLSearchParams(window.location.search);
             const regId = params.get('id');
@@ -305,9 +315,27 @@
                 const statusText = isPaid ? 'ACCESS GRANTED' : 'PAYMENT PENDING';
                 const dateStr = new Date(reg.paymentDate || reg.registeredAt).toLocaleDateString('en-GB');
                 
-                // Determine if Kit is included
-                const hasKit = event.kit === true || event.includesKit === true || (event.description && event.description.toLowerCase().includes('kit'));
-                const kitHtml = hasKit ? `<div class="kit-badge"><i class="fa-solid fa-box-open" style="margin-right:5px;"></i> KIT INCLUDED</div>` : '';
+                // --- ROBUST KIT CHECK LOGIC ---
+                // 1. Base eligibility check (Database flag, Description, or Category)
+                const baseEligible = event.kit === true || 
+                                     event.includesKit === true || 
+                                     (event.description && event.description.toLowerCase().includes('kit')) ||
+                                     isKitCategory(event);
+                
+                let showKitBadge = baseEligible;
+
+                // 2. Strict Price Check (If paid less than full fee, they don't get a kit)
+                if (isPaid) {
+                    const paid = parseFloat(reg.amountPaid) || 0;
+                    const fee = parseFloat(event.fee) || 0;
+                    
+                    // If paid < fee (minus 1 rupee tolerance for float), it implies discount -> No Kit
+                    if (paid < (fee - 1)) {
+                        showKitBadge = false; 
+                    }
+                } 
+
+                const kitHtml = showKitBadge ? `<div class="kit-badge"><i class="fa-solid fa-box-open" style="margin-right:5px;"></i> KIT INCLUDED</div>` : '';
                 
                 // Generate QR Code URL
                 const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.href)}`;
