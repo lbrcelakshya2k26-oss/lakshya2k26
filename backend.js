@@ -11,7 +11,7 @@ const { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const chatRoute = require('./chatRoute'); 
-
+const router = express.Router();
 
 // const Razorpay = require('razorpay'); // Payment Disabled for now
 const Razorpay = require('razorpay');
@@ -83,6 +83,39 @@ const sesClient = new SESv2Client({
         secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY || '+7xyGRP/P+5qZD955qgrC8GwvuOsA33wwzwe6abl'
     }
 });
+
+
+function isEligibleForCombo(event) {
+    if (!event) return false;
+    
+    // Normalize strings for checking
+    const t = (event.type || '').toLowerCase();
+    const ti = (event.title || '').toLowerCase();
+    const f = parseInt(event.fee || '0');
+    
+    // RULE 1: STRICTLY EXCLUDE "SPECIAL" EVENTS
+    if (t.includes('special') || ti.includes('special')) {
+        return false;
+    }
+
+    // RULE 2: ALLOWED TYPES
+    const eligibleKeywords = [
+        'major', 'mba', 'management', 
+        'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary'
+    ];
+    
+    const isTargetType = eligibleKeywords.some(k => t.includes(k) || ti.includes(k));
+
+    // RULE 3: MUST HAVE A FEE
+    return isTargetType && f > 0;
+}
+
+const checkKitEligibility = (category) => {
+    if (!category) return false;
+    const lowerCat = category.toLowerCase().trim();
+    // STRICT RULE: Kits only for Major, MBA, and Culturals
+    return ['major', 'mba', 'culturals'].includes(lowerCat);
+};
 
 // --- 3. HELPER FUNCTIONS ---
 
@@ -164,6 +197,7 @@ app.get('/participant/culturals', isAuthenticated('participant'), (req, res) => 
     res.sendFile(path.join(__dirname, 'public/participant/culturals.html'));
 });
 
+
 // --- 6. ROUTES: COORDINATOR (PROTECTED) ---
 app.get('/coordinator/dashboard', isAuthenticated('coordinator'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/coordinator/dashboard.html'));
@@ -185,6 +219,12 @@ app.get('/coordinator/view-submissions', isAuthenticated('coordinator'), (req, r
 });
 app.get('/coordinator/event-control', isAuthenticated('coordinator'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/coordinator/event-control.html'));
+});
+app.get('/coordinator/approvals', isAuthenticated('coordinator'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/coordinator/approvals.html'));
+});
+app.get('/coordinator/benficiaries', isAuthenticated('coordinator'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/coordinator/benficiaries.html'));
 });
 
 // --- 7. ROUTES: ADMIN (PROTECTED) ---
@@ -221,6 +261,13 @@ app.get('/admin/coupons', isAuthenticated('admin'), (req, res) => {
 app.get('/admin/registrations', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/registrations.html'));
 });
+app.get('/admin/coupon-usage', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/rcoupom-manager.html'));
+});
+app.get('/admin/admin-kits', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/admin-kits.html'));
+});
+
 
 const getEmailTemplate = (type, data) => {
     const { title, name, regId, eventName, dept, teamName, status, amount, txId, date, coupon, link } = data;
@@ -425,7 +472,7 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
                 return res.status(400).json({ error: `You are already registered for this event in the ${deptName} department.` });
             }
 
-            // IF PENDING: Update the existing record with new details and allow proceeding
+            // IF PENDING: Update the existing record with new details
             try {
                 await docClient.send(new UpdateCommand({
                     TableName: 'Lakshya_Registrations',
@@ -441,7 +488,6 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
                         ':now': new Date().toISOString()
                     }
                 }));
-                // Return success with EXISTING ID (Don't resend email for updates to avoid spam)
                 return res.json({ message: 'Registration updated', registrationId: existingReg.registrationId });
             } catch (updateErr) {
                 console.error(updateErr);
@@ -452,12 +498,22 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
         return res.status(500).json({ error: 'Server validation failed' });
     }
 
-    // Get Event Title
+    // --- UPDATED LOGIC START ---
+    // Get Event Title AND Type to determine Kit Eligibility
     let eventTitle = eventId; 
+    let eventType = '';
+    
     try {
         const eventRes = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId } }));
-        if (eventRes.Item) eventTitle = eventRes.Item.title;
+        if (eventRes.Item) {
+            eventTitle = eventRes.Item.title;
+            eventType = eventRes.Item.type || '';
+        }
     } catch (e) {}
+
+    // Calculate Kit Eligibility using the helper
+    const isKitEligible = checkKitEligibility(eventType);
+    // --- UPDATED LOGIC END ---
 
     const registrationId = uuidv4();
     const paymentStatus = 'PENDING'; 
@@ -469,6 +525,8 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
             studentEmail: user.email,
             eventId,
             deptName,
+            category: eventType, // Save Category for stats
+            kitAllocated: isKitEligible, // Save Kit Status permanently
             teamName: teamName || null, 
             teamMembers: teamMembers || [],
             submissionTitle: submissionTitle || null,
@@ -484,12 +542,9 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
     try {
         await docClient.send(new PutCommand(params));
         
-        // --- SEND EMAIL 1: REGISTRATION DETAILS ---
-        // LOGIC CHANGE: Only send this here if payment mode is NOT Online (e.g., Cash/Pay at Venue).
-        // If Online, we wait for payment verification to send the "Completed" email to avoid confusion.
+        // Send Email if Pay at Venue
         if (paymentMode !== 'Online') {
             const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
-            
             const emailHtml = `
             <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background-color: #fff; max-width: 600px; margin: 0 auto; border: 1px solid #eee;">
                 <div style="text-align: center; margin-bottom: 10px;">
@@ -501,9 +556,7 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
                 <div style="background-color: #f9f9f9; padding: 25px; border-radius: 4px; margin: 25px 0;">
                     <p style="margin: 8px 0; color: #333;"><strong>Registration ID:</strong> ${registrationId}</p>
                     <p style="margin: 8px 0; color: #333;"><strong>Event:</strong> ${eventTitle}</p>
-                    <p style="margin: 8px 0; color: #333;"><strong>Department:</strong> ${deptName}</p>
-                    ${teamName ? `<p style="margin: 8px 0; color: #333;"><strong>Team Name:</strong> ${teamName}</p>` : ''}
-                    ${teamMembers && teamMembers.length > 0 ? `<p style="margin: 8px 0; color: #333;"><strong>Team Members:</strong> ${teamMembers.map(m => m.name).join(', ')}</p>` : ''}
+                    ${isKitEligible ? `<p style="margin: 8px 0; color: #e91e63;"><strong>Note:</strong> This registration includes a <strong>Free Kit</strong> (collect at venue).</p>` : ''}
                     <p style="margin: 8px 0; color: #333;"><strong>Payment Status:</strong> <strong style="color: #ff9800;">Payment Pending (Pay at Venue)</strong></p>
                 </div>
                 <p style="margin-top: 30px; color: #333;">Best Regards,<br>Team LAKSHYA</p>
@@ -522,57 +575,119 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
     }
 });
 // Create Order (Razorpay)
-// Create Order (Razorpay)
-app.post('/api/payment/create-order', isAuthenticated('participant'), async (req, res) => {
-    const { amount, couponCode } = req.body;
-    let baseAmount = amount; 
-    let couponApplied = false;
-
-    if (couponCode) {
-        try {
-            const couponRes = await docClient.send(new GetCommand({
-                TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() }
-            }));
-            const coupon = couponRes.Item;
-            if (coupon && coupon.usedCount < coupon.usageLimit) {
-                const discount = (baseAmount * coupon.percentage) / 100;
-                baseAmount = Math.round(baseAmount - discount);
-                couponApplied = true;
-            }
-        } catch (e) {}
-    }
-
-    if (baseAmount < 1) baseAmount = 1;
-    const platformFee = Math.ceil(baseAmount * 0.0236); 
-    const totalAmount = baseAmount + platformFee;
-
-    const options = {
-        amount: totalAmount * 100, // paise
-        currency: "INR",
-        receipt: "receipt_" + uuidv4().substring(0, 10),
-        notes: { couponCode: couponCode || "NONE", fee: platformFee, base: baseAmount }
-    };
-
+app.post('/api/payment/create-order', async (req, res) => {
     try {
-        const order = await razorpay.orders.create(options);
-        if (couponApplied) {
-            await docClient.send(new UpdateCommand({
-                TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() },
-                UpdateExpression: "set usedCount = usedCount + :inc",
-                ExpressionAttributeValues: { ":inc": 1 }
-            }));
+        const { cartItems, couponCode } = req.body;
+        
+        // 1. Fetch real event data
+        let events = [];
+        for (const item of cartItems) {
+            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+            if (eventDoc.Item) {
+                events.push({ ...eventDoc.Item, fee: parseInt(eventDoc.Item.fee) });
+            }
         }
-        // FIX IS HERE: Use RAZORPAY_KEY_ID variable instead of process.env directly
-        res.json({ id: order.id, amount: order.amount, currency: order.currency, key_id: RAZORPAY_KEY_ID });
-    } catch (err) {
-        console.error("Order creation failed:", err);
-        res.status(500).json({ error: "Order creation failed" });
+
+        // 2. Sort events by fee (High to Low)
+        events.sort((a, b) => b.fee - a.fee);
+
+        let totalAmount = 0;
+        const itemAmounts = {}; 
+
+        // Fetch Standard Coupon if applicable
+        let standardCoupon = null;
+        if (couponCode && couponCode !== 'LAKSHYA2K26') {
+            const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() } }));
+            if (couponQuery.Item && couponQuery.Item.currentUses < couponQuery.Item.usageLimit) {
+                standardCoupon = couponQuery.Item;
+            }
+        }
+
+        // --- 3. ROBUST HISTORY CHECK (Same as Validate) ---
+        let historyCount = 0;
+        if (couponCode === 'LAKSHYA2K26' && req.session.user && req.session.user.email) {
+            try {
+                const existingRegs = await docClient.send(new QueryCommand({
+                    TableName: 'Lakshya_Registrations',
+                    IndexName: 'StudentIndex',
+                    KeyConditionExpression: 'studentEmail = :email',
+                    ExpressionAttributeValues: { ':email': req.session.user.email }
+                }));
+                const regs = existingRegs.Items || [];
+                
+                for (const reg of regs) {
+                    if (reg.paymentStatus === 'COMPLETED') {
+                        const isInCart = events.some(e => String(e.eventId).trim() === String(reg.eventId).trim());
+                        if (!isInCart) {
+                            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
+                            if (eventDoc.Item && isEligibleForCombo(eventDoc.Item)) {
+                                historyCount++;
+                            }
+                        }
+                    }
+                }
+            } catch (e) { console.error("History check error:", e); }
+        }
+
+        // 4. CALCULATE PRICES
+        let currentEligibleIndex = 0; 
+
+        for (const event of events) {
+            let finalItemPrice = event.fee;
+            const isEligible = isEligibleForCombo(event);
+
+            if (couponCode === 'LAKSHYA2K26' && isEligible) {
+                currentEligibleIndex++;
+                
+                // Effective Position = History + Current Rank
+                const effectivePosition = historyCount + currentEligibleIndex;
+
+                if (effectivePosition > 1) {
+                    finalItemPrice = event.fee / 2; // 50% OFF
+                } else {
+                    finalItemPrice = event.fee; // Full Price
+                }
+            } 
+            else if (standardCoupon) {
+                const type = (event.type || '').toLowerCase();
+                if (!type.includes('special') && standardCoupon.allowedTypes && standardCoupon.allowedTypes.includes(event.type)) {
+                    finalItemPrice = event.fee - (event.fee * standardCoupon.percentage / 100);
+                }
+            }
+
+            itemAmounts[event.eventId] = finalItemPrice;
+            totalAmount += finalItemPrice;
+        }
+
+        // 5. Platform Fee (2.36%)
+        const platformFee = Math.ceil(totalAmount * 0.0236);
+        const finalTotal = totalAmount + platformFee;
+
+        const order = await razorpay.orders.create({
+            amount: finalTotal * 100, 
+            currency: "INR",
+            receipt: "receipt_" + Date.now()
+        });
+
+        res.json({
+            id: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            key_id: RAZORPAY_KEY_ID,
+            itemAmounts: itemAmounts 
+        });
+
+    } catch (error) {
+        console.error("Order Creation Error:", error);
+        res.status(500).json({ error: "Failed to create order." });
     }
 });
-// Payment Verification
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode, registrationAmounts } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode } = req.body;
     
+    // Define your frontend domain here for the ticket links
+    const CLIENT_URL = "http://"; 
+
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
 
@@ -580,13 +695,105 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
         try {
             if (registrationIds && Array.isArray(registrationIds)) {
                 
-                // 1. Update Database Status FIRST
-                const updatePromises = registrationIds.map(regId => {
-                    const paidAmt = (registrationAmounts && registrationAmounts[regId]) ? parseFloat(registrationAmounts[regId]) : 0;
-                    
+                // 1. RECONSTRUCT & RECALCULATE PRICES (Server-Side Source of Truth)
+                // This ensures the email shows the exact 200/100 split, not an average.
+                let regItems = [];
+                
+                // A. Fetch all details first
+                for (const regId of registrationIds) {
+                    const r = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: regId }}));
+                    if(r.Item) {
+                        const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: r.Item.eventId }}));
+                        if(e.Item) {
+                            regItems.push({
+                                regId: regId,
+                                eventId: r.Item.eventId,
+                                title: e.Item.title,
+                                fee: parseInt(e.Item.fee),
+                                type: e.Item.type,
+                                dept: r.Item.deptName,
+                                studentEmail: r.Item.studentEmail,
+                                teamName: r.Item.teamName,
+                                teamMembers: r.Item.teamMembers
+                            });
+                        }
+                    }
+                }
+
+                // B. Sort High to Low (Crucial for Discount Logic - Expensive item is Full Price)
+                regItems.sort((a, b) => b.fee - a.fee);
+
+                // C. History Check (Same logic as create-order)
+                let historyCount = 0;
+                const userEmail = regItems.length > 0 ? regItems[0].studentEmail : "";
+                
+                if (couponCode === 'LAKSHYA2K26' && userEmail) {
+                    try {
+                        const existingRegs = await docClient.send(new QueryCommand({
+                            TableName: 'Lakshya_Registrations',
+                            IndexName: 'StudentIndex',
+                            KeyConditionExpression: 'studentEmail = :email',
+                            ExpressionAttributeValues: { ':email': userEmail }
+                        }));
+                        const regs = existingRegs.Items || [];
+                        for (const reg of regs) {
+                            if (reg.paymentStatus === 'COMPLETED') {
+                                // Exclude current transaction items to avoid double counting
+                                if (!regItems.some(ri => ri.eventId === reg.eventId)) {
+                                    // Check eligibility
+                                    if (reg.category) {
+                                        const cat = reg.category.toLowerCase();
+                                        const eligibleKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary'];
+                                        if (eligibleKeywords.some(k => cat.includes(k)) && !cat.includes('special')) historyCount++;
+                                    } else {
+                                         const eDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId }}));
+                                         if(eDoc.Item && isEligibleForCombo(eDoc.Item)) historyCount++;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) { console.error("History Check Error", e); }
+                }
+
+                // D. Fetch Standard Coupon if applicable
+                let standardCoupon = null;
+                if (couponCode && couponCode !== 'LAKSHYA2K26') {
+                    const cRes = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() }}));
+                    if(cRes.Item) standardCoupon = cRes.Item;
+                }
+
+                // E. Assign Exact Prices
+                let totalBase = 0;
+                let currentEligibleIndex = 0;
+
+                regItems.forEach(item => {
+                    let price = item.fee;
+                    const isEligible = isEligibleForCombo({ type: item.type, title: item.title, fee: item.fee });
+
+                    if (couponCode === 'LAKSHYA2K26' && isEligible) {
+                        currentEligibleIndex++;
+                        // Effective Position logic
+                        if ((historyCount + currentEligibleIndex) > 1) {
+                            price = item.fee / 2; // 50% OFF
+                        }
+                    } else if (standardCoupon) {
+                        if (standardCoupon.allowedTypes.includes(item.type)) {
+                            price = item.fee - (item.fee * standardCoupon.percentage / 100);
+                        }
+                    }
+                    item.paidAmount = price; // Store exact calculated price (e.g., 100)
+                    totalBase += price;
+                });
+
+                // F. Calculate Platform Fee Separately
+                const platformFee = Math.ceil(totalBase * 0.0236);
+                const totalPaid = totalBase + platformFee;
+
+                // 2. UPDATE DATABASE
+                const updatePromises = regItems.map(item => {
                     return docClient.send(new UpdateCommand({
                         TableName: 'Lakshya_Registrations', 
-                        Key: { registrationId: regId },
+                        Key: { registrationId: item.regId },
                         UpdateExpression: "set paymentStatus = :s, paymentId = :p, paymentMode = :m, attendance = :a, couponUsed = :c, paymentDate = :d, amountPaid = :amt",
                         ExpressionAttributeValues: {
                             ":s": "COMPLETED", 
@@ -595,110 +802,99 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             ":a": false,
                             ":c": couponCode || "NONE", 
                             ":d": new Date().toISOString(), 
-                            ":amt": paidAmt 
+                            ":amt": item.paidAmount // Store Base Amount (cleaner for stats)
                         }
                     }));
                 });
-                
                 await Promise.all(updatePromises);
-                res.json({ status: 'success' }); // Respond quickly to frontend
+                
+                res.json({ status: 'success' }); 
 
-                // 2. Send Emails in BACKGROUND (Registration Confirmed AND Payment Receipt)
-                const domain = req.get('host'); 
-                const protocol = req.protocol; 
+                // 3. SEND EMAILS (Now with Correct Breakdown)
+                let userName = "Participant";
+                try {
+                    const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: userEmail }}));
+                    if(u.Item) userName = u.Item.fullName;
+                } catch(e) {}
+
                 const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
 
-                (async () => {
-                    for (const regId of registrationIds) {
-                        try {
-                            // Fetch Updated Registration Data
-                            const regData = await docClient.send(new GetCommand({ 
-                                TableName: 'Lakshya_Registrations', 
-                                Key: { registrationId: regId } 
-                            }));
-                            const reg = regData.Item;
-                            if (!reg) continue;
+                // --- Email 1: Registration Confirmation ---
+                const eventsHtml = regItems.map(item => `
+                    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #00d2ff;">
+                        <p style="margin: 5px 0;"><strong>Event:</strong> ${item.title}</p>
+                        <p style="margin: 5px 0;"><strong>Reg ID:</strong> ${item.regId}</p>
+                        <p style="margin: 5px 0;"><strong>Dept:</strong> ${item.dept}</p>
+                        ${item.teamName ? `<p style="margin: 5px 0;"><strong>Team:</strong> ${item.teamName}</p>` : ''}
+                        <div style="margin-top: 15px;">
+                            <a href="${CLIENT_URL}/receipt-view.html?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
+                        </div>
+                    </div>
+                `).join('');
 
-                            const eventData = await docClient.send(new GetCommand({ 
-                                TableName: 'Lakshya_Events', 
-                                Key: { eventId: reg.eventId } 
-                            }));
-                            const eventTitle = eventData.Item ? eventData.Item.title : "Event";
-                            
-                            const userData = await docClient.send(new GetCommand({ 
-                                TableName: 'Lakshya_Users', 
-                                Key: { email: reg.studentEmail } 
-                            }));
-                            const userName = userData.Item ? userData.Item.fullName : "Participant";
-                            
-                            // Get Amount for this specific registration
-                            const paidAmt = (registrationAmounts && registrationAmounts[regId]) ? registrationAmounts[regId] : 0;
+                const regEmailHtml = `
+                    <div style="font-family: 'Segoe UI', sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px; margin: 0 auto;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <img src="${logoUrl}" style="height: 50px;">
+                            <h2 style="color: #4fc3f7; margin: 10px 0;">Registration Confirmed</h2>
+                        </div>
+                        <p>Dear ${userName},</p>
+                        <p>Thank you for registering! Details below:</p>
+                        ${eventsHtml}
+                        <p style="color: #4CAF50; font-weight: bold;">Status: Payment Successful</p>
+                        <p style="color: #555; font-size: 14px; margin-top: 30px;">Best Regards,<br>Team LAKSHYA</p>
+                    </div>`;
+                
+                await sendEmail(userEmail, `Registration Confirmed - ${regItems.length} Events`, regEmailHtml).catch(e=>console.error(e));
 
-                            // --- EMAIL 1: REGISTRATION DETAILS (With CONFIRMED Status) ---
-                            // We send this now because we skipped it during the initial register-event call for Online mode
-                            const regHtml = `
-                            <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background-color: #fff; max-width: 600px; margin: 0 auto; border: 1px solid #eee;">
-                                <div style="text-align: center; margin-bottom: 10px;">
-                                    <img src="${logoUrl}" alt="Lakshya Logo" style="height: 60px; width: auto;">
-                                </div>
-                                <h2 style="color: #4fc3f7; margin-bottom: 20px; font-weight: bold; text-align: center; font-size: 26px;">LAKSHYA 2K26</h2>
-                                <p style="font-size: 15px; color: #333;">Dear Participant,</p>
-                                <p style="font-size: 15px; color: #333;">Thank you for registering for <strong>${eventTitle}</strong>. Below are your registration details:</p>
-                                <div style="background-color: #f9f9f9; padding: 25px; border-radius: 4px; margin: 25px 0;">
-                                    <p style="margin: 8px 0; color: #333;"><strong>Registration ID:</strong> ${regId}</p>
-                                    <p style="margin: 8px 0; color: #333;"><strong>Event:</strong> ${eventTitle}</p>
-                                    <p style="margin: 8px 0; color: #333;"><strong>Department:</strong> ${reg.deptName}</p>
-                                    ${reg.teamName ? `<p style="margin: 8px 0; color: #333;"><strong>Team Name:</strong> ${reg.teamName}</p>` : ''}
-                                    ${reg.teamMembers && reg.teamMembers.length > 0 ? `<p style="margin: 8px 0; color: #333;"><strong>Team Members:</strong> ${reg.teamMembers.map(m => m.name).join(', ')}</p>` : ''}
-                                    <p style="margin: 8px 0; color: #333;"><strong>Payment Status:</strong> <strong style="color: #4CAF50;">Completed / Paid</strong></p>
-                                </div>
-                                <p style="margin-top: 30px; color: #333;">Best Regards,<br>Team LAKSHYA</p>
-                            </div>`;
-                            
-                            await sendEmail(reg.studentEmail, `Registration Confirmed: ${eventTitle}`, regHtml).catch(e => console.error(e));
-                            // Also send to team members
-                            if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
-                                reg.teamMembers.filter(m => m.email).forEach(m => sendEmail(m.email, `Registration Confirmed: ${eventTitle}`, regHtml));
-                            }
+                // --- Email 2: Payment Receipt (FIXED) ---
+                const paymentRows = regItems.map(item => `
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.title}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">₹${item.paidAmount}</td>
+                    </tr>
+                `).join('');
+                
+                // Add Platform Fee as a explicit row so the math adds up visually
+                const feeRow = `
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; color: #888; font-size: 0.9em;">Platform Fee (2.36%)</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: #888;">₹${platformFee}</td>
+                    </tr>
+                `;
 
-                            // --- EMAIL 2: PAYMENT RECEIPT ---
-                            const receiptLink = `${protocol}://${domain}/receipt-view?id=${regId}`;
-                            
-                            const payHtml = `
-                            <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background-color: #fff;">
-                                <div style="text-align: center; padding: 15px;">
-                                     <img src="${logoUrl}" alt="Lakshya Logo" style="height: 50px; width: auto;">
-                                </div>
-                                <div style="background-color: #4fc3f7; padding: 25px; text-align: center;">
-                                     <h2 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">PAYMENT CONFIRMED</h2>
-                                </div>
-                                <div style="padding: 30px;">
-                                    <p style="font-size: 16px; color: #333;">Dear <strong>${userName}</strong>,</p>
-                                    <p style="font-size: 14px; color: #555;">We have successfully received your payment for <strong>${eventTitle}</strong>.</p>
-                                    <div style="background-color: #fcfcfc; padding: 20px; border-left: 5px solid #4CAF50; margin: 25px 0; border-radius: 2px;">
-                                        <p style="margin: 8px 0; font-size: 14px; color: #333;"><strong>Transaction ID:</strong> ${razorpay_payment_id}</p>
-                                        <p style="margin: 8px 0; font-size: 14px; color: #333;"><strong>Amount Paid:</strong> ₹${paidAmt}</p>
-                                        <p style="margin: 8px 0; font-size: 14px; color: #333;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-                                        ${couponCode ? `<p style="margin: 8px 0; font-size: 14px; color: #4fc3f7;"><strong>Coupon Applied:</strong> ${couponCode}</p>` : ''}
-                                        <p style="margin: 8px 0; font-size: 12px; color: #999;">(Includes Platform Fee)</p>
-                                    </div>
-                                    <div style="text-align: center; margin-top: 35px;">
-                                        <a href="${receiptLink}" target="_blank" style="background-color: #3f51b5; color: white; padding: 14px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">View Receipts</a>
-                                    </div>
-                                </div>
-                            </div>`;
-                            
-                            await sendEmail(reg.studentEmail, `Payment Receipt: ${eventTitle}`, payHtml).catch(e => console.error(e));
+                const receiptHtml = `
+                    <div style="font-family: 'Segoe UI', sans-serif; border: 1px solid #eee; max-width: 600px; margin: 0 auto; border-radius: 8px; overflow: hidden;">
+                        <div style="background-color: #00d2ff; padding: 20px; text-align: center; color: white;">
+                            <img src="${logoUrl}" style="height: 40px; margin-bottom: 10px; background: rgba(255,255,255,0.2); padding: 5px; border-radius: 5px;">
+                            <h2 style="margin: 0;">PAYMENT RECEIPT</h2>
+                        </div>
+                        <div style="padding: 20px;">
+                            <p>Dear ${userName},</p>
+                            <p>We have received your payment for the following:</p>
+                            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                                <tr style="background-color: #f5f5f5;">
+                                    <th style="padding: 10px; text-align: left;">Event</th>
+                                    <th style="padding: 10px; text-align: right;">Amount</th>
+                                </tr>
+                                ${paymentRows}
+                                ${feeRow}
+                                <tr>
+                                    <td style="padding: 10px; font-weight: bold;">Total Paid</td>
+                                    <td style="padding: 10px; font-weight: bold; text-align: right;">₹${totalPaid}</td>
+                                </tr>
+                            </table>
+                            <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #4CAF50;">
+                                <p style="margin: 5px 0; font-size: 13px;"><strong>Transaction ID:</strong> ${razorpay_payment_id}</p>
+                                <p style="margin: 5px 0; font-size: 13px;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+                                ${couponCode ? `<p style="margin: 5px 0; font-size: 13px; color: #00d2ff;"><strong>Coupon:</strong> ${couponCode}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
 
-                        } catch (innerErr) {
-                            console.error(`Email Error for ${regId}:`, innerErr);
-                        }
-                    }
-                })(); 
+                await sendEmail(userEmail, `Payment Receipt - Transaction ${razorpay_payment_id}`, receiptHtml).catch(e=>console.error(e));
 
-            } else {
-                 res.json({ status: 'success', warning: 'No registration IDs found to verify.' });
-            }
+            } else { res.json({ status: 'success', warning: 'No IDs' }); }
         } catch (err) {
             console.error("DB Update Error during Verification:", err);
             res.status(500).json({ error: 'Database update failed. Please contact support.' });
@@ -723,6 +919,21 @@ app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), asyn
         const registrations = data.Items || [];
         const total = registrations.length;
         const paid = registrations.filter(r => r.paymentStatus === 'COMPLETED').length;
+        
+        // --- UPDATED KIT COUNT LOGIC ---
+        // Count if Payment is COMPLETED AND (kitAllocated is true OR check category as fallback)
+        let kitsOwned = 0;
+        registrations.forEach(r => {
+            if (r.paymentStatus === 'COMPLETED') {
+                if (r.kitAllocated === true) {
+                    kitsOwned++;
+                } else if (checkKitEligibility(r.category)) {
+                    // Fallback for old data or if category was saved but flag wasn't
+                    kitsOwned++;
+                }
+            }
+        });
+
         let status = total > 0 ? (paid === total ? 'Paid' : (paid > 0 ? 'Partial' : 'Pending')) : 'None';
 
         res.json({
@@ -731,11 +942,11 @@ app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), asyn
             college: userDetails.college || '',
             mobile: userDetails.mobile || '',
             totalRegistrations: total,
-            paymentStatus: status
+            paymentStatus: status,
+            kitsOwned: kitsOwned // Display on Dashboard
         });
     } catch (err) { res.status(500).json({ error: 'Failed' }); }
 });
-
 app.get('/api/participant/my-registrations-data', isAuthenticated('participant'), async (req, res) => {
     const userEmail = req.session.user.email;
     try {
@@ -1305,9 +1516,33 @@ app.post('/api/admin/delete-scheme', isAuthenticated('admin'), async (req, res) 
 app.get('/api/cart', isAuthenticated('participant'), async (req, res) => {
     try {
         const data = await docClient.send(new GetCommand({ TableName: 'Lakshya_Cart', Key: { email: req.session.user.email } }));
-        res.json(data.Item ? data.Item.items : []);
-    } catch (err) { res.status(500).json({ error: 'Failed' }); }
+        const cartItems = data.Item ? data.Item.items : [];
+
+        // Fetch full event details for each item to determine Kit Eligibility
+        const enrichedItems = await Promise.all(cartItems.map(async (item) => {
+            try {
+                const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+                const event = eventDoc.Item || {};
+                
+                return {
+                    ...item,
+                    eventName: event.title || item.eventName, // Ensure name is up to date
+                    category: event.type,
+                    includesKit: checkKitEligibility(event.type) // FRONTEND: Use this to show badge
+                };
+            } catch (e) {
+                return item;
+            }
+        }));
+
+        res.json(enrichedItems);
+    } catch (err) { 
+        console.error("Cart Error:", err);
+        res.status(500).json({ error: 'Failed' }); 
+    }
 });
+
+
 app.post('/api/cart', isAuthenticated('participant'), async (req, res) => {
     try {
         await docClient.send(new PutCommand({
@@ -1476,14 +1711,123 @@ app.post('/api/admin/delete-coupon', isAuthenticated('admin'), async (req, res) 
         res.json({ message: 'Deleted' });
     } catch (err) { res.status(500).json({ error: 'Failed' }); }
 });
-app.post('/api/coupon/validate', isAuthenticated('participant'), async (req, res) => {
-    const { code } = req.body;
+app.post('/api/payment/create-order', async (req, res) => {
     try {
-        const data = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: code.toUpperCase() } }));
-        const coupon = data.Item;
-        if (!coupon || coupon.usedCount >= coupon.usageLimit) return res.status(400).json({ error: "Invalid/Expired" });
-        res.json({ code: coupon.code, percentage: coupon.percentage, message: "Applied" });
-    } catch (err) { res.status(500).json({ error: "Failed" }); }
+        const { cartItems, couponCode } = req.body;
+        
+        // 1. Fetch real event data
+        let events = [];
+        for (const item of cartItems) {
+            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+            if (eventDoc.Item) {
+                events.push({ ...eventDoc.Item, fee: parseInt(eventDoc.Item.fee) });
+            }
+        }
+
+        // 2. Sort events by fee (High to Low)
+        // This ensures the most expensive item is treated as the "Main" item (Full Price)
+        events.sort((a, b) => b.fee - a.fee);
+
+        let totalAmount = 0;
+        const itemAmounts = {}; // Stores specific amount for each eventId
+
+        // Fetch Standard Coupon if applicable
+        let standardCoupon = null;
+        if (couponCode && couponCode !== 'LAKSHYA2K26') {
+            const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() } }));
+            if (couponQuery.Item && couponQuery.Item.currentUses < couponQuery.Item.usageLimit) {
+                standardCoupon = couponQuery.Item;
+            }
+        }
+
+        // --- 3. ROBUST HISTORY CHECK ---
+        let historyCount = 0;
+        if (couponCode === 'LAKSHYA2K26' && req.session.user && req.session.user.email) {
+            try {
+                const existingRegs = await docClient.send(new QueryCommand({
+                    TableName: 'Lakshya_Registrations',
+                    IndexName: 'StudentIndex',
+                    KeyConditionExpression: 'studentEmail = :email',
+                    ExpressionAttributeValues: { ':email': req.session.user.email }
+                }));
+                const regs = existingRegs.Items || [];
+                
+                for (const reg of regs) {
+                    // ONLY count registrations that are genuinely COMPLETED (Paid)
+                    if (reg.paymentStatus === 'COMPLETED') {
+                        // CRITICAL: Ensure we don't count an item that is currently in the cart
+                        const isInCart = events.some(e => String(e.eventId).trim() === String(reg.eventId).trim());
+                        
+                        if (!isInCart) {
+                            // Fetch event details to ensure it was an eligible type
+                            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
+                            if (eventDoc.Item && isEligibleForCombo(eventDoc.Item)) {
+                                historyCount++;
+                            }
+                        }
+                    }
+                }
+            } catch (e) { console.error("History check error:", e); }
+        }
+
+        // 4. CALCULATE PRICES
+        let currentEligibleIndex = 0; // Tracks eligible items in THIS cart
+
+        for (const event of events) {
+            let finalItemPrice = event.fee;
+            const isEligible = isEligibleForCombo(event);
+
+            if (couponCode === 'LAKSHYA2K26' && isEligible) {
+                currentEligibleIndex++;
+                
+                // Effective Position = (Items already paid for) + (Current item's rank in this cart)
+                // Example 1 (No History): 0 + 1 = Position 1 -> Full Price
+                // Example 2 (No History): 0 + 2 = Position 2 -> 50% Off
+                // Example 3 (1 Paid History): 1 + 1 = Position 2 -> 50% Off
+                const effectivePosition = historyCount + currentEligibleIndex;
+
+                if (effectivePosition > 1) {
+                    finalItemPrice = event.fee / 2; // 50% OFF
+                } else {
+                    finalItemPrice = event.fee; // Full Price
+                }
+            } 
+            else if (standardCoupon) {
+                // Standard Coupon Logic (Per Item)
+                const type = (event.type || '').toLowerCase();
+                if (!type.includes('special') && standardCoupon.allowedTypes && standardCoupon.allowedTypes.includes(event.type)) {
+                    finalItemPrice = event.fee - (event.fee * standardCoupon.percentage / 100);
+                }
+            }
+
+            // Map event ID to its specific calculated price
+            itemAmounts[event.eventId] = finalItemPrice;
+            totalAmount += finalItemPrice;
+        }
+
+        // 5. Platform Fee (2.36%)
+        const platformFee = Math.ceil(totalAmount * 0.0236);
+        const finalTotal = totalAmount + platformFee;
+
+        // 6. Create Razorpay Order
+        const order = await razorpay.orders.create({
+            amount: finalTotal * 100, // Amount in paise
+            currency: "INR",
+            receipt: "receipt_" + Date.now()
+        });
+
+        res.json({
+            id: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            key_id: RAZORPAY_KEY_ID,
+            itemAmounts: itemAmounts // Sending breakdown to frontend/verify
+        });
+
+    } catch (error) {
+        console.error("Order Creation Error:", error);
+        res.status(500).json({ error: "Failed to create order." });
+    }
 });
 
 // File Upload Utility
@@ -1686,6 +2030,759 @@ app.post('/api/coordinator/approve-registration', isAuthenticated('coordinator')
     } catch (e) { 
         console.error("Approval Error:", e);
         res.status(500).json({ error: "Failed to approve registration" }); 
+    }
+});
+app.post('/api/coupon/validate', async (req, res) => {
+    try {
+        const { code, cartItems } = req.body;
+        const upperCode = code.toUpperCase();
+
+        if (upperCode === 'LAKSHYA2K26') {
+            const userEmail = req.session.user ? req.session.user.email : null;
+            let historyCount = 0;
+
+            // 1. Fetch real event data for Cart Items
+            let events = [];
+            for (const item of cartItems) {
+                const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+                if (eventDoc.Item) {
+                    events.push({ ...eventDoc.Item, fee: parseInt(eventDoc.Item.fee) });
+                }
+            }
+
+            // 2. Sort Cart Events (High to Low)
+            events.sort((a, b) => b.fee - a.fee);
+
+            // 3. Robust History Check
+            if (userEmail) {
+                try {
+                    const existingRegs = await docClient.send(new QueryCommand({
+                        TableName: 'Lakshya_Registrations',
+                        IndexName: 'StudentIndex',
+                        KeyConditionExpression: 'studentEmail = :email',
+                        ExpressionAttributeValues: { ':email': userEmail }
+                    }));
+                    
+                    const regs = existingRegs.Items || [];
+                    for (const reg of regs) {
+                        // CRITICAL FIX: Ensure we only count PAID registrations
+                        if (reg.paymentStatus === 'COMPLETED') {
+                            
+                            // OPTIMIZATION & BUG FIX: Use stored category if available to avoid Key mismatch issues
+                            if (reg.category) {
+                                // Check strict eligibility on stored category
+                                const cat = reg.category.toLowerCase();
+                                const eligibleKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary'];
+                                const isEligible = eligibleKeywords.some(k => cat.includes(k)) && !cat.includes('special');
+                                
+                                if (isEligible) historyCount++;
+                            
+                            } else {
+                                // Fallback: Fetch event if category missing (Trim ID to be safe)
+                                const cleanId = String(reg.eventId).trim();
+                                const eventDoc = await docClient.send(new GetCommand({ 
+                                    TableName: 'Lakshya_Events', 
+                                    Key: { eventId: cleanId } 
+                                }));
+                                
+                                if (eventDoc.Item && isEligibleForCombo(eventDoc.Item)) {
+                                    historyCount++;
+                                }
+                            }
+                        }
+                    }
+                } catch (err) { console.error("History check error:", err); }
+            }
+
+            // 4. Calculate Discount
+            let totalDiscount = 0;
+            let currentEligibleIndex = 0;
+            let eligibleItemCount = 0;
+
+            for (const event of events) {
+                if (isEligibleForCombo(event)) {
+                    eligibleItemCount++;
+                    currentEligibleIndex++;
+                    
+                    // Effective Position = History + Position in Current Cart
+                    const effectivePosition = historyCount + currentEligibleIndex;
+
+                    // STRICT RULE: Position 1 is always Full Price. Position > 1 is 50% Off.
+                    if (effectivePosition > 1) {
+                        totalDiscount += (event.fee * 0.5);
+                    }
+                }
+            }
+
+            if (eligibleItemCount === 0) {
+                return res.status(400).json({ error: "No eligible events for this coupon." });
+            }
+
+            let msg = historyCount > 0 
+                ? "Loyalty Offer! 50% OFF applied." 
+                : "Combo Offer! 50% OFF on additional events.";
+
+            return res.json({
+                code: 'LAKSHYA2K26',
+                discountAmount: totalDiscount,
+                historyCount: historyCount, 
+                message: msg
+            });
+        }
+
+        // --- STANDARD DB COUPON LOGIC (Unchanged) ---
+        const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: upperCode } }));
+        const coupon = couponQuery.Item;
+        
+        if (!coupon) return res.status(404).json({ error: "Invalid coupon code." });
+        if (coupon.currentUses >= coupon.usageLimit) return res.status(400).json({ error: "Coupon usage limit reached." });
+
+        let eligibleTotal = 0;
+        let cartHasEligible = false;
+
+        for (const item of cartItems) {
+            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+            if (eventDoc.Item) {
+                const event = eventDoc.Item;
+                if (!event.type.toLowerCase().includes('special') && coupon.allowedTypes && coupon.allowedTypes.includes(event.type)) {
+                    eligibleTotal += parseInt(event.fee);
+                    cartHasEligible = true;
+                }
+            }
+        }
+
+        if (!cartHasEligible) return res.status(400).json({ error: "Coupon not applicable." });
+
+        const discountAmount = (eligibleTotal * coupon.percentage) / 100;
+
+        return res.json({
+            code: coupon.code,
+            discountAmount: discountAmount,
+            historyCount: 0, 
+            message: `Coupon Applied! ${coupon.percentage}% OFF.`
+        });
+
+    } catch (error) {
+        console.error("Coupon Validation Error:", error);
+        res.status(500).json({ error: "Failed to validate coupon." });
+    }
+});
+// =========================================================================
+//  ENDPOINT 3: CREATE PAYMENT ORDER
+//  (REPLACE YOUR EXISTING '/api/payment/create-order' ROUTE WITH THIS)
+// =========================================================================
+app.post('/api/payment/create-order', async (req, res) => {
+    try {
+        const { cartItems, couponCode } = req.body;
+        
+        // 1. Fetch real event data
+        let events = [];
+        for (const item of cartItems) {
+            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+            if (eventDoc.Item) {
+                events.push({ ...eventDoc.Item, fee: parseInt(eventDoc.Item.fee) });
+            }
+        }
+
+        // Sort events by fee (High to Low) so the discount applies to cheaper items first if any, 
+        // OR ensures the most expensive item is the "First" (Full Price) one if no history exists.
+        events.sort((a, b) => b.fee - a.fee);
+
+        let totalAmount = 0;
+        const itemAmounts = {}; // Stores specific amount for each eventId
+
+        // Fetch Standard Coupon if applicable
+        let standardCoupon = null;
+        if (couponCode && couponCode !== 'LAKSHYA2K26') {
+            const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() } }));
+            if (couponQuery.Item && couponQuery.Item.currentUses < couponQuery.Item.usageLimit) {
+                standardCoupon = couponQuery.Item;
+            }
+        }
+
+        // --- HISTORY CHECK FOR COMBO ---
+        let historyCount = 0;
+        if (couponCode === 'LAKSHYA2K26' && req.session.user && req.session.user.email) {
+            try {
+                const existingRegs = await docClient.send(new QueryCommand({
+                    TableName: 'Lakshya_Registrations',
+                    IndexName: 'StudentIndex',
+                    KeyConditionExpression: 'studentEmail = :email',
+                    ExpressionAttributeValues: { ':email': req.session.user.email }
+                }));
+                const regs = existingRegs.Items || [];
+                // Count how many eligible events are ALREADY PAID
+                for (const reg of regs) {
+                    if (reg.paymentStatus === 'COMPLETED') {
+                        // Check if this paid event is not in current cart (avoid double count)
+                        const isInCart = events.some(e => e.eventId === reg.eventId);
+                        if (!isInCart) {
+                            // We need to check if the *past* event was eligible type
+                            // Fetching event details might be slow, so we assume Major/Cultural are tracked
+                            // Optimisation: Check reg.category if saved, or fetch event
+                            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
+                            if (eventDoc.Item && isEligibleForCombo(eventDoc.Item)) {
+                                historyCount++;
+                            }
+                        }
+                    }
+                }
+            } catch (e) { console.error("History check error:", e); }
+        }
+
+        // 2. LOGIC FIX: Calculate exact amount per item strictly
+        let currentEligibleIndex = 0; // Tracks eligible items in THIS cart
+
+        for (const event of events) {
+            let finalItemPrice = event.fee;
+            const isEligible = isEligibleForCombo(event);
+
+            if (couponCode === 'LAKSHYA2K26' && isEligible) {
+                currentEligibleIndex++;
+                
+                // Effective Position = History + Current Position
+                // Example: 0 History + 1st Item = 1. (No Discount)
+                // Example: 0 History + 2nd Item = 2. (Discount)
+                // Example: 1 History + 1st Item = 2. (Discount)
+                const effectivePosition = historyCount + currentEligibleIndex;
+
+                if (effectivePosition > 1) {
+                    finalItemPrice = event.fee / 2; // 50% OFF for 2nd, 3rd, 4th...
+                } else {
+                    finalItemPrice = event.fee; // Full Price for 1st
+                }
+            } 
+            else if (standardCoupon) {
+                // Standard Coupon Logic (Per Item)
+                const type = (event.type || '').toLowerCase();
+                if (!type.includes('special') && standardCoupon.allowedTypes && standardCoupon.allowedTypes.includes(event.type)) {
+                    finalItemPrice = event.fee - (event.fee * standardCoupon.percentage / 100);
+                }
+            }
+
+            // Map event ID to its specific calculated price
+            itemAmounts[event.eventId] = finalItemPrice;
+            totalAmount += finalItemPrice;
+        }
+
+        // 3. Platform Fee (2.36%)
+        const platformFee = Math.ceil(totalAmount * 0.0236);
+        const finalTotal = totalAmount + platformFee;
+
+        // 4. Create Razorpay Order
+        const order = await razorpay.orders.create({
+            amount: finalTotal * 100, // Amount in paise
+            currency: "INR",
+            receipt: "receipt_" + Date.now()
+        });
+
+        // 5. Return the key details AND the specific breakdown
+        res.json({
+            id: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            key_id: RAZORPAY_KEY_ID,
+            itemAmounts: itemAmounts // SEND THIS BACK
+        });
+
+    } catch (error) {
+        console.error("Order Creation Error:", error);
+        res.status(500).json({ error: "Failed to create order." });
+    }
+});
+
+router.post('/api/admin/add-coupon', async (req, res) => {
+    try {
+        const { code, discountPercentage, allowedTypes, maxUses } = req.body;
+
+        // 1. Hard Block for "Special" Events
+        // Even if Admin tries to select it, backend rejects it.
+        if (allowedTypes.some(type => type.toLowerCase().includes('special'))) {
+            return res.status(400).json({ 
+                error: "Security Alert: Coupons cannot be created for Special Events." 
+            });
+        }
+
+        // 2. Validate standard types
+        const validTypes = ['Major', 'MBA', 'Cultural'];
+        const isValid = allowedTypes.every(t => validTypes.includes(t));
+        
+        if (!isValid) {
+            return res.status(400).json({ 
+                error: "Invalid Event Type detected. Only Major, MBA, and Cultural events are allowed." 
+            });
+        }
+
+        // 3. Save to Database
+        await db.collection('coupons').add({
+            code: code.toUpperCase(),
+            discountPercentage: parseInt(discountPercentage),
+            allowedTypes: allowedTypes,
+            maxUses: parseInt(maxUses) || 500,
+            currentUses: 0,
+            totalSavingsGiven: 0, // Track total money saved by students
+            createdAt: new Date().toISOString()
+        });
+
+        res.json({ success: true, message: "Coupon created successfully!" });
+
+    } catch (error) {
+        console.error("Add Coupon Error:", error);
+        res.status(500).json({ error: "Failed to create coupon." });
+    }
+});
+
+// ==========================================
+
+
+// 2. ADMIN: VIEW USAGE STATS (Data for Admin Page)
+// ==========================================
+app.get('/api/admin/coupon-usage', isAuthenticated('admin'), async (req, res) => {
+    try {
+        const data = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Coupons' }));
+        const usageData = (data.Items || []).map(coupon => ({
+            id: coupon.code, // Use Code as ID
+            code: coupon.code,
+            discount: coupon.percentage + '%',
+            validFor: (coupon.allowedTypes || []).join(', '),
+            used: `${coupon.currentUses || 0} / ${coupon.usageLimit}`,
+            totalSaved: `₹${coupon.totalSavingsGiven || 0}`,
+            status: (coupon.currentUses >= coupon.usageLimit) ? 'Expired' : 'Active'
+        }));
+
+        res.json(usageData);
+    } catch (error) {
+        console.error("Fetch Usage Error:", error);
+        res.status(500).json({ error: "Failed to fetch coupon stats." });
+    }
+});
+
+app.get('/api/coordinator/approvals', isAuthenticated('coordinator'), async (req, res) => {
+    try {
+        const user = req.session.user;
+        const userDept = user.dept;
+        const managedEventId = user.managedEventId;
+        
+        let items = [];
+
+        // Step 1: Fetch PENDING registrations based on role
+        if (managedEventId) {
+            // SCENARIO A: Specific Event Coordinator
+            const params = {
+                TableName: 'Lakshya_Registrations',
+                FilterExpression: 'eventId = :eid AND paymentStatus = :status',
+                ExpressionAttributeValues: {
+                    ':eid': managedEventId,
+                    ':status': 'PENDING'
+                }
+            };
+            const data = await docClient.send(new ScanCommand(params));
+            items = data.Items || [];
+        } else {
+            // SCENARIO B: Department Coordinator
+            // Query by Dept, then filter by Status
+            const params = {
+                TableName: 'Lakshya_Registrations',
+                IndexName: 'DepartmentIndex',
+                KeyConditionExpression: 'deptName = :dept',
+                FilterExpression: 'paymentStatus = :status',
+                ExpressionAttributeValues: {
+                    ':dept': userDept,
+                    ':status': 'PENDING'
+                }
+            };
+            const data = await docClient.send(new QueryCommand(params));
+            items = data.Items || [];
+        }
+
+        if (items.length === 0) return res.json([]);
+
+        // Step 2: Fetch Event Titles and User Details for the frontend
+        // (We need to look up event titles and student names/rolls manually in DynamoDB)
+        
+        // A. Fetch all Events to map IDs to Titles
+        const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
+        const eventMap = {};
+        (eventData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
+
+        // B. Fetch User Details for each registration
+        const formattedRequests = await Promise.all(items.map(async (reg) => {
+            let userName = "Unknown";
+            let userRoll = "N/A";
+
+            try {
+                const userRes = await docClient.send(new GetCommand({
+                    TableName: 'Lakshya_Users',
+                    Key: { email: reg.studentEmail }
+                }));
+                if (userRes.Item) {
+                    userName = userRes.Item.fullName;
+                    userRoll = userRes.Item.rollNo;
+                }
+            } catch (e) { console.error("User fetch error", e); }
+
+            // Determine display name
+            const displayName = reg.teamName ? reg.teamName : userName;
+            const regType = reg.teamName ? 'Team Registration' : 'Individual';
+
+            return {
+                id: reg.registrationId,
+                name: displayName,
+                roll: userRoll,
+                event: eventMap[reg.eventId] || reg.eventId,
+                type: regType,
+                status: reg.paymentStatus,
+                txId: reg.transactionId || 'N/A', // Ensure this field exists in your DB items
+                proofUrl: reg.screenshotUrl || '',   // Ensure this field exists
+                timestamp: reg.registeredAt
+            };
+        }));
+
+        res.json(formattedRequests);
+
+    } catch (error) {
+        console.error("Error fetching approvals:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// 2. POST: Approve Request
+app.post('/api/coordinator/approve', isAuthenticated('coordinator'), async (req, res) => {
+    try {
+        const { id } = req.body; 
+
+        if (!id) return res.status(400).json({ error: "Registration ID is required" });
+
+        // Update status to COMPLETED in DynamoDB
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId: id },
+            UpdateExpression: "set paymentStatus = :s",
+            ExpressionAttributeValues: { ":s": "COMPLETED" },
+            ReturnValues: "ALL_NEW"
+        };
+
+        const result = await docClient.send(new UpdateCommand(params));
+        
+        // Optional: Trigger Email Notification here if needed
+        // const reg = result.Attributes;
+        // sendEmail(reg.studentEmail, "Approved", "Your registration is approved.");
+
+        res.json({ success: true, message: "Request approved successfully" });
+
+    } catch (error) {
+        console.error("Error approving request:", error);
+        res.status(500).json({ error: "Failed to approve request" });
+    }
+});
+
+// 3. POST: Decline Request
+app.post('/api/coordinator/decline', isAuthenticated('coordinator'), async (req, res) => {
+    try {
+        const { id, reason } = req.body;
+
+        if (!id || !reason) return res.status(400).json({ error: "ID and Reason are required" });
+
+        // Update status to REJECTED and add remarks in DynamoDB
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId: id },
+            UpdateExpression: "set paymentStatus = :s, remarks = :r",
+            ExpressionAttributeValues: { 
+                ":s": "REJECTED",
+                ":r": reason
+            }
+        };
+
+        await docClient.send(new UpdateCommand(params));
+
+        res.json({ success: true, message: "Request declined successfully" });
+
+    } catch (error) {
+        console.error("Error declining request:", error);
+        res.status(500).json({ error: "Failed to decline request" });
+    }
+});
+
+app.get('/api/coordinator/kit-beneficiaries', isAuthenticated('coordinator'), async (req, res) => {
+    try {
+        const user = req.session.user;
+        const userDept = user.dept;
+        const managedEventId = user.managedEventId;
+
+        let items = [];
+
+        // 1. Fetch COMPLETED registrations based on Coordinator Role
+        if (managedEventId) {
+            // Specific Event Coordinator
+            const params = {
+                TableName: 'Lakshya_Registrations',
+                FilterExpression: 'eventId = :eid AND paymentStatus = :status',
+                ExpressionAttributeValues: { ':eid': managedEventId, ':status': 'COMPLETED' }
+            };
+            const data = await docClient.send(new ScanCommand(params));
+            items = data.Items || [];
+        } else {
+            // Department Coordinator
+            const params = {
+                TableName: 'Lakshya_Registrations',
+                IndexName: 'DepartmentIndex',
+                KeyConditionExpression: 'deptName = :dept',
+                FilterExpression: 'paymentStatus = :status',
+                ExpressionAttributeValues: { ':dept': userDept, ':status': 'COMPLETED' }
+            };
+            const data = await docClient.send(new QueryCommand(params));
+            items = data.Items || [];
+        }
+
+        if (items.length === 0) return res.json([]);
+
+        // 2. Fetch Events (to check fees and eligibility)
+        const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
+        const eventMap = {}; 
+        (eventData.Items || []).forEach(e => {
+            eventMap[e.eventId] = { 
+                title: e.title, 
+                fee: parseFloat(e.fee), 
+                type: (e.type || '').toLowerCase(),
+                includesKit: checkKitEligibility(e.type)
+            };
+        });
+
+        // 3. Filter for Kit Eligibility & Fetch Student Details
+        const beneficiaries = [];
+        
+        await Promise.all(items.map(async (reg) => {
+            const eventInfo = eventMap[reg.eventId];
+            if (!eventInfo) return;
+
+            // CHECK 1: Is the event type eligible for a kit?
+            if (!eventInfo.includesKit) return;
+
+            // CHECK 2: Did they pay the full fee? (Tolerance of 1 rupee)
+            const amountPaid = parseFloat(reg.amountPaid) || 0;
+            const fullFee = eventInfo.fee;
+            
+            // If they paid less than fee (e.g. 50% off), they DON'T get a kit
+            if (amountPaid < (fullFee - 1)) return;
+
+            // If we are here, they get a kit. Fetch User Details.
+            let studentName = "Unknown";
+            let rollNo = "N/A";
+            let mobile = "N/A";
+
+            try {
+                const userRes = await docClient.send(new GetCommand({
+                    TableName: 'Lakshya_Users',
+                    Key: { email: reg.studentEmail }
+                }));
+                if (userRes.Item) {
+                    studentName = userRes.Item.fullName;
+                    rollNo = userRes.Item.rollNo;
+                    mobile = userRes.Item.mobile;
+                }
+            } catch (e) { console.error("User fetch error", e); }
+
+            // UPDATED: Now includes eventId and studentEmail for linking
+            beneficiaries.push({
+                registrationId: reg.registrationId, 
+                eventId: reg.eventId,              // <--- ADDED for link
+                studentName: studentName,           
+                studentEmail: reg.studentEmail,    // <--- ADDED for display/link
+                rollNo: rollNo,
+                mobile: mobile,
+                eventTitle: eventInfo.title,        
+                eventType: eventInfo.type,          
+                dept: reg.deptName,
+                paymentDate: reg.paymentDate || reg.registeredAt,
+                amountPaid: amountPaid,
+                kitCollected: reg.kitCollected === true,
+                attendance: reg.attendance === true 
+            });
+        }));
+
+        // Sort alphabetically by Name
+        beneficiaries.sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+        res.json(beneficiaries);
+
+    } catch (error) {
+        console.error("Kit Beneficiaries Error:", error);
+        res.status(500).json({ error: "Failed to fetch list" });
+    }
+});
+app.post('/api/coordinator/toggle-kit-status', isAuthenticated('coordinator'), async (req, res) => {
+    const { registrationId, status } = req.body;
+
+    try {
+        // 1. Fetch current registration to get email & verify attendance
+        const getRes = await docClient.send(new GetCommand({
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId }
+        }));
+        
+        const reg = getRes.Item;
+        if (!reg) return res.status(404).json({ error: "Registration not found" });
+
+        // 2. Server-side Check: Cannot collect kit if Absent (Safety check)
+        if (status === true && reg.attendance !== true) {
+            return res.status(400).json({ error: "Student is marked ABSENT. Please mark Present in Attendance page first." });
+        }
+
+        // 3. Update Status
+        await docClient.send(new UpdateCommand({
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId },
+            UpdateExpression: "set kitCollected = :k, kitCollectedAt = :t",
+            ExpressionAttributeValues: { 
+                ":k": status,
+                ":t": new Date().toISOString()
+            }
+        }));
+
+        // 4. Send Email Notification (Only when marking collected)
+        if (status === true) {
+            const emailHtml = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px;">
+
+    <!-- Logo -->
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png"
+             alt="LAKSHYA 2K26"
+             style="max-width: 50px;">
+    </div>
+
+    <h2 style="color: #00d2ff; text-align: center;">LAKSHYA 2K26 – Kit Collection Confirmation</h2>
+
+    <p>Dear Participant,</p>
+
+    <p>
+        We are pleased to inform you that your event kit associated with the registration ID
+        <strong>${registrationId.substring(0,8).toUpperCase()}</strong> has been successfully
+        marked as <strong>COLLECTED</strong>.
+    </p>
+
+    <p>
+        We hope you have a wonderful experience at <strong>LAKSHYA 2K26</strong>.
+    </p>
+
+    <p style="font-size: 12px; color: #666;">
+        If you believe this update has been made in error or if you require any assistance,
+        please contact us at
+        <a href="mailto:event.support@xetasolutions.in" style="color: #00d2ff; text-decoration: none;">
+            event.support@xetasolutions.in
+        </a>.
+    </p>
+
+    <p style="font-size: 12px; color: #666;">
+        Warm regards,<br>
+        <strong>Team LAKSHYA 2K26</strong>
+    </p>
+
+</div>
+`;
+            
+            // Fire and forget email (don't await) to keep UI fast
+            sendEmail(reg.studentEmail, "Kit Collection Confirmed", emailHtml).catch(console.error);
+        }
+
+        res.json({ message: "Updated successfully" });
+
+    } catch (e) {
+        console.error("Toggle Kit Error:", e);
+        res.status(500).json({ error: "Failed to update status" });
+    }
+});
+
+app.get('/api/admin/kit-stats', isAuthenticated('admin'), async (req, res) => {
+    try {
+        const { dept } = req.query; // 'All' or specific dept name
+
+        let items = [];
+        
+        // 1. Fetch Registrations (Completed Only)
+        if (!dept || dept === 'All') {
+            // Scan all COMPLETED registrations
+            const params = {
+                TableName: 'Lakshya_Registrations',
+                FilterExpression: 'paymentStatus = :status',
+                ExpressionAttributeValues: { ':status': 'COMPLETED' }
+            };
+            const data = await docClient.send(new ScanCommand(params));
+            items = data.Items || [];
+        } else {
+            // Query by Dept
+            const params = {
+                TableName: 'Lakshya_Registrations',
+                IndexName: 'DepartmentIndex',
+                KeyConditionExpression: 'deptName = :dept',
+                FilterExpression: 'paymentStatus = :status',
+                ExpressionAttributeValues: { ':dept': dept, ':status': 'COMPLETED' }
+            };
+            const data = await docClient.send(new QueryCommand(params));
+            items = data.Items || [];
+        }
+
+        if (items.length === 0) return res.json([]);
+
+        // 2. Fetch Events for Kit Eligibility Check
+        const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
+        const eventMap = {};
+        (eventData.Items || []).forEach(e => {
+            eventMap[e.eventId] = { 
+                title: e.title, 
+                fee: parseFloat(e.fee), 
+                type: (e.type || '').toLowerCase(),
+                includesKit: checkKitEligibility(e.type)
+            };
+        });
+
+        // 3. Process Data
+        const beneficiaries = [];
+        
+        await Promise.all(items.map(async (reg) => {
+            const eventInfo = eventMap[reg.eventId];
+            if (!eventInfo) return;
+            if (!eventInfo.includesKit) return; // Must be eligible type
+
+            // Fee Check (Must be full payment)
+            const amountPaid = parseFloat(reg.amountPaid) || 0;
+            if (amountPaid < (eventInfo.fee - 1)) return;
+
+            // Fetch User Details
+            let studentName = "Unknown";
+            let rollNo = "-";
+            
+            try {
+                const userRes = await docClient.send(new GetCommand({
+                    TableName: 'Lakshya_Users', Key: { email: reg.studentEmail }
+                }));
+                if(userRes.Item) {
+                    studentName = userRes.Item.fullName;
+                    rollNo = userRes.Item.rollNo;
+                }
+            } catch(e) {}
+
+            beneficiaries.push({
+                registrationId: reg.registrationId,
+                studentName: studentName,
+                rollNo: rollNo,
+                dept: reg.deptName,
+                eventTitle: eventInfo.title,
+                eventType: eventInfo.type,
+                kitCollected: reg.kitCollected === true,
+                kitCollectedAt: reg.kitCollectedAt || null
+            });
+        }));
+
+        // Sort by Name
+        beneficiaries.sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+        res.json(beneficiaries);
+
+    } catch (e) {
+        console.error("Admin Kit Stats Error:", e);
+        res.status(500).json({ error: "Failed to fetch stats" });
     }
 });
 const PORT = process.env.PORT || 3000;
