@@ -685,8 +685,8 @@ app.post('/api/payment/create-order', async (req, res) => {
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode } = req.body;
     
-    // Define your frontend domain here for the ticket links
-    const CLIENT_URL = "https://lakshya.lbrce.ac.in"; 
+    // Domain for Ticket Links (Update if hosted elsewhere)
+    const CLIENT_URL = "https://lakshya2k26.com"; 
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
@@ -696,7 +696,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
             if (registrationIds && Array.isArray(registrationIds)) {
                 
                 // 1. RECONSTRUCT & RECALCULATE PRICES (Server-Side Source of Truth)
-                // This ensures the email shows the exact 200/100 split, not an average.
+                // This ensures the DB stores 200 for the first and 100 for the second, not 150/150.
                 let regItems = [];
                 
                 // A. Fetch all details first
@@ -720,10 +720,10 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                     }
                 }
 
-                // B. Sort High to Low (Crucial for Discount Logic - Expensive item is Full Price)
+                // B. Sort High to Low (CRITICAL: Expensive item gets Full Price, Cheaper gets Discount)
                 regItems.sort((a, b) => b.fee - a.fee);
 
-                // C. History Check (Same logic as create-order)
+                // C. History Check (Count previously PAID eligible events)
                 let historyCount = 0;
                 const userEmail = regItems.length > 0 ? regItems[0].studentEmail : "";
                 
@@ -738,9 +738,9 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                         const regs = existingRegs.Items || [];
                         for (const reg of regs) {
                             if (reg.paymentStatus === 'COMPLETED') {
-                                // Exclude current transaction items to avoid double counting
+                                // Exclude current transaction items
                                 if (!regItems.some(ri => ri.eventId === reg.eventId)) {
-                                    // Check eligibility
+                                    // Check eligibility (fallback to category or fetch event)
                                     if (reg.category) {
                                         const cat = reg.category.toLowerCase();
                                         const eligibleKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary'];
@@ -755,7 +755,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                     } catch (e) { console.error("History Check Error", e); }
                 }
 
-                // D. Fetch Standard Coupon if applicable
+                // D. Standard Coupon Fetch
                 let standardCoupon = null;
                 if (couponCode && couponCode !== 'LAKSHYA2K26') {
                     const cRes = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() }}));
@@ -772,7 +772,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
 
                     if (couponCode === 'LAKSHYA2K26' && isEligible) {
                         currentEligibleIndex++;
-                        // Effective Position logic
+                        // Effective Position logic: 1st is Full, 2nd+ is Half
                         if ((historyCount + currentEligibleIndex) > 1) {
                             price = item.fee / 2; // 50% OFF
                         }
@@ -781,15 +781,15 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             price = item.fee - (item.fee * standardCoupon.percentage / 100);
                         }
                     }
-                    item.paidAmount = price; // Store exact calculated price (e.g., 100)
+                    item.paidAmount = price; // Store exact calculated price (e.g., 200 or 100)
                     totalBase += price;
                 });
 
-                // F. Calculate Platform Fee Separately
+                // F. Calculate Platform Fee (Visual only here, used for email)
                 const platformFee = Math.ceil(totalBase * 0.0236);
                 const totalPaid = totalBase + platformFee;
 
-                // 2. UPDATE DATABASE
+                // 2. UPDATE DATABASE (With Exact Amount)
                 const updatePromises = regItems.map(item => {
                     return docClient.send(new UpdateCommand({
                         TableName: 'Lakshya_Registrations', 
@@ -802,7 +802,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             ":a": false,
                             ":c": couponCode || "NONE", 
                             ":d": new Date().toISOString(), 
-                            ":amt": item.paidAmount // Store Base Amount (cleaner for stats)
+                            ":amt": item.paidAmount // Saves 200 or 100 specifically
                         }
                     }));
                 });
@@ -810,7 +810,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 
                 res.json({ status: 'success' }); 
 
-                // 3. SEND EMAILS (Now with Correct Breakdown)
+                // 3. SEND EMAILS
                 let userName = "Participant";
                 try {
                     const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: userEmail }}));
@@ -819,7 +819,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
 
                 const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
 
-                // --- Email 1: Registration Confirmation ---
+                // Email 1: Confirmation
                 const eventsHtml = regItems.map(item => `
                     <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #00d2ff;">
                         <p style="margin: 5px 0;"><strong>Event:</strong> ${item.title}</p>
@@ -827,7 +827,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                         <p style="margin: 5px 0;"><strong>Dept:</strong> ${item.dept}</p>
                         ${item.teamName ? `<p style="margin: 5px 0;"><strong>Team:</strong> ${item.teamName}</p>` : ''}
                         <div style="margin-top: 15px;">
-                            <a href="${CLIENT_URL}/receipt-view?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
+                            <a href="${CLIENT_URL}/receipt-view.html?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
                         </div>
                     </div>
                 `).join('');
@@ -847,7 +847,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 
                 await sendEmail(userEmail, `Registration Confirmed - ${regItems.length} Events`, regEmailHtml).catch(e=>console.error(e));
 
-                // --- Email 2: Payment Receipt (FIXED) ---
+                // Email 2: Payment Receipt
                 const paymentRows = regItems.map(item => `
                     <tr>
                         <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.title}</td>
@@ -855,7 +855,6 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                     </tr>
                 `).join('');
                 
-                // Add Platform Fee as a explicit row so the math adds up visually
                 const feeRow = `
                     <tr>
                         <td style="padding: 8px; border-bottom: 1px solid #eee; color: #888; font-size: 0.9em;">Platform Fee (2.36%)</td>
@@ -903,7 +902,6 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
         res.status(400).json({ error: 'Invalid signature' });
     }
 });
-
 app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), async (req, res) => {
     const userEmail = req.session.user.email;
     try {
