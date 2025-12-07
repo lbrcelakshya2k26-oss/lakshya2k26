@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kit Distribution | Coordinator Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="/assets/logo.png">
+    
+    <script src="/js/common.js"></script>
+
+    <style>
+        :root { 
+            --primary-color: #00d2ff; 
+            --secondary-color: #3a7bd5; 
+            --success-color: #00ff88;
+            --glass-bg: rgba(20, 20, 35, 0.95); 
+            --glass-border: rgba(255, 255, 255, 0.1); 
+            --text-color: #ffffff; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        
+        body { 
+            background-color: #0a0a0a; 
+            color: var(--text-color); 
+            min-height: 100vh; 
+            background-image: url('../assets/admin-block.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+        }
+
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 12, 0.9); z-index: -1;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: var(--glass-bg);
+            padding: 20px 30px;
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .header-title h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.8rem;
+            background: linear-gradient(45deg, #fff, var(--primary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stats-summary {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+        }
+        .stat-number { font-size: 1.2rem; font-weight: bold; color: var(--primary-color); }
+        .stat-label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; }
+
+        .search-bar {
+            width: 100%;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+        .search-bar:focus { outline: none; border-color: var(--primary-color); }
+
+        .table-container {
+            background: var(--glass-bg);
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        
+        th {
+            background: rgba(0, 210, 255, 0.1);
+            padding: 18px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        td {
+            padding: 15px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.95rem;
+            vertical-align: middle;
+        }
+
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        .student-meta { display: flex; flex-direction: column; }
+        .student-roll { font-size: 0.8rem; color: #888; margin-top: 2px; }
+
+        .btn-toggle {
+            padding: 8px 16px;
+            border-radius: 50px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+        }
+
+        /* Disabled State */
+        .btn-toggle:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .status-pending {
+            background: rgba(255, 255, 255, 0.1);
+            color: #aaa;
+            border: 1px solid #555;
+        }
+        .status-pending:not(:disabled):hover { background: rgba(255, 255, 255, 0.2); color: white; }
+
+        .status-collected {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+        }
+        .status-collected:not(:disabled):hover { background: rgba(0, 255, 136, 0.25); }
+
+        .loading-state { text-align: center; padding: 40px; color: #888; }
+        
+        /* Badges */
+        .event-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            background: rgba(58, 123, 213, 0.2);
+            color: #64b5f6;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 5px;
+            text-transform: capitalize;
+        }
+        .amt-badge { font-weight: bold; color: var(--primary-color); }
+        
+        .warn-badge {
+            font-size: 0.7rem; 
+            color: #ff4444; 
+            background: rgba(255, 68, 68, 0.1); 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            margin-left: 5px;
+            font-weight: bold;
+            border: 1px solid rgba(255,68,68,0.3);
+        }
+        
+        .id-badge {
+            font-family: 'Courier New', monospace; 
+            background: rgba(255,255,255,0.05); 
+            padding: 2px 6px; 
+            border-radius: 4px;
+            letter-spacing: 1px;
+            color: var(--primary-color);
+        }
+
+        .attend-link {
+            text-decoration: none;
+            color: white;
+            transition: 0.2s;
+        }
+        .attend-link:hover {
+            color: var(--primary-color);
+            text-shadow: 0 0 8px var(--primary-color);
+        }
+        .email-link {
+            font-size: 0.75rem; 
+            color: #888; 
+            margin-top: 2px;
+            text-decoration: none;
+        }
+        .email-link:hover { color: var(--secondary-color); text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            .header-section { flex-direction: column; gap: 20px; align-items: flex-start; }
+            td, th { padding: 12px; font-size: 0.85rem; }
+            .btn-toggle span { display: none; } /* Hide text on mobile */
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay"></div>
+
+    <div class="main-container">
+        
+        <div style="margin-bottom: 20px;">
+            <a href="/coordinator/dashboard" style="color: #aaa; text-decoration: none; font-size: 0.9rem;">
+                <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+
+        <div class="header-section">
+            <div class="header-title">
+                <h2>Kit Beneficiaries</h2>
+                <p style="color: #888; font-size: 0.9rem; margin-top: 5px;">
+                    Eligible students (Must be marked PRESENT to collect).
+                </p>
+            </div>
+            <div class="stats-summary">
+                <div class="stat-card">
+                    <div class="stat-number" id="statEligible">0</div>
+                    <div class="stat-label">Total Eligible</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="statCollected" style="color: var(--success-color);">0</div>
+                    <div class="stat-label">Collected</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="statPending" style="color: #ffc107;">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+        </div>
+
+        <input type="text" id="searchInput" class="search-bar" placeholder="Search by Name, Roll Number or Ticket ID..." onkeyup="filterTable()">
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student Details</th>
+                        <th>Event / Type</th>
+                        <th>Amount Paid</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="5" class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading Data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let beneficiaries = [];
+
+        async function loadData() {
+            try {
+                const response = await fetch('/api/coordinator/kit-beneficiaries');
+                beneficiaries = await response.json();
+                renderTable(beneficiaries);
+                updateStats();
+            } catch (error) {
+                console.error("Error loading kit data:", error);
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" class="loading-state" style="color:#ff4444;">Failed to load data.</td></tr>`;
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="loading-state">No eligible students found for your department/event.</td></tr>`;
+                return;
+            }
+
+            data.forEach(student => {
+                const isCollected = student.kitCollected === true;
+                const isPresent = student.attendance === true;
+                
+                // Format ID like ticket (First 8 chars + Uppercase)
+                const rawId = student.registrationId || '';
+                const displayId = rawId.length >= 8 ? rawId.substring(0,8).toUpperCase() : rawId;
+                
+                const row = document.createElement('tr');
+                
+                const isDisabled = !isPresent;
+                const disabledTitle = isDisabled ? "Student must be marked PRESENT in attendance page first" : "";
+                
+                // --- CLICKABLE NAME & EMAIL LOGIC ---
+                // We assume attendance page is at /coordinator/attendance. 
+                // We append eventId so if you add logic later it can auto-select.
+                const attendUrl = `/coordinator/attendance?eventId=${student.eventId}`;
+
+                const nameHtml = `
+                    <a href="${attendUrl}" class="attend-link" title="Go to Attendance Page">
+                        <span style="font-weight:600;">
+                            ${student.studentName || 'Unknown'}
+                            ${!isPresent ? '<span class="warn-badge">ABSENT</span>' : ''}
+                        </span>
+                    </a>`;
+                
+                const emailHtml = student.studentEmail 
+                    ? `<a href="${attendUrl}" class="email-link" title="Go to Attendance Page">${student.studentEmail}</a>` 
+                    : '';
+
+                row.innerHTML = `
+                    <td>
+                        <div class="student-meta">
+                            ${nameHtml}
+                            ${emailHtml}
+                            <span class="student-roll">${student.rollNo || 'N/A'}</span>
+                            <span style="font-size:0.75rem; color:#666; margin-top:4px;">Ticket ID: <span class="id-badge">${displayId}</span></span>
+                        </div>
+                    </td>
+                    <td>
+                        ${student.eventTitle || 'Event'}
+                        <br>
+                        <span class="event-badge">${student.eventType || 'General'}</span>
+                    </td>
+                    <td>
+                        <span class="amt-badge">₹${student.amountPaid}</span>
+                    </td>
+                    <td>
+                        <span style="color: ${isCollected ? 'var(--success-color)' : '#ffc107'}; font-weight:600; font-size:0.9rem;">
+                            ${isCollected ? 'Collected' : 'Pending'}
+                        </span>
+                    </td>
+                    <td>
+                        <button onclick="toggleKit('${student.registrationId}', ${!isCollected})" 
+                            class="btn-toggle ${isCollected ? 'status-collected' : 'status-pending'}"
+                            ${isDisabled ? 'disabled' : ''} 
+                            title="${disabledTitle}">
+                            <i class="fa-solid ${isCollected ? 'fa-check-circle' : 'fa-circle'}"></i>
+                            <span>${isCollected ? 'Mark Pending' : 'Mark Collected'}</span>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function toggleKit(regId, newStatus) {
+            // Optimistic UI Update
+            const student = beneficiaries.find(s => s.registrationId === regId);
+            if(student) student.kitCollected = newStatus;
+            
+            filterTable();
+            updateStats();
+
+            try {
+                const res = await fetch('/api/coordinator/toggle-kit-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ registrationId: regId, status: newStatus })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || "Failed to update");
+                }
+                
+                if(newStatus) console.log("Kit marked collected, Email sent.");
+
+            } catch (e) {
+                alert(e.message);
+                console.error(e);
+                // Revert
+                if(student) student.kitCollected = !newStatus;
+                filterTable();
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            const total = beneficiaries.length;
+            const collected = beneficiaries.filter(b => b.kitCollected === true).length;
+            
+            document.getElementById('statEligible').innerText = total;
+            document.getElementById('statCollected').innerText = collected;
+            document.getElementById('statPending').innerText = total - collected;
+        }
+
+        function filterData(query) {
+            if(!query) return beneficiaries;
+            const lowerQuery = query.toLowerCase();
+            return beneficiaries.filter(s => 
+                (s.studentName && s.studentName.toLowerCase().includes(lowerQuery)) || 
+                (s.rollNo && s.rollNo.toLowerCase().includes(lowerQuery)) ||
+                (s.registrationId && s.registrationId.toLowerCase().includes(lowerQuery)) ||
+                (s.studentEmail && s.studentEmail.toLowerCase().includes(lowerQuery))
+            );
+        }
+
+        function filterTable() {
+            const query = document.getElementById('searchInput').value;
+            renderTable(filterData(query));
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
