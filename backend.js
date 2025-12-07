@@ -686,7 +686,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode } = req.body;
     
     // Define your frontend domain here for the ticket links
-    const CLIENT_URL = "http://"; 
+    const CLIENT_URL = "https://lakshya.lbrce.ac.in"; 
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
