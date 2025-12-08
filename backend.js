@@ -199,6 +199,9 @@ app.get('/participant/culturals', isAuthenticated('participant'), (req, res) => 
 app.get('/participant/support', isAuthenticated('participant'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/participant/support.html'));
 });
+app.get('/participant/payment-success', isAuthenticated('participant'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/participant/payment-success.html'));
+});
 
 // --- 6. ROUTES: COORDINATOR (PROTECTED) ---
 app.get('/coordinator/dashboard', isAuthenticated('coordinator'), (req, res) => {
@@ -580,7 +583,7 @@ app.post('/api/register-event', isAuthenticated('participant'), async (req, res)
     }
 });
 // Create Order (Razorpay)
-app.post('/api/payment/create-order', async (req, res) => {
+app.post('/api/payment/create-order', isAuthenticated('participant'), async (req, res) => {
     try {
         const { cartItems, couponCode } = req.body;
         
@@ -597,9 +600,8 @@ app.post('/api/payment/create-order', async (req, res) => {
         events.sort((a, b) => b.fee - a.fee);
 
         let totalAmount = 0;
-        const itemAmounts = {}; 
-
-        // Fetch Standard Coupon if applicable
+        
+        // Fetch Standard Coupon
         let standardCoupon = null;
         if (couponCode && couponCode !== 'LAKSHYA2K26') {
             const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() } }));
@@ -608,7 +610,7 @@ app.post('/api/payment/create-order', async (req, res) => {
             }
         }
 
-        // --- 3. ROBUST HISTORY CHECK (Same as Validate) ---
+        // 3. HISTORY CHECK (Combo Logic)
         let historyCount = 0;
         if (couponCode === 'LAKSHYA2K26' && req.session.user && req.session.user.email) {
             try {
@@ -624,10 +626,7 @@ app.post('/api/payment/create-order', async (req, res) => {
                     if (reg.paymentStatus === 'COMPLETED') {
                         const isInCart = events.some(e => String(e.eventId).trim() === String(reg.eventId).trim());
                         if (!isInCart) {
-                            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
-                            if (eventDoc.Item && isEligibleForCombo(eventDoc.Item)) {
-                                historyCount++;
-                            }
+                             if(reg.amountPaid) historyCount++; 
                         }
                     }
                 }
@@ -636,6 +635,7 @@ app.post('/api/payment/create-order', async (req, res) => {
 
         // 4. CALCULATE PRICES
         let currentEligibleIndex = 0; 
+        const itemAmounts = {}; // We still calculate this for internal logic
 
         for (const event of events) {
             let finalItemPrice = event.fee;
@@ -643,14 +643,9 @@ app.post('/api/payment/create-order', async (req, res) => {
 
             if (couponCode === 'LAKSHYA2K26' && isEligible) {
                 currentEligibleIndex++;
-                
-                // Effective Position = History + Current Rank
                 const effectivePosition = historyCount + currentEligibleIndex;
-
                 if (effectivePosition > 1) {
                     finalItemPrice = event.fee / 2; // 50% OFF
-                } else {
-                    finalItemPrice = event.fee; // Full Price
                 }
             } 
             else if (standardCoupon) {
@@ -664,21 +659,37 @@ app.post('/api/payment/create-order', async (req, res) => {
             totalAmount += finalItemPrice;
         }
 
-        // 5. Platform Fee (2.36%)
+        // 5. Platform Fee & Rounding
         const platformFee = Math.ceil(totalAmount * 0.0236);
         const finalTotal = totalAmount + platformFee;
+        const amountInPaise = Math.round(finalTotal * 100); 
 
-        const order = await razorpay.orders.create({
-            amount: finalTotal * 100, 
+        // 6. Create Payment Link
+        const CALLBACK_URL = "https://lakshya.lbrce.ac.in/participant/payment-success"; 
+
+        const paymentLink = await razorpay.paymentLink.create({
+            amount: amountInPaise, 
             currency: "INR",
-            receipt: "receipt_" + Date.now()
+            accept_partial: false,
+            description: "LAKSHYA 2K26 Registration",
+            customer: {
+                name: req.session.user.name || "Student",
+                email: req.session.user.email,
+                contact: req.session.user.mobile || "+919000000000"
+            },
+            // FIX 1: DISABLE RAZORPAY EMAIL
+            notify: { 
+                sms: true, 
+                email: false 
+            },
+            reminder_enable: false,
+            callback_url: CALLBACK_URL,
+            callback_method: "get"
         });
 
         res.json({
-            id: order.id,
-            amount: order.amount,
-            currency: order.currency,
-            key_id: RAZORPAY_KEY_ID,
+            paymentLink: paymentLink.short_url,
+            paymentLinkId: paymentLink.id,
             itemAmounts: itemAmounts 
         });
 
@@ -687,118 +698,61 @@ app.post('/api/payment/create-order', async (req, res) => {
         res.status(500).json({ error: "Failed to create order." });
     }
 });
+
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode } = req.body;
-    
-    // Define your frontend domain here for the ticket links
-    const CLIENT_URL = "https://lakshya.lbrce.ac.in"; 
+    const { razorpay_payment_id, registrationIds, couponCode } = req.body;
+    const CLIENT_URL = "https://lakshya.lbrce.ac.in/"; 
+    const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
 
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
+    try {
+        if (!razorpay_payment_id) return res.status(400).json({ error: 'Missing Payment ID' });
 
-    if (expectedSignature === razorpay_signature) {
-        try {
-            if (registrationIds && Array.isArray(registrationIds)) {
-                
-                // 1. RECONSTRUCT & RECALCULATE PRICES (Server-Side Source of Truth)
-                // This ensures the email shows the exact 200/100 split, not an average.
-                let regItems = [];
-                
-                // A. Fetch all details first
-                for (const regId of registrationIds) {
-                    const r = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: regId }}));
-                    if(r.Item) {
-                        const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: r.Item.eventId }}));
-                        if(e.Item) {
-                            regItems.push({
-                                regId: regId,
-                                eventId: r.Item.eventId,
-                                title: e.Item.title,
-                                fee: parseInt(e.Item.fee),
-                                type: e.Item.type,
-                                dept: r.Item.deptName,
-                                studentEmail: r.Item.studentEmail,
-                                teamName: r.Item.teamName,
-                                teamMembers: r.Item.teamMembers
-                            });
-                        }
+        // 1. VERIFY WITH RAZORPAY & GET ACTUAL AMOUNT PAID
+        const payment = await razorpay.payments.fetch(razorpay_payment_id);
+        if (payment.status !== 'captured' && payment.status !== 'authorized') {
+            return res.status(400).json({ error: 'Payment not captured or failed.' });
+        }
+
+        // FIX 3: REVERSE CALCULATE BASE AMOUNT
+        // We trust the bank: If user paid 103, we record 103.
+        const totalPaidInRupees = payment.amount / 100; // e.g., 103.00
+        
+        // Remove Tax to find Base Price
+        // Formula: Total = Base * 1.0236  =>  Base = Total / 1.0236
+        const totalBaseAmount = Math.round(totalPaidInRupees / 1.0236);
+        
+        // Distribute this base amount among items (evenly is safest for receipt if itemAmounts missing)
+        const count = registrationIds.length || 1;
+        const baseAmountPerItem = Math.floor(totalBaseAmount / count); 
+
+        // 2. CHECK DUPLICATES
+        const existing = await docClient.send(new ScanCommand({
+            TableName: 'Lakshya_Registrations',
+            FilterExpression: 'paymentId = :pid',
+            ExpressionAttributeValues: { ':pid': razorpay_payment_id }
+        }));
+
+        if (existing.Items && existing.Items.length > 0) {
+            return res.json({ status: 'success', message: 'Already processed' });
+        }
+
+        // 3. PROCESS UPDATES
+        if (registrationIds && Array.isArray(registrationIds)) {
+            
+            let regItemsForEmail = [];
+
+            const updatePromises = registrationIds.map(async (regId, index) => {
+                try {
+                    // Handle rounding difference on the last item
+                    let thisItemAmount = baseAmountPerItem;
+                    if (index === registrationIds.length - 1) {
+                         thisItemAmount = totalBaseAmount - (baseAmountPerItem * (count - 1));
                     }
-                }
 
-                // B. Sort High to Low (Crucial for Discount Logic - Expensive item is Full Price)
-                regItems.sort((a, b) => b.fee - a.fee);
-
-                // C. History Check (Same logic as create-order)
-                let historyCount = 0;
-                const userEmail = regItems.length > 0 ? regItems[0].studentEmail : "";
-                
-                if (couponCode === 'LAKSHYA2K26' && userEmail) {
-                    try {
-                        const existingRegs = await docClient.send(new QueryCommand({
-                            TableName: 'Lakshya_Registrations',
-                            IndexName: 'StudentIndex',
-                            KeyConditionExpression: 'studentEmail = :email',
-                            ExpressionAttributeValues: { ':email': userEmail }
-                        }));
-                        const regs = existingRegs.Items || [];
-                        for (const reg of regs) {
-                            if (reg.paymentStatus === 'COMPLETED') {
-                                // Exclude current transaction items to avoid double counting
-                                if (!regItems.some(ri => ri.eventId === reg.eventId)) {
-                                    // Check eligibility
-                                    if (reg.category) {
-                                        const cat = reg.category.toLowerCase();
-                                        const eligibleKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary'];
-                                        if (eligibleKeywords.some(k => cat.includes(k)) && !cat.includes('special')) historyCount++;
-                                    } else {
-                                         const eDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId }}));
-                                         if(eDoc.Item && isEligibleForCombo(eDoc.Item)) historyCount++;
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e) { console.error("History Check Error", e); }
-                }
-
-                // D. Fetch Standard Coupon if applicable
-                let standardCoupon = null;
-                if (couponCode && couponCode !== 'LAKSHYA2K26') {
-                    const cRes = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() }}));
-                    if(cRes.Item) standardCoupon = cRes.Item;
-                }
-
-                // E. Assign Exact Prices
-                let totalBase = 0;
-                let currentEligibleIndex = 0;
-
-                regItems.forEach(item => {
-                    let price = item.fee;
-                    const isEligible = isEligibleForCombo({ type: item.type, title: item.title, fee: item.fee });
-
-                    if (couponCode === 'LAKSHYA2K26' && isEligible) {
-                        currentEligibleIndex++;
-                        // Effective Position logic
-                        if ((historyCount + currentEligibleIndex) > 1) {
-                            price = item.fee / 2; // 50% OFF
-                        }
-                    } else if (standardCoupon) {
-                        if (standardCoupon.allowedTypes.includes(item.type)) {
-                            price = item.fee - (item.fee * standardCoupon.percentage / 100);
-                        }
-                    }
-                    item.paidAmount = price; // Store exact calculated price (e.g., 100)
-                    totalBase += price;
-                });
-
-                // F. Calculate Platform Fee Separately
-                const platformFee = Math.ceil(totalBase * 0.0236);
-                const totalPaid = totalBase + platformFee;
-
-                // 2. UPDATE DATABASE
-                const updatePromises = regItems.map(item => {
-                    return docClient.send(new UpdateCommand({
+                    // A. Update DB
+                    await docClient.send(new UpdateCommand({
                         TableName: 'Lakshya_Registrations', 
-                        Key: { registrationId: item.regId },
+                        Key: { registrationId: regId },
                         UpdateExpression: "set paymentStatus = :s, paymentId = :p, paymentMode = :m, attendance = :a, couponUsed = :c, paymentDate = :d, amountPaid = :amt",
                         ExpressionAttributeValues: {
                             ":s": "COMPLETED", 
@@ -807,108 +761,125 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             ":a": false,
                             ":c": couponCode || "NONE", 
                             ":d": new Date().toISOString(), 
-                            ":amt": item.paidAmount // Store Base Amount (cleaner for stats)
+                            ":amt": thisItemAmount // Saving the reverse-calculated amount
                         }
                     }));
-                });
-                await Promise.all(updatePromises);
-                
-                res.json({ status: 'success' }); 
 
-                // 3. SEND EMAILS (Now with Correct Breakdown)
-                let userName = "Participant";
-                try {
-                    const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: userEmail }}));
-                    if(u.Item) userName = u.Item.fullName;
-                } catch(e) {}
+                    // B. Fetch Details for Email
+                    const regDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: regId }}));
+                    if (regDoc.Item) {
+                        const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: regDoc.Item.eventId }}));
+                        if(e.Item) {
+                            regItemsForEmail.push({
+                                regId: regId,
+                                title: e.Item.title,
+                                dept: regDoc.Item.deptName,
+                                paidAmount: thisItemAmount,
+                                teamName: regDoc.Item.teamName
+                            });
+                        }
+                    }
+                } catch(err) { console.error("Reg Update Error:", err); }
+            });
 
-                const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
+            await Promise.all(updatePromises);
+            
+            // FIX 2: CLEAR CART
+            try {
+                await docClient.send(new DeleteCommand({ 
+                    TableName: 'Lakshya_Cart', 
+                    Key: { email: req.session.user.email } 
+                }));
+            } catch(e) { console.warn("Cart clear warning:", e); }
 
-                // --- Email 1: Registration Confirmation ---
-                const eventsHtml = regItems.map(item => `
-                    <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #00d2ff;">
-                        <p style="margin: 5px 0;"><strong>Event:</strong> ${item.title}</p>
-                        <p style="margin: 5px 0;"><strong>Reg ID:</strong> ${item.regId}</p>
-                        <p style="margin: 5px 0;"><strong>Dept:</strong> ${item.dept}</p>
-                        ${item.teamName ? `<p style="margin: 5px 0;"><strong>Team:</strong> ${item.teamName}</p>` : ''}
-                        <div style="margin-top: 15px;">
-                            <a href="${CLIENT_URL}/receipt-view?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
+            // 4. SEND EMAILS
+            let userName = "Participant";
+            let userEmail = req.session.user.email;
+            try {
+                const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: userEmail }}));
+                if(u.Item) userName = u.Item.fullName;
+            } catch(e) {}
+
+            // Recalculate platform fee for email display based on ACTUAL payment
+            const finalPlatformFee = totalPaidInRupees - totalBaseAmount;
+
+            // --- TEMPLATE 1: Registration Confirmation ---
+            const eventsHtml = regItemsForEmail.map(item => `
+                <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #00d2ff;">
+                    <p style="margin: 5px 0;"><strong>Event:</strong> ${item.title}</p>
+                    <p style="margin: 5px 0;"><strong>Reg ID:</strong> ${item.regId}</p>
+                    <p style="margin: 5px 0;"><strong>Dept:</strong> ${item.dept}</p>
+                    <div style="margin-top: 15px;">
+                        <a href="${CLIENT_URL}receipt-view?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
+                    </div>
+                </div>
+            `).join('');
+
+            const regEmailHtml = `
+                <div style="font-family: 'Segoe UI', sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px; margin: 0 auto;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <img src="${logoUrl}" style="height: 50px;">
+                        <h2 style="color: #4fc3f7; margin: 10px 0;">Registration Confirmed</h2>
+                    </div>
+                    <p>Dear ${userName},</p>
+                    <p>Thank you for registering!</p>
+                    ${eventsHtml}
+                    <p style="color: #555; font-size: 14px; margin-top: 30px;">Best Regards,<br>Team LAKSHYA</p>
+                </div>`;
+            
+            // --- TEMPLATE 2: Payment Receipt ---
+            const paymentRows = regItemsForEmail.map(item => `
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.title}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">₹${item.paidAmount}</td>
+                </tr>
+            `).join('');
+            
+            const receiptHtml = `
+                <div style="font-family: 'Segoe UI', sans-serif; border: 1px solid #eee; max-width: 600px; margin: 0 auto; border-radius: 8px; overflow: hidden;">
+                    <div style="background-color: #00d2ff; padding: 20px; text-align: center; color: white;">
+                        <img src="${logoUrl}" style="height: 40px; margin-bottom: 10px; background: rgba(255,255,255,0.2); padding: 5px; border-radius: 5px;">
+                        <h2 style="margin: 0;">PAYMENT RECEIPT</h2>
+                    </div>
+                    <div style="padding: 20px;">
+                        <p>Dear ${userName},</p>
+                        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                            <tr style="background-color: #f5f5f5;">
+                                <th style="padding: 10px; text-align: left;">Event</th>
+                                <th style="padding: 10px; text-align: right;">Amount</th>
+                            </tr>
+                            ${paymentRows}
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee; color: #888;">Platform Fee</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: #888;">₹${finalPlatformFee.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Total Paid</td>
+                                <td style="padding: 10px; font-weight: bold; text-align: right;">₹${totalPaidInRupees}</td>
+                            </tr>
+                        </table>
+                        <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #4CAF50;">
+                            <p style="margin: 5px 0; font-size: 13px;"><strong>Transaction ID:</strong> ${razorpay_payment_id}</p>
+                            ${couponCode ? `<p style="margin: 5px 0; font-size: 13px; color: #00d2ff;"><strong>Coupon:</strong> ${couponCode}</p>` : ''}
                         </div>
                     </div>
-                `).join('');
+                </div>`;
 
-                const regEmailHtml = `
-                    <div style="font-family: 'Segoe UI', sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px; margin: 0 auto;">
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <img src="${logoUrl}" style="height: 50px;">
-                            <h2 style="color: #4fc3f7; margin: 10px 0;">Registration Confirmed</h2>
-                        </div>
-                        <p>Dear ${userName},</p>
-                        <p>Thank you for registering! Details below:</p>
-                        ${eventsHtml}
-                        <p style="color: #4CAF50; font-weight: bold;">Status: Payment Successful</p>
-                        <p style="color: #555; font-size: 14px; margin-top: 30px;">Best Regards,<br>Team LAKSHYA</p>
-                    </div>`;
-                
-                await sendEmail(userEmail, `Registration Confirmed - ${regItems.length} Events`, regEmailHtml).catch(e=>console.error(e));
+            // Send Both Emails
+            sendEmail(userEmail, `Registration Confirmed - ${regItemsForEmail.length} Events`, regEmailHtml).catch(e=>console.error("Email 1 Fail", e));
+            sendEmail(userEmail, `Payment Receipt - Transaction ${razorpay_payment_id}`, receiptHtml).catch(e=>console.error("Email 2 Fail", e));
 
-                // --- Email 2: Payment Receipt (FIXED) ---
-                const paymentRows = regItems.map(item => `
-                    <tr>
-                        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.title}</td>
-                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">₹${item.paidAmount}</td>
-                    </tr>
-                `).join('');
-                
-                // Add Platform Fee as a explicit row so the math adds up visually
-                const feeRow = `
-                    <tr>
-                        <td style="padding: 8px; border-bottom: 1px solid #eee; color: #888; font-size: 0.9em;">Platform Fee (2.36%)</td>
-                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: #888;">₹${platformFee}</td>
-                    </tr>
-                `;
+            res.json({ status: 'success' }); 
 
-                const receiptHtml = `
-                    <div style="font-family: 'Segoe UI', sans-serif; border: 1px solid #eee; max-width: 600px; margin: 0 auto; border-radius: 8px; overflow: hidden;">
-                        <div style="background-color: #00d2ff; padding: 20px; text-align: center; color: white;">
-                            <img src="${logoUrl}" style="height: 40px; margin-bottom: 10px; background: rgba(255,255,255,0.2); padding: 5px; border-radius: 5px;">
-                            <h2 style="margin: 0;">PAYMENT RECEIPT</h2>
-                        </div>
-                        <div style="padding: 20px;">
-                            <p>Dear ${userName},</p>
-                            <p>We have received your payment for the following:</p>
-                            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                                <tr style="background-color: #f5f5f5;">
-                                    <th style="padding: 10px; text-align: left;">Event</th>
-                                    <th style="padding: 10px; text-align: right;">Amount</th>
-                                </tr>
-                                ${paymentRows}
-                                ${feeRow}
-                                <tr>
-                                    <td style="padding: 10px; font-weight: bold;">Total Paid</td>
-                                    <td style="padding: 10px; font-weight: bold; text-align: right;">₹${totalPaid}</td>
-                                </tr>
-                            </table>
-                            <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #4CAF50;">
-                                <p style="margin: 5px 0; font-size: 13px;"><strong>Transaction ID:</strong> ${razorpay_payment_id}</p>
-                                <p style="margin: 5px 0; font-size: 13px;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-                                ${couponCode ? `<p style="margin: 5px 0; font-size: 13px; color: #00d2ff;"><strong>Coupon:</strong> ${couponCode}</p>` : ''}
-                            </div>
-                        </div>
-                    </div>`;
-
-                await sendEmail(userEmail, `Payment Receipt - Transaction ${razorpay_payment_id}`, receiptHtml).catch(e=>console.error(e));
-
-            } else { res.json({ status: 'success', warning: 'No IDs' }); }
-        } catch (err) {
-            console.error("DB Update Error during Verification:", err);
-            res.status(500).json({ error: 'Database update failed. Please contact support.' });
+        } else { 
+            res.json({ status: 'success', warning: 'No IDs' }); 
         }
-    } else {
-        res.status(400).json({ error: 'Invalid signature' });
+
+    } catch (err) {
+        console.error("DB Update Error during Verification:", err);
+        res.status(500).json({ error: 'Database update failed.' });
     }
 });
-
 app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), async (req, res) => {
     const userEmail = req.session.user.email;
     try {
@@ -1753,125 +1724,122 @@ app.post('/api/admin/delete-coupon', isAuthenticated('admin'), async (req, res) 
         res.json({ message: 'Deleted' });
     } catch (err) { res.status(500).json({ error: 'Failed' }); }
 });
-app.post('/api/payment/create-order', async (req, res) => {
-    try {
-        const { cartItems, couponCode } = req.body;
+// app.post('/api/payment/create-order', isAuthenticated('participant'), async (req, res) => {
+//     try {
+//         const { cartItems, couponCode } = req.body;
         
-        // 1. Fetch real event data
-        let events = [];
-        for (const item of cartItems) {
-            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
-            if (eventDoc.Item) {
-                events.push({ ...eventDoc.Item, fee: parseInt(eventDoc.Item.fee) });
-            }
-        }
+//         // 1. Fetch real event data
+//         let events = [];
+//         for (const item of cartItems) {
+//             const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+//             if (eventDoc.Item) {
+//                 events.push({ ...eventDoc.Item, fee: parseInt(eventDoc.Item.fee) });
+//             }
+//         }
 
-        // 2. Sort events by fee (High to Low)
-        // This ensures the most expensive item is treated as the "Main" item (Full Price)
-        events.sort((a, b) => b.fee - a.fee);
+//         // 2. Sort events by fee (High to Low)
+//         events.sort((a, b) => b.fee - a.fee);
 
-        let totalAmount = 0;
-        const itemAmounts = {}; // Stores specific amount for each eventId
+//         let totalAmount = 0;
+//         const itemAmounts = {}; 
 
-        // Fetch Standard Coupon if applicable
-        let standardCoupon = null;
-        if (couponCode && couponCode !== 'LAKSHYA2K26') {
-            const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() } }));
-            if (couponQuery.Item && couponQuery.Item.currentUses < couponQuery.Item.usageLimit) {
-                standardCoupon = couponQuery.Item;
-            }
-        }
+//         // Fetch Standard Coupon
+//         let standardCoupon = null;
+//         if (couponCode && couponCode !== 'LAKSHYA2K26') {
+//             const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() } }));
+//             if (couponQuery.Item && couponQuery.Item.currentUses < couponQuery.Item.usageLimit) {
+//                 standardCoupon = couponQuery.Item;
+//             }
+//         }
 
-        // --- 3. ROBUST HISTORY CHECK ---
-        let historyCount = 0;
-        if (couponCode === 'LAKSHYA2K26' && req.session.user && req.session.user.email) {
-            try {
-                const existingRegs = await docClient.send(new QueryCommand({
-                    TableName: 'Lakshya_Registrations',
-                    IndexName: 'StudentIndex',
-                    KeyConditionExpression: 'studentEmail = :email',
-                    ExpressionAttributeValues: { ':email': req.session.user.email }
-                }));
-                const regs = existingRegs.Items || [];
+//         // 3. HISTORY CHECK (Combo Logic)
+//         let historyCount = 0;
+//         if (couponCode === 'LAKSHYA2K26' && req.session.user && req.session.user.email) {
+//             try {
+//                 const existingRegs = await docClient.send(new QueryCommand({
+//                     TableName: 'Lakshya_Registrations',
+//                     IndexName: 'StudentIndex',
+//                     KeyConditionExpression: 'studentEmail = :email',
+//                     ExpressionAttributeValues: { ':email': req.session.user.email }
+//                 }));
+//                 const regs = existingRegs.Items || [];
                 
-                for (const reg of regs) {
-                    // ONLY count registrations that are genuinely COMPLETED (Paid)
-                    if (reg.paymentStatus === 'COMPLETED') {
-                        // CRITICAL: Ensure we don't count an item that is currently in the cart
-                        const isInCart = events.some(e => String(e.eventId).trim() === String(reg.eventId).trim());
-                        
-                        if (!isInCart) {
-                            // Fetch event details to ensure it was an eligible type
-                            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
-                            if (eventDoc.Item && isEligibleForCombo(eventDoc.Item)) {
-                                historyCount++;
-                            }
-                        }
-                    }
-                }
-            } catch (e) { console.error("History check error:", e); }
-        }
+//                 for (const reg of regs) {
+//                     if (reg.paymentStatus === 'COMPLETED') {
+//                         const isInCart = events.some(e => String(e.eventId).trim() === String(reg.eventId).trim());
+//                         if (!isInCart) {
+//                              if(reg.amountPaid) historyCount++; 
+//                         }
+//                     }
+//                 }
+//             } catch (e) { console.error("History check error:", e); }
+//         }
 
-        // 4. CALCULATE PRICES
-        let currentEligibleIndex = 0; // Tracks eligible items in THIS cart
+//         // 4. CALCULATE PRICES
+//         let currentEligibleIndex = 0; 
 
-        for (const event of events) {
-            let finalItemPrice = event.fee;
-            const isEligible = isEligibleForCombo(event);
+//         for (const event of events) {
+//             let finalItemPrice = event.fee;
+//             const isEligible = isEligibleForCombo(event);
 
-            if (couponCode === 'LAKSHYA2K26' && isEligible) {
-                currentEligibleIndex++;
-                
-                // Effective Position = (Items already paid for) + (Current item's rank in this cart)
-                // Example 1 (No History): 0 + 1 = Position 1 -> Full Price
-                // Example 2 (No History): 0 + 2 = Position 2 -> 50% Off
-                // Example 3 (1 Paid History): 1 + 1 = Position 2 -> 50% Off
-                const effectivePosition = historyCount + currentEligibleIndex;
+//             if (couponCode === 'LAKSHYA2K26' && isEligible) {
+//                 currentEligibleIndex++;
+//                 const effectivePosition = historyCount + currentEligibleIndex;
 
-                if (effectivePosition > 1) {
-                    finalItemPrice = event.fee / 2; // 50% OFF
-                } else {
-                    finalItemPrice = event.fee; // Full Price
-                }
-            } 
-            else if (standardCoupon) {
-                // Standard Coupon Logic (Per Item)
-                const type = (event.type || '').toLowerCase();
-                if (!type.includes('special') && standardCoupon.allowedTypes && standardCoupon.allowedTypes.includes(event.type)) {
-                    finalItemPrice = event.fee - (event.fee * standardCoupon.percentage / 100);
-                }
-            }
+//                 if (effectivePosition > 1) {
+//                     finalItemPrice = event.fee / 2; // 50% OFF
+//                 }
+//             } 
+//             else if (standardCoupon) {
+//                 const type = (event.type || '').toLowerCase();
+//                 if (!type.includes('special') && standardCoupon.allowedTypes && standardCoupon.allowedTypes.includes(event.type)) {
+//                     finalItemPrice = event.fee - (event.fee * standardCoupon.percentage / 100);
+//                 }
+//             }
 
-            // Map event ID to its specific calculated price
-            itemAmounts[event.eventId] = finalItemPrice;
-            totalAmount += finalItemPrice;
-        }
+//             itemAmounts[event.eventId] = finalItemPrice;
+//             totalAmount += finalItemPrice;
+//         }
 
-        // 5. Platform Fee (2.36%)
-        const platformFee = Math.ceil(totalAmount * 0.0236);
-        const finalTotal = totalAmount + platformFee;
+//         // 5. Platform Fee (2.36%) & Rounding
+//         const platformFee = Math.ceil(totalAmount * 0.0236);
+//         const finalTotal = totalAmount + platformFee;
+//         const amountInPaise = Math.round(finalTotal * 100); 
 
-        // 6. Create Razorpay Order
-        const order = await razorpay.orders.create({
-            amount: finalTotal * 100, // Amount in paise
-            currency: "INR",
-            receipt: "receipt_" + Date.now()
-        });
+//         // 6. Create Payment Link (Redirect Method)
+//         const CALLBACK_URL = "http://localhost:3000/participant/payment-success"; 
 
-        res.json({
-            id: order.id,
-            amount: order.amount,
-            currency: order.currency,
-            key_id: RAZORPAY_KEY_ID,
-            itemAmounts: itemAmounts // Sending breakdown to frontend/verify
-        });
+//         const paymentLink = await razorpay.paymentLink.create({
+//             amount: amountInPaise, 
+//             currency: "INR",
+//             accept_partial: false,
+//             description: "LAKSHYA 2K26 Registration",
+//             customer: {
+//                 name: req.session.user.name || "Student",
+//                 email: req.session.user.email,
+//                 contact: req.session.user.mobile || "+919000000000"
+//             },
+//             // FIX: Disable Email to prevent "Requesting Payment" confusion
+//             notify: { 
+//                 sms: true, 
+//                 email: false 
+//             },
+//             reminder_enable: false,
+//             callback_url: CALLBACK_URL,
+//             callback_method: "get"
+//         });
 
-    } catch (error) {
-        console.error("Order Creation Error:", error);
-        res.status(500).json({ error: "Failed to create order." });
-    }
-});
+//         res.json({
+//             paymentLink: paymentLink.short_url,
+//             paymentLinkId: paymentLink.id,
+//             itemAmounts: itemAmounts 
+//         });
 
+//     } catch (error) {
+//         console.error("Order Creation Error:", error);
+//         res.status(500).json({ error: "Failed to create order." });
+//     }
+// });
 // File Upload Utility
 app.post('/api/utility/upload-file', isAuthenticated('participant'), upload.single('file'), async (req, res) => {
     try {
@@ -2213,125 +2181,125 @@ app.post('/api/coupon/validate', async (req, res) => {
 //  ENDPOINT 3: CREATE PAYMENT ORDER
 //  (REPLACE YOUR EXISTING '/api/payment/create-order' ROUTE WITH THIS)
 // =========================================================================
-app.post('/api/payment/create-order', async (req, res) => {
-    try {
-        const { cartItems, couponCode } = req.body;
+// app.post('/api/payment/create-order', async (req, res) => {
+//     try {
+//         const { cartItems, couponCode } = req.body;
         
-        // 1. Fetch real event data
-        let events = [];
-        for (const item of cartItems) {
-            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
-            if (eventDoc.Item) {
-                events.push({ ...eventDoc.Item, fee: parseInt(eventDoc.Item.fee) });
-            }
-        }
+//         // 1. Fetch real event data
+//         let events = [];
+//         for (const item of cartItems) {
+//             const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+//             if (eventDoc.Item) {
+//                 events.push({ ...eventDoc.Item, fee: parseInt(eventDoc.Item.fee) });
+//             }
+//         }
 
-        // Sort events by fee (High to Low) so the discount applies to cheaper items first if any, 
-        // OR ensures the most expensive item is the "First" (Full Price) one if no history exists.
-        events.sort((a, b) => b.fee - a.fee);
+//         // Sort events by fee (High to Low) so the discount applies to cheaper items first if any, 
+//         // OR ensures the most expensive item is the "First" (Full Price) one if no history exists.
+//         events.sort((a, b) => b.fee - a.fee);
 
-        let totalAmount = 0;
-        const itemAmounts = {}; // Stores specific amount for each eventId
+//         let totalAmount = 0;
+//         const itemAmounts = {}; // Stores specific amount for each eventId
 
-        // Fetch Standard Coupon if applicable
-        let standardCoupon = null;
-        if (couponCode && couponCode !== 'LAKSHYA2K26') {
-            const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() } }));
-            if (couponQuery.Item && couponQuery.Item.currentUses < couponQuery.Item.usageLimit) {
-                standardCoupon = couponQuery.Item;
-            }
-        }
+//         // Fetch Standard Coupon if applicable
+//         let standardCoupon = null;
+//         if (couponCode && couponCode !== 'LAKSHYA2K26') {
+//             const couponQuery = await docClient.send(new GetCommand({ TableName: 'Lakshya_Coupons', Key: { code: couponCode.toUpperCase() } }));
+//             if (couponQuery.Item && couponQuery.Item.currentUses < couponQuery.Item.usageLimit) {
+//                 standardCoupon = couponQuery.Item;
+//             }
+//         }
 
-        // --- HISTORY CHECK FOR COMBO ---
-        let historyCount = 0;
-        if (couponCode === 'LAKSHYA2K26' && req.session.user && req.session.user.email) {
-            try {
-                const existingRegs = await docClient.send(new QueryCommand({
-                    TableName: 'Lakshya_Registrations',
-                    IndexName: 'StudentIndex',
-                    KeyConditionExpression: 'studentEmail = :email',
-                    ExpressionAttributeValues: { ':email': req.session.user.email }
-                }));
-                const regs = existingRegs.Items || [];
-                // Count how many eligible events are ALREADY PAID
-                for (const reg of regs) {
-                    if (reg.paymentStatus === 'COMPLETED') {
-                        // Check if this paid event is not in current cart (avoid double count)
-                        const isInCart = events.some(e => e.eventId === reg.eventId);
-                        if (!isInCart) {
-                            // We need to check if the *past* event was eligible type
-                            // Fetching event details might be slow, so we assume Major/Cultural are tracked
-                            // Optimisation: Check reg.category if saved, or fetch event
-                            const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
-                            if (eventDoc.Item && isEligibleForCombo(eventDoc.Item)) {
-                                historyCount++;
-                            }
-                        }
-                    }
-                }
-            } catch (e) { console.error("History check error:", e); }
-        }
+//         // --- HISTORY CHECK FOR COMBO ---
+//         let historyCount = 0;
+//         if (couponCode === 'LAKSHYA2K26' && req.session.user && req.session.user.email) {
+//             try {
+//                 const existingRegs = await docClient.send(new QueryCommand({
+//                     TableName: 'Lakshya_Registrations',
+//                     IndexName: 'StudentIndex',
+//                     KeyConditionExpression: 'studentEmail = :email',
+//                     ExpressionAttributeValues: { ':email': req.session.user.email }
+//                 }));
+//                 const regs = existingRegs.Items || [];
+//                 // Count how many eligible events are ALREADY PAID
+//                 for (const reg of regs) {
+//                     if (reg.paymentStatus === 'COMPLETED') {
+//                         // Check if this paid event is not in current cart (avoid double count)
+//                         const isInCart = events.some(e => e.eventId === reg.eventId);
+//                         if (!isInCart) {
+//                             // We need to check if the *past* event was eligible type
+//                             // Fetching event details might be slow, so we assume Major/Cultural are tracked
+//                             // Optimisation: Check reg.category if saved, or fetch event
+//                             const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
+//                             if (eventDoc.Item && isEligibleForCombo(eventDoc.Item)) {
+//                                 historyCount++;
+//                             }
+//                         }
+//                     }
+//                 }
+//             } catch (e) { console.error("History check error:", e); }
+//         }
 
-        // 2. LOGIC FIX: Calculate exact amount per item strictly
-        let currentEligibleIndex = 0; // Tracks eligible items in THIS cart
+//         // 2. LOGIC FIX: Calculate exact amount per item strictly
+//         let currentEligibleIndex = 0; // Tracks eligible items in THIS cart
 
-        for (const event of events) {
-            let finalItemPrice = event.fee;
-            const isEligible = isEligibleForCombo(event);
+//         for (const event of events) {
+//             let finalItemPrice = event.fee;
+//             const isEligible = isEligibleForCombo(event);
 
-            if (couponCode === 'LAKSHYA2K26' && isEligible) {
-                currentEligibleIndex++;
+//             if (couponCode === 'LAKSHYA2K26' && isEligible) {
+//                 currentEligibleIndex++;
                 
-                // Effective Position = History + Current Position
-                // Example: 0 History + 1st Item = 1. (No Discount)
-                // Example: 0 History + 2nd Item = 2. (Discount)
-                // Example: 1 History + 1st Item = 2. (Discount)
-                const effectivePosition = historyCount + currentEligibleIndex;
+//                 // Effective Position = History + Current Position
+//                 // Example: 0 History + 1st Item = 1. (No Discount)
+//                 // Example: 0 History + 2nd Item = 2. (Discount)
+//                 // Example: 1 History + 1st Item = 2. (Discount)
+//                 const effectivePosition = historyCount + currentEligibleIndex;
 
-                if (effectivePosition > 1) {
-                    finalItemPrice = event.fee / 2; // 50% OFF for 2nd, 3rd, 4th...
-                } else {
-                    finalItemPrice = event.fee; // Full Price for 1st
-                }
-            } 
-            else if (standardCoupon) {
-                // Standard Coupon Logic (Per Item)
-                const type = (event.type || '').toLowerCase();
-                if (!type.includes('special') && standardCoupon.allowedTypes && standardCoupon.allowedTypes.includes(event.type)) {
-                    finalItemPrice = event.fee - (event.fee * standardCoupon.percentage / 100);
-                }
-            }
+//                 if (effectivePosition > 1) {
+//                     finalItemPrice = event.fee / 2; // 50% OFF for 2nd, 3rd, 4th...
+//                 } else {
+//                     finalItemPrice = event.fee; // Full Price for 1st
+//                 }
+//             } 
+//             else if (standardCoupon) {
+//                 // Standard Coupon Logic (Per Item)
+//                 const type = (event.type || '').toLowerCase();
+//                 if (!type.includes('special') && standardCoupon.allowedTypes && standardCoupon.allowedTypes.includes(event.type)) {
+//                     finalItemPrice = event.fee - (event.fee * standardCoupon.percentage / 100);
+//                 }
+//             }
 
-            // Map event ID to its specific calculated price
-            itemAmounts[event.eventId] = finalItemPrice;
-            totalAmount += finalItemPrice;
-        }
+//             // Map event ID to its specific calculated price
+//             itemAmounts[event.eventId] = finalItemPrice;
+//             totalAmount += finalItemPrice;
+//         }
 
-        // 3. Platform Fee (2.36%)
-        const platformFee = Math.ceil(totalAmount * 0.0236);
-        const finalTotal = totalAmount + platformFee;
+//         // 3. Platform Fee (2.36%)
+//         const platformFee = Math.ceil(totalAmount * 0.0236);
+//         const finalTotal = totalAmount + platformFee;
 
-        // 4. Create Razorpay Order
-        const order = await razorpay.orders.create({
-            amount: finalTotal * 100, // Amount in paise
-            currency: "INR",
-            receipt: "receipt_" + Date.now()
-        });
+//         // 4. Create Razorpay Order
+//         const order = await razorpay.orders.create({
+//             amount: finalTotal * 100, // Amount in paise
+//             currency: "INR",
+//             receipt: "receipt_" + Date.now()
+//         });
 
-        // 5. Return the key details AND the specific breakdown
-        res.json({
-            id: order.id,
-            amount: order.amount,
-            currency: order.currency,
-            key_id: RAZORPAY_KEY_ID,
-            itemAmounts: itemAmounts // SEND THIS BACK
-        });
+//         // 5. Return the key details AND the specific breakdown
+//         res.json({
+//             id: order.id,
+//             amount: order.amount,
+//             currency: order.currency,
+//             key_id: RAZORPAY_KEY_ID,
+//             itemAmounts: itemAmounts // SEND THIS BACK
+//         });
 
-    } catch (error) {
-        console.error("Order Creation Error:", error);
-        res.status(500).json({ error: "Failed to create order." });
-    }
-});
+//     } catch (error) {
+//         console.error("Order Creation Error:", error);
+//         res.status(500).json({ error: "Failed to create order." });
+//     }
+// });
 
 router.post('/api/admin/add-coupon', async (req, res) => {
     try {
