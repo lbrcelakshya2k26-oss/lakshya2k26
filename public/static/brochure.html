@@ -21,7 +21,15 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; }
+        
+        body { 
+            background-color: #0a0a0a; 
+            color: var(--text-color); 
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
 
         .bg-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -33,10 +41,10 @@
             background: var(--dark-overlay); z-index: -1;
         }
 
-        /* --- NAVIGATION (UNCHANGED) --- */
+        /* --- NAVIGATION (Synced with Redesign) --- */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
-            height: 90px; padding: 0 4%;
+            height: 80px; padding: 0 4%;
             display: flex; justify-content: space-between; align-items: center;
             z-index: 1000; transition: 0.4s;
             background: rgba(5, 5, 10, 0.6); 
@@ -45,17 +53,22 @@
         }
 
         .logo {
-            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900;
+            cursor: pointer; z-index: 1002; display: flex; align-items: center; gap: 12px;
+        }
+
+        .logo-text {
+            font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 900;
             background: linear-gradient(45deg, var(--primary-color), #ffffff);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            cursor: pointer; z-index: 1002;
+            letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
         }
         
-        .nav-links { display: flex; list-style: none; gap: 2rem; align-items: center; transition: 0.4s; }
+        .nav-links { display: flex; list-style: none; gap: 1.5rem; align-items: center; transition: 0.4s; }
 
         .nav-links li a {
             text-decoration: none; color: var(--text-color); font-weight: 500;
-            font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+            font-size: 0.8rem; /* DECREASED MENU ITEM SIZE */
+            text-transform: uppercase; letter-spacing: 0.5px;
             transition: 0.3s; position: relative; white-space: nowrap;
         }
 
@@ -63,25 +76,26 @@
         .nav-links li a::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0%; height: 2px; background: var(--primary-color); transition: 0.3s; }
         .nav-links li a:hover::after { width: 100%; }
 
-        .btn-login { padding: 0.6rem 1.5rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; }
-        .btn-register { padding: 0.6rem 1.5rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; }
+        .btn-login { padding: 0.5rem 1.2rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; font-size: 0.8rem !important; }
+        .btn-register { padding: 0.5rem 1.2rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; font-size: 0.8rem !important; }
 
         /* Mobile Menu Toggle */
-        .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 30px; height: 21px; cursor: pointer; z-index: 1003; }
+        .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 28px; height: 20px; cursor: pointer; z-index: 1003; }
         .bar { width: 100%; height: 3px; background-color: white; border-radius: 3px; transition: 0.4s; }
         
-        .menu-toggle.is-active .bar:nth-child(1) { transform: translateY(9px) rotate(45deg); background-color: var(--primary-color); }
+        .menu-toggle.is-active .bar:nth-child(1) { transform: translateY(8.5px) rotate(45deg); background-color: var(--primary-color); }
         .menu-toggle.is-active .bar:nth-child(2) { opacity: 0; }
-        .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-9px) rotate(-45deg); background-color: var(--primary-color); }
+        .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-8.5px) rotate(-45deg); background-color: var(--primary-color); }
 
         /* --- BROCHURE SECTION --- */
         .brochure-container {
-            padding: 150px 4% 50px 4%;
-            min-height: 100vh;
+            padding: 130px 4% 80px 4%; /* Adjusted padding for fixed header/footer */
+            flex: 1; /* Pushes footer down */
             display: flex;
             flex-direction: column;
             align-items: center;
-            transition: filter 0.5s ease; /* Smooth blur transition */
+            transition: filter 0.5s ease;
+            width: 100%;
         }
 
         .section-title {
@@ -94,7 +108,7 @@
         }
 
         .brochure-image-wrapper {
-            width: 100%; max-width: 1200px;
+            width: 100%; max-width: 1000px; /* Limited width for better aesthetics */
             background: transparent; border: none; border-radius: 15px; padding: 0;
             box-shadow: 0 0 50px rgba(0, 210, 255, 0.15);
             animation: fadeUp 1s ease-out 0.4s forwards;
@@ -117,8 +131,8 @@
         .download-section { margin-top: 2.5rem; animation: fadeUp 1s ease-out 0.6s forwards; opacity: 0; }
 
         .btn-download {
-            display: flex; align-items: center; gap: 12px; padding: 1rem 3rem;
-            font-size: 1.2rem; font-weight: 700; color: black; background: var(--primary-color);
+            display: flex; align-items: center; gap: 12px; padding: 0.8rem 2.5rem;
+            font-size: 1.1rem; font-weight: 700; color: black; background: var(--primary-color);
             border: none; border-radius: 50px; cursor: pointer; text-decoration: none;
             transition: 0.3s; box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);
         }
@@ -138,15 +152,13 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(5, 5, 10, 0.9);
             backdrop-filter: blur(20px);
-            z-index: 999; /* LOWERED Z-INDEX so Nav (1000) is on top */
+            z-index: 999; 
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
             padding: 20px;
-            /* Initially visible unless JS hides it */
-            display: flex; 
         }
 
         .reveal-content {
@@ -155,36 +167,26 @@
             border-radius: 20px;
             border: 1px solid rgba(0, 210, 255, 0.3);
             box-shadow: 0 0 50px rgba(0, 210, 255, 0.2);
-            max-width: 600px;
+            max-width: 500px;
+            width: 90%;
             animation: pulseModal 3s infinite;
         }
 
-        .reveal-icon { font-size: 4rem; color: var(--primary-color); margin-bottom: 20px; }
+        .reveal-icon { font-size: 3.5rem; color: var(--primary-color); margin-bottom: 20px; }
         
         .reveal-title { 
-            font-family: 'Montserrat', sans-serif; 
-            font-size: 2rem; 
-            font-weight: 700; 
-            margin-bottom: 15px; 
-            color: #fff;
+            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; 
+            font-weight: 700; margin-bottom: 15px; color: #fff;
         }
 
         .reveal-date {
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            font-weight: 600;
-            margin-bottom: 20px;
-            background: rgba(0, 210, 255, 0.1);
-            padding: 10px 20px;
-            border-radius: 10px;
-            display: inline-block;
+            font-size: 1.2rem; color: var(--primary-color); font-weight: 600;
+            margin-bottom: 20px; background: rgba(0, 210, 255, 0.1);
+            padding: 10px 20px; border-radius: 10px; display: inline-block;
         }
 
         .countdown-timer {
-            font-family: 'Courier New', monospace;
-            font-size: 1.2rem;
-            color: #aaa;
-            margin-top: 15px;
+            font-family: 'Courier New', monospace; font-size: 1rem; color: #aaa; margin-top: 15px;
         }
 
         @keyframes pulseModal {
@@ -192,6 +194,31 @@
             50% { box-shadow: 0 0 60px rgba(0, 210, 255, 0.3); }
             100% { box-shadow: 0 0 30px rgba(0, 210, 255, 0.1); }
         }
+
+        /* --- FOOTER (Synced with Redesign) --- */
+        footer {
+            width: 100%;
+            padding: 8px 4%;
+            background: rgba(5, 5, 10, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 999;
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            margin-top: auto;
+        }
+
+        .footer-left { text-align: left; }
+        .footer-right { text-align: right; display: flex; flex-direction: column; gap: 2px; }
+
+        footer a { color: var(--primary-color); text-decoration: none; transition: color 0.3s; }
+        footer a:hover { color: var(--accent-color); }
+        
+        .footer-text { margin: 0; color: rgba(255, 255, 255, 0.8); line-height: 1.4; }
+        .sub-text { font-size: 0.7rem; opacity: 0.6; }
 
         /* --- ANIMATIONS --- */
         @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
@@ -205,25 +232,32 @@
             
             .nav-links {
                 position: fixed; top: 0; right: -100%;
-                height: 100vh; width: 75%; max-width: 350px;
+                height: 100vh; width: 70%; max-width: 300px;
                 background: var(--mobile-glass); backdrop-filter: blur(20px);
                 flex-direction: column; justify-content: flex-start;
-                align-items: center; gap: 2rem;
-                padding-top: 100px; padding-bottom: 50px;
+                align-items: center; gap: 1.8rem;
+                padding-top: 90px; padding-bottom: 50px;
                 border-left: 1px solid var(--glass-border);
                 transition: right 0.4s ease-in-out;
                 z-index: 1001; overflow-y: auto;
+                box-shadow: -5px 0 20px rgba(0,0,0,0.5);
             }
             .nav-links.active { right: 0; }
         }
 
         @media (max-width: 768px) {
-            .brochure-container { padding: 120px 2% 50px 2%; } 
-            .section-title { font-size: 2rem; }
-            .btn-download { width: 100%; justify-content: center; padding: 1rem; }
-            .brochure-image-wrapper::after { content: ''; }
+            .brochure-container { padding: 100px 4% 80px 4%; } 
+            .section-title { font-size: 2.2rem; }
+            .btn-download { width: 100%; justify-content: center; padding: 0.9rem; }
+            .brochure-image-wrapper::after { content: ''; } /* Remove hover text on mobile */
             .reveal-title { font-size: 1.5rem; }
-            .reveal-date { font-size: 1.2rem; }
+            .reveal-date { font-size: 1rem; }
+            
+            /* Footer Stacking */
+            footer {
+                flex-direction: column; text-align: center; gap: 8px; padding: 10px; padding-bottom: 15px;
+            }
+            .footer-left, .footer-right { text-align: center; align-items: center; }
         }
     </style>
 </head>
@@ -245,7 +279,9 @@
 
     <!-- NAVBAR -->
     <nav>
-        <div class="logo" onclick="window.location.href='home'">LAKSHYA 2K26</div>
+        <div class="logo" onclick="window.location.href='home'">
+            <span class="logo-text">LAKSHYA 2K26</span>
+        </div>
         
         <ul class="nav-links" id="navLinks">
             <li><a href="home" onclick="closeMenu()">Home</a></li>
@@ -254,7 +290,7 @@
             <li><a href="events" onclick="closeMenu()">Events</a></li>
             <li><a href="culturals" onclick="closeMenu()">Culturals</a></li>
             <li><a href="committee" onclick="closeMenu()">Committee</a></li>
-             <li><a href="privacy" onclick="closeMenu()">Privacy-Policy</a></li>
+            <!-- Removed Privacy Policy from Nav -->
             <li><a href="contact" onclick="closeMenu()">Contact</a></li>
             <li><a href="register" class="btn-register" onclick="closeMenu()">Register</a></li>
             <li><a href="login" class="btn-login" onclick="closeMenu()">Login</a></li>
@@ -281,6 +317,18 @@
             </a>
         </div>
     </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-left">
+            <p class="footer-text">&copy; Designed & Developed by <a href="https://xetasolutions.in" target="_blank">Xeta</a></p>
+            <p class="footer-text sub-text">A start up from AI&DS, LBRCE</p>
+        </div>
+        <div class="footer-right">
+            <p class="footer-text">Support: <a href="mailto:lakshya@lbrce.ac.in">lakshya@lbrce.ac.in</a></p>
+            <p class="footer-text"><a href="privacy">Privacy Policy</a></p>
+        </div>
+    </footer>
 
     <!-- Lightbox Modal -->
     <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -347,9 +395,7 @@
         }
 
         document.addEventListener('click', function(event) {
-            const isClickInsideNav = nav.contains(event.target);
-            const isClickInsideToggle = menuToggle.contains(event.target);
-            if (!isClickInsideNav && !isClickInsideToggle && nav.classList.contains('active')) {
+            if (!nav.contains(event.target) && !menuToggle.contains(event.target) && nav.classList.contains('active')) {
                 closeMenu();
             }
         });
@@ -368,6 +414,4 @@
         }
     </script>
 </body>
-
 </html>
-

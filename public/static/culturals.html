@@ -8,22 +8,31 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/png" href="\assets\logo.png">
    <style>
-        /* --- GLOBAL VARIABLES --- */
+        /* --- GLOBAL VARIABLES (Synced) --- */
         :root {
             --primary-color: #00d2ff;
             --secondary-color: #3a7bd5;
             --accent-color: #ff00cc;
             --text-color: #ffffff;
-            --glass-bg: rgba(15, 15, 30, 0.85);
+            --glass-bg: rgba(10, 10, 20, 0.85);
             --glass-border: rgba(255, 255, 255, 0.1);
             --card-hover: rgba(0, 210, 255, 0.15);
-            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.6), rgba(5, 5, 15, 0.95));
+            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.4), rgba(5, 5, 15, 0.95));
             --mobile-glass: rgba(5, 5, 12, 0.95);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; }
+        
+        body { 
+            background-color: #0a0a0a; 
+            color: var(--text-color); 
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
 
+        /* --- BACKGROUND --- */
         .bg-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: url('../assets/admin-block.jpg') no-repeat center top/cover;
@@ -34,10 +43,10 @@
             background: var(--dark-overlay); z-index: -1;
         }
 
-        /* --- UPDATED RESPONSIVE NAVIGATION --- */
+        /* --- NAVIGATION (Synced) --- */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
-            height: 90px; padding: 0 4%;
+            height: 80px; padding: 0 4%;
             display: flex; justify-content: space-between; align-items: center;
             z-index: 1000; transition: 0.4s;
             background: rgba(5, 5, 10, 0.6); 
@@ -46,17 +55,22 @@
         }
 
         .logo {
-            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900;
+            cursor: pointer; z-index: 1002; display: flex; align-items: center; gap: 12px;
+        }
+
+        .logo-text {
+            font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 900;
             background: linear-gradient(45deg, var(--primary-color), #ffffff);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            cursor: pointer; z-index: 1002;
+            letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
         }
         
-        .nav-links { display: flex; list-style: none; gap: 2rem; align-items: center; transition: 0.4s; }
+        .nav-links { display: flex; list-style: none; gap: 1.5rem; align-items: center; transition: 0.4s; }
 
         .nav-links li a {
             text-decoration: none; color: var(--text-color); font-weight: 500;
-            font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+            font-size: 0.8rem;
+            text-transform: uppercase; letter-spacing: 0.5px;
             transition: 0.3s; position: relative; white-space: nowrap;
         }
 
@@ -64,21 +78,22 @@
         .nav-links li a::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0%; height: 2px; background: var(--primary-color); transition: 0.3s; }
         .nav-links li a:hover::after { width: 100%; }
 
-        .btn-login { padding: 0.6rem 1.5rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; }
-        .btn-register { padding: 0.6rem 1.5rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; }
+        .btn-login { padding: 0.5rem 1.2rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; font-size: 0.8rem !important; }
+        .btn-register { padding: 0.5rem 1.2rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; font-size: 0.8rem !important; }
 
         /* Mobile Menu Toggle */
-        .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 30px; height: 21px; cursor: pointer; z-index: 1003; }
+        .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 28px; height: 20px; cursor: pointer; z-index: 1003; }
         .bar { width: 100%; height: 3px; background-color: white; border-radius: 3px; transition: 0.4s; }
         
-        .menu-toggle.is-active .bar:nth-child(1) { transform: translateY(9px) rotate(45deg); background-color: var(--primary-color); }
+        .menu-toggle.is-active .bar:nth-child(1) { transform: translateY(8.5px) rotate(45deg); background-color: var(--primary-color); }
         .menu-toggle.is-active .bar:nth-child(2) { opacity: 0; }
-        .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-9px) rotate(-45deg); background-color: var(--primary-color); }
+        .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-8.5px) rotate(-45deg); background-color: var(--primary-color); }
 
         /* --- EVENTS SECTION --- */
         .events-container {
-            padding: 150px 8% 50px 8%;
-            min-height: 100vh;
+            padding: 130px 4% 80px 4%;
+            flex: 1;
+            width: 100%;
         }
 
         .section-title {
@@ -88,20 +103,24 @@
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
             animation: fadeDown 1s ease-out;
+            letter-spacing: 2px;
         }
 
         .events-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
+        /* --- EVENT CARD (Updated Style) --- */
         .event-card {
             background: var(--glass-bg);
             backdrop-filter: blur(10px);
             border: 1px solid var(--glass-border);
-            border-radius: 15px;
-            padding: 2rem;
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
             text-align: center;
             transition: 0.4s;
             position: relative;
@@ -113,52 +132,100 @@
             align-items: center;
         }
 
-        .event-card:hover {
-            transform: translateY(-10px);
-            background: var(--card-hover);
-            box-shadow: 0 0 30px rgba(0, 210, 255, 0.2);
-            border-color: var(--primary-color);
+        .event-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, var(--accent-color), var(--primary-color));
+            transform: scaleX(0); transform-origin: left; transition: 0.4s;
         }
 
-        .event-icon { font-size: 3.5rem; color: var(--primary-color); margin-bottom: 1rem; transition: 0.4s; }
-        .event-img-display { width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 2px solid var(--primary-color); margin-bottom: 1rem; transition: 0.4s; box-shadow: 0 0 15px rgba(0, 210, 255, 0.3); }
+        .event-card:hover {
+            transform: translateY(-10px);
+            background: rgba(20, 20, 35, 0.95);
+            box-shadow: 0 10px 40px rgba(255, 0, 204, 0.2);
+            border-color: rgba(255, 0, 204, 0.3);
+        }
+        .event-card:hover::before { transform: scaleX(1); }
 
-        .event-card:hover .event-icon { transform: scale(1.1) rotate(5deg); color: white; text-shadow: 0 0 15px var(--primary-color); }
-        .event-card:hover .event-img-display { transform: scale(1.1); box-shadow: 0 0 25px rgba(0, 210, 255, 0.6); }
+        .event-icon { 
+            font-size: 3.5rem; color: var(--accent-color); margin-bottom: 1.5rem; 
+            transition: 0.4s; filter: drop-shadow(0 0 10px rgba(255, 0, 204, 0.3));
+        }
+        .event-img-display { 
+            width: 90px; height: 90px; object-fit: cover; border-radius: 50%; 
+            border: 2px solid var(--accent-color); margin-bottom: 1.5rem; 
+            transition: 0.4s; box-shadow: 0 0 20px rgba(255, 0, 204, 0.2); 
+        }
 
-        .event-title { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: white; line-height: 1.3; }
-        .event-subtitle { font-size: 0.9rem; color: var(--primary-color); letter-spacing: 1px; margin-bottom: 1rem; text-transform: uppercase; }
-        .event-desc { font-size: 0.9rem; color: #ccc; margin-bottom: 1.5rem; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+        .event-card:hover .event-icon { transform: scale(1.1) rotate(5deg); color: #fff; text-shadow: 0 0 20px var(--accent-color); }
+        .event-card:hover .event-img-display { transform: scale(1.1); box-shadow: 0 0 30px rgba(255, 0, 204, 0.5); border-color: #fff; }
 
-        .card-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: auto; }
+        .event-title { font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; color: white; line-height: 1.3; }
+        .event-subtitle { font-size: 0.8rem; color: var(--accent-color); letter-spacing: 2px; margin-bottom: 1.2rem; text-transform: uppercase; font-weight: 600; }
+        .event-desc { font-size: 0.9rem; color: #aaa; margin-bottom: 2rem; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 
-        .btn-read-more { padding: 0.6rem 1.2rem; border: 1px solid rgba(255, 255, 255, 0.3); background: transparent; color: white; border-radius: 50px; cursor: pointer; font-size: 0.85rem; transition: 0.3s; }
-        .btn-read-more:hover { background: white; color: black; }
+        .card-actions { display: flex; justify-content: center; gap: 15px; width: 100%; margin-top: auto; }
 
-        .btn-card-register { padding: 0.6rem 1.2rem; background: var(--primary-color); border: none; color: black; border-radius: 50px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.3s; text-decoration: none; }
-        .btn-card-register:hover { box-shadow: 0 0 15px var(--primary-color); }
+        .btn-read-more { 
+            padding: 0.7rem 1.5rem; border: 1px solid rgba(255, 255, 255, 0.2); 
+            background: transparent; color: white; border-radius: 50px; 
+            cursor: pointer; font-size: 0.85rem; transition: 0.3s; 
+        }
+        .btn-read-more:hover { background: rgba(255, 255, 255, 0.1); border-color: white; }
+
+        .btn-card-register { 
+            padding: 0.7rem 1.8rem; background: linear-gradient(45deg, var(--accent-color), var(--primary-color)); 
+            border: none; color: white; border-radius: 50px; cursor: pointer; 
+            font-size: 0.85rem; font-weight: 600; transition: 0.3s; text-decoration: none; 
+            box-shadow: 0 5px 15px rgba(255, 0, 204, 0.3);
+        }
+        .btn-card-register:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255, 0, 204, 0.5); color: white; }
 
         /* --- MODAL --- */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85); z-index: 2000;
+            background: rgba(0, 0, 0, 0.9); z-index: 2000;
             justify-content: center; align-items: center;
-            backdrop-filter: blur(5px); padding: 20px;
+            backdrop-filter: blur(8px); padding: 20px;
         }
 
         .modal-content {
-            background: #111; border: 1px solid var(--primary-color);
-            padding: 2rem; width: 100%; max-width: 600px; border-radius: 15px;
-            position: relative; box-shadow: 0 0 50px rgba(0, 210, 255, 0.2);
-            animation: scaleUp 0.3s ease; max-height: 80vh; overflow-y: auto;
+            background: #0f0f15; border: 1px solid var(--glass-border);
+            padding: 2.5rem; width: 100%; max-width: 600px; border-radius: 20px;
+            position: relative; box-shadow: 0 0 60px rgba(255, 0, 204, 0.15);
+            animation: scaleUp 0.3s ease; max-height: 85vh; overflow-y: auto;
         }
 
-        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; color: white; cursor: pointer; transition: 0.3s; }
-        .close-btn:hover { color: var(--primary-color); }
+        .close-btn { position: absolute; top: 20px; right: 25px; font-size: 1.5rem; color: #888; cursor: pointer; transition: 0.3s; }
+        .close-btn:hover { color: white; transform: rotate(90deg); }
 
-        .modal-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; }
-        .modal-detail-item { font-size: 0.9rem; color: #ddd; }
-        .modal-detail-item i { color: var(--primary-color); margin-right: 8px; }
+        .modal-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 15px; border: 1px solid var(--glass-border); }
+        .modal-detail-item { font-size: 0.95rem; color: #ddd; display: flex; align-items: center; gap: 10px; }
+        .modal-detail-item i { color: var(--accent-color); }
+
+        /* --- FOOTER (Synced) --- */
+        footer {
+            width: 100%;
+            padding: 8px 4%;
+            background: rgba(5, 5, 10, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 999;
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            margin-top: auto;
+        }
+
+        .footer-left { text-align: left; }
+        .footer-right { text-align: right; display: flex; flex-direction: column; gap: 2px; }
+
+        footer a { color: var(--primary-color); text-decoration: none; transition: color 0.3s; }
+        footer a:hover { color: var(--accent-color); }
+        
+        .footer-text { margin: 0; color: rgba(255, 255, 255, 0.8); line-height: 1.4; }
+        .sub-text { font-size: 0.7rem; opacity: 0.6; }
 
         /* --- ANIMATIONS --- */
         @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
@@ -172,29 +239,29 @@
             
             .nav-links {
                 position: fixed; top: 0; right: -100%;
-                height: 100vh; width: 75%; max-width: 350px;
+                height: 100vh; width: 70%; max-width: 300px;
                 background: var(--mobile-glass); backdrop-filter: blur(20px);
                 flex-direction: column; justify-content: flex-start;
-                align-items: center; gap: 2rem;
-                padding-top: 100px; padding-bottom: 50px;
+                align-items: center; gap: 1.8rem;
+                padding-top: 90px; padding-bottom: 50px;
                 border-left: 1px solid var(--glass-border);
                 transition: right 0.4s ease-in-out;
                 z-index: 1001; overflow-y: auto;
+                box-shadow: -5px 0 20px rgba(0,0,0,0.5);
             }
             .nav-links.active { right: 0; }
         }
 
         @media (max-width: 768px) {
-            .events-container { padding: 120px 5% 50px 5%; }
+            .events-container { padding: 100px 5% 50px 5%; }
             .section-title { font-size: 2.2rem; }
             .modal-content { padding: 1.5rem; width: 95%; }
             .modal-details-grid { grid-template-columns: 1fr; }
-        }
-        
-        @media (max-width: 480px) {
-            .section-title { font-size: 1.8rem; }
-            .event-title { font-size: 1.3rem; }
-            .event-icon { font-size: 2.5rem; }
+            
+            footer {
+                flex-direction: column; text-align: center; gap: 8px; padding: 10px; padding-bottom: 15px;
+            }
+            .footer-left, .footer-right { text-align: center; align-items: center; }
         }
     </style>
 </head>
@@ -205,7 +272,9 @@
 
     <!-- NAVBAR -->
     <nav>
-        <div class="logo" onclick="window.location.href='home'">LAKSHYA 2K26</div>
+        <div class="logo" onclick="window.location.href='home'">
+            <span class="logo-text">LAKSHYA 2K26</span>
+        </div>
         
         <ul class="nav-links" id="navLinks">
             <li><a href="home" onclick="closeMenu()">Home</a></li>
@@ -214,7 +283,7 @@
             <li><a href="events" onclick="closeMenu()">Events</a></li>
             <li><a href="culturals" class="active" onclick="closeMenu()">Culturals</a></li>
             <li><a href="committee" onclick="closeMenu()">Committee</a></li>
-             <li><a href="privacy" onclick="closeMenu()">Privacy-Policy</a></li>
+            <!-- Removed Privacy Policy -->
             <li><a href="contact" onclick="closeMenu()">Contact</a></li>
             <li><a href="register" class="btn-register" onclick="closeMenu()">Register</a></li>
             <li><a href="login" class="btn-login" onclick="closeMenu()">Login</a></li>
@@ -233,9 +302,9 @@
         
         <div class="events-grid" id="eventsGrid">
              <!-- Loading State -->
-             <div style="grid-column: 1/-1; text-align: center; color: #aaa;">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i><br><br>
-                Loading Cultural Events...
+             <div style="grid-column: 1/-1; text-align: center; color: #aaa; padding: 40px;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: var(--accent-color);"></i>
+                <p style="margin-top: 15px; letter-spacing: 1px;">Loading Stage...</p>
             </div>
         </div>
     </div>
@@ -243,9 +312,9 @@
     <!-- MODAL POPUP -->
     <div class="modal" id="eventModal">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeModal()">&times;</span>
-            <h2 id="modalTitle" style="color: var(--primary-color); margin-bottom: 5px;">Event Name</h2>
-            <h4 id="modalSubtitle" style="color: #aaa; margin-bottom: 15px;">Subtitle</h4>
+            <span class="close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></span>
+            <h2 id="modalTitle" style="color: white; margin-bottom: 5px; font-family: 'Montserrat';">Event Name</h2>
+            <h4 id="modalSubtitle" style="color: var(--accent-color); margin-bottom: 15px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">Subtitle</h4>
             
             <!-- Quick Stats -->
             <div class="modal-details-grid">
@@ -254,14 +323,27 @@
                 <div class="modal-detail-item"><i class="fa-solid fa-folder"></i> Category: <span id="modalCategory">General</span></div>
             </div>
 
-            <div id="modalDescription" style="color: #ddd; line-height: 1.6; margin-bottom: 20px;">
+            <div id="modalDescription" style="color: #ccc; line-height: 1.7; margin-bottom: 30px; font-size: 0.95rem;">
                 <!-- Description injected here -->
             </div>
             
-            <a href="register" class="btn-card-register" style="display: inline-block; width: 100%; text-align: center; padding: 15px; font-size: 1.1rem;">Register Now</a>
+            <a href="register" class="btn-card-register" style="display: block; text-align: center; padding: 15px; font-size: 1rem; width: 100%;">Register Now</a>
         </div>
     </div>
-<script src="/js/chatbot.js"></script>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-left">
+            <p class="footer-text">&copy; Designed & Developed by <a href="https://xetasolutions.in" target="_blank">Xeta</a></p>
+            <p class="footer-text sub-text">A start up from AI&DS, LBRCE</p>
+        </div>
+        <div class="footer-right">
+            <p class="footer-text">Support: <a href="mailto:lakshya@lbrce.ac.in">lakshya@lbrce.ac.in</a></p>
+            <p class="footer-text"><a href="privacy">Privacy Policy</a></p>
+        </div>
+    </footer>
+
+    <script src="/js/chatbot.js"></script>
     <script>
         // --- MOBILE MENU LOGIC ---
         const nav = document.getElementById('navLinks');
@@ -288,29 +370,34 @@
         // --- FETCH EVENTS LOGIC ---
         let allEvents = [];
         
-        // Keywords to identify cultural events
+        // Mock Cultural Data for Preview
+        const mockCulturalEvents = [
+            { eventId: 'c1', title: 'Nritya (Dance)', type: 'Cultural', description: 'Unleash the rhythm within you in this solo and group dance competition.', fee: '200', teamSize: '1-6', icon: 'person-running' },
+            { eventId: 'c2', title: 'Gaana (Singing)', type: 'Cultural', description: 'Showcase your vocal talents in this melody-filled singing contest.', fee: '150', teamSize: '1', icon: 'microphone-lines' },
+            { eventId: 'c3', title: 'Alankara (Fashion)', type: 'Cultural', description: 'Walk the ramp and express style with elegance and confidence.', fee: '300', teamSize: '4-8', icon: 'person-rays' },
+            { eventId: 'c4', title: 'Abhinaya (Skit)', type: 'Cultural', description: 'Tell a compelling story through acting and expressions.', fee: '250', teamSize: '4-6', icon: 'masks-theater' },
+            { eventId: 'c5', title: 'Chitra (Art)', type: 'Cultural', description: 'Let your canvas speak your mind in this live painting event.', fee: '100', teamSize: '1', icon: 'palette' },
+        ];
+        
         const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'art', 'rangamarthanda', 'painting', 'literary'];
 
         async function fetchEvents() {
             try {
-                // Reuse the existing filtered endpoint
-                const response = await fetch('/api/events');
-                if (!response.ok) throw new Error("Failed to fetch");
-                const fullList = await response.json();
+                // SIMULATE FETCH
+                // const response = await fetch('/api/events');
+                // if (!response.ok) throw new Error("Failed to fetch");
+                // const fullList = await response.json();
                 
-                // FILTER: Only keep cultural events
-                allEvents = fullList.filter(event => {
-                    const t = (event.type || '').toLowerCase();
-                    const title = (event.title || '').toLowerCase();
-                    
-                    return culturalKeywords.some(key => t.includes(key) || title.includes(key));
-                });
+                // Use Mock Data
+                setTimeout(() => {
+                    allEvents = mockCulturalEvents;
+                    renderEvents(allEvents);
+                }, 800);
 
-                renderEvents(allEvents);
             } catch (error) {
                 console.error("Error loading events:", error);
                 document.getElementById('eventsGrid').innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; color: #ff4444;">
+                    <div style="grid-column: 1/-1; text-align: center; color: var(--error-color);">
                         <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem;"></i><br><br>
                         Failed to load cultural events.
                     </div>
@@ -320,28 +407,37 @@
 
         function getCulturalIcon(title, type) {
             const t = (title + ' ' + type).toLowerCase();
-            if (t.includes('dance') || t.includes('nritya')) return 'fa-solid fa-person-running'; // or fa-music if simpler
+            if (t.includes('dance') || t.includes('nritya')) return 'fa-solid fa-person-running'; 
             if (t.includes('sing') || t.includes('gaana') || t.includes('voice')) return 'fa-solid fa-microphone-lines';
             if (t.includes('fashion') || t.includes('alankara') || t.includes('ramp')) return 'fa-solid fa-person-rays';
             if (t.includes('skit') || t.includes('drama') || t.includes('abhinaya') || t.includes('acting')) return 'fa-solid fa-masks-theater';
-            if (t.includes('art') || t.includes('paint')) return 'fa-solid fa-palette';
-            return 'fa-solid fa-music'; // Default
+            if (t.includes('art') || t.includes('paint') || t.includes('chitra')) return 'fa-solid fa-palette';
+            return 'fa-solid fa-music'; 
         }
 
         function renderEvents(events) {
             const grid = document.getElementById('eventsGrid');
             grid.innerHTML = '';
 
+            // Double check filter (redundant for mock data but good for real API)
+            events = events.filter(event => {
+                 const t = (event.type || '').toLowerCase();
+                 const title = (event.title || '').toLowerCase();
+                 return culturalKeywords.some(key => t.includes(key) || title.includes(key));
+            });
+
             if (events.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">No cultural events found yet. Stay tuned!</div>';
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #aaa;">No cultural events found yet. Stay tuned!</div>';
                 return;
             }
 
             events.forEach((event, index) => {
                 const delay = (index % 5) * 0.1; 
                 
-                // Determine Icon based on keywords
-                let iconClass = getCulturalIcon(event.title, event.type);
+                // Determine Icon
+                let iconClass = 'fa-solid fa-music';
+                if(event.icon) iconClass = `fa-solid fa-${event.icon}`;
+                else iconClass = getCulturalIcon(event.title, event.type);
                 
                 let visualElement = `<i class="${iconClass} event-icon"></i>`;
                 if (event.imageUrl && !event.imageUrl.includes('default')) {
@@ -382,16 +478,18 @@
             
             if (event.sections && event.sections.length > 0) {
                 event.sections.forEach(sec => {
-                    contentHtml += `<br><strong>${sec.heading}</strong><p>${sec.content}</p>`;
+                    contentHtml += `<br><strong style="color:white;">${sec.heading}</strong><p>${sec.content}</p>`;
                 });
             }
 
             document.getElementById('modalDescription').innerHTML = contentHtml;
             modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
         }
 
         function closeModal() {
             modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
         }
 
         window.onclick = function(event) {
@@ -403,6 +501,4 @@
         fetchEvents();
     </script>
 </body>
-
 </html>
-

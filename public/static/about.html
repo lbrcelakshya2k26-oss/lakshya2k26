@@ -17,89 +17,111 @@
             --secondary-color: #3a7bd5;
             --accent-color: #ff00cc;
             --text-color: #ffffff;
+            --success-color: #00ff88;
+            --error-color: #ff4d4d;
             --glass-bg: rgba(15, 15, 30, 0.85);
             --glass-border: rgba(255, 255, 255, 0.1);
             --card-hover: rgba(0, 210, 255, 0.15);
             --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.6), rgba(5, 5, 15, 0.95));
-            --mobile-glass: rgba(5, 5, 15, 0.92);
+            --mobile-glass: rgba(5, 5, 12, 0.95);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; }
+        
+        body { 
+            background-color: #0a0a0a; 
+            color: var(--text-color); 
+            overflow-x: hidden; 
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
 
         .bg-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: url('../assets/admin-block.jpg') no-repeat center top/cover; z-index: -2;
+            filter: brightness(0.8);
         }
         .overlay-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--dark-overlay); z-index: -1;
         }
 
-        /* --- UPDATED RESPONSIVE NAVIGATION --- */
+        /* --- NAVIGATION (Synced with Home) --- */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
-            height: 90px; padding: 0 4%;
+            height: 80px; padding: 0 4%;
             display: flex; justify-content: space-between; align-items: center;
-            z-index: 1000; background: rgba(5, 5, 10, 0.6);
-            backdrop-filter: blur(15px); border-bottom: 1px solid var(--glass-border);
+            z-index: 1000; transition: 0.4s;
+            background: rgba(5, 5, 10, 0.6); 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
         }
 
         .logo {
-            font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 900;
+            cursor: pointer; z-index: 1002; display: flex; align-items: center; gap: 12px;
+        }
+        
+        /* Logo text matches Home */
+        .logo-text {
+            font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 900;
             background: linear-gradient(45deg, var(--primary-color), #ffffff);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            cursor: pointer; z-index: 1002;
+            letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
         }
 
-        .nav-links { display: flex; gap: 2rem; list-style: none; transition: 0.4s; }
+        .nav-links { display: flex; list-style: none; gap: 1.5rem; align-items: center; transition: 0.4s; }
 
         .nav-links a {
-            text-decoration: none; color: white; font-weight: 500;
+            text-decoration: none; color: var(--text-color); font-weight: 500;
+            font-size: 0.8rem; /* DECREASED MENU ITEM SIZE */
+            text-transform: uppercase; letter-spacing: 0.5px;
             transition: 0.3s; position: relative; white-space: nowrap;
         }
 
-        .nav-links a:hover, .nav-links a.active { color: var(--primary-color); }
-        .nav-links a::after {
-            content: ''; position: absolute; bottom: -5px; left: 0;
-            width: 0%; height: 2px; background: var(--primary-color); transition: 0.3s;
-        }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary-color); text-shadow: 0 0 10px var(--primary-color); }
+        .nav-links a::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0%; height: 2px; background: var(--primary-color); transition: 0.3s; }
         .nav-links a:hover::after { width: 100%; }
 
-        .btn-login { padding: 0.6rem 1.5rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; }
-        .btn-register { padding: 0.6rem 1.5rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; }
+        .btn-login { padding: 0.5rem 1.2rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; font-size: 0.8rem !important; }
+        .btn-register { padding: 0.5rem 1.2rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; font-size: 0.8rem !important; }
 
-        .menu-toggle { display: none; flex-direction: column; gap: 6px; cursor: pointer; z-index: 1003; }
-        .bar { width: 30px; height: 3px; background: white; border-radius: 3px; transition: 0.4s; }
-
-        .menu-toggle.is-active .bar:nth-child(1) { transform: translateY(9px) rotate(45deg); background-color: var(--primary-color); }
+        /* Mobile Menu Toggle */
+        .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 28px; height: 20px; cursor: pointer; z-index: 1003; }
+        .bar { width: 100%; height: 3px; background-color: white; border-radius: 3px; transition: 0.4s; }
+        
+        .menu-toggle.is-active .bar:nth-child(1) { transform: translateY(8.5px) rotate(45deg); background-color: var(--primary-color); }
         .menu-toggle.is-active .bar:nth-child(2) { opacity: 0; }
-        .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-9px) rotate(-45deg); background-color: var(--primary-color); }
+        .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-8.5px) rotate(-45deg); background-color: var(--primary-color); }
 
-        /* Tablet/Mobile Breakpoint */
         @media (max-width: 1100px) {
             nav { padding: 0 2rem; }
             .menu-toggle { display: flex; }
             
             .nav-links {
                 position: fixed; top: 0; right: -100%;
-                height: 100vh; width: 75%; max-width: 350px;
+                height: 100vh; width: 70%; max-width: 300px;
                 background: var(--mobile-glass); backdrop-filter: blur(20px);
                 flex-direction: column; justify-content: flex-start;
-                align-items: center; gap: 2rem;
-                padding-top: 100px; padding-bottom: 50px;
+                align-items: center; gap: 1.8rem;
+                padding-top: 90px; padding-bottom: 50px;
                 border-left: 1px solid var(--glass-border);
                 transition: right 0.4s ease-in-out;
                 z-index: 1001; overflow-y: auto;
+                box-shadow: -5px 0 20px rgba(0,0,0,0.5);
             }
             .nav-links.active { right: 0; }
         }
 
         /* --- CONTENT STYLES --- */
-        .page-header { text-align: center; padding-top: 150px; padding-bottom: 40px; animation: fadeDown 1s ease-out; }
-        .section-title { font-family: 'Montserrat', sans-serif; font-size: 3.2rem; font-weight: 800; background: linear-gradient(to right, #fff, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .section-subtitle { font-size: 1rem; color: var(--primary-color); letter-spacing: 3px; text-transform: uppercase; margin-top: 10px; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 80px 20px; }
+        .page-header { text-align: center; padding-top: 130px; padding-bottom: 30px; animation: fadeDown 1s ease-out; }
+        .section-title { font-family: 'Montserrat', sans-serif; font-size: 3rem; font-weight: 800; background: linear-gradient(to right, #fff, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .section-subtitle { font-size: 0.9rem; color: var(--primary-color); letter-spacing: 3px; text-transform: uppercase; margin-top: 10px; }
+        
+        .container { 
+            max-width: 1200px; margin: 0 auto; padding: 0 20px 80px 20px; 
+            flex: 1; /* Pushes footer down */
+        }
 
         /* Grid */
         .about-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-top: 30px; align-items: center; }
@@ -107,8 +129,8 @@
         .glass-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), var(--accent-color)); }
         
         .text-content h3 { font-family: 'Montserrat'; font-size: 1.8rem; margin-bottom: 18px; color: white; }
-        .text-content p { color: #ccc; line-height: 1.7; margin-bottom: 14px; font-size: 0.98rem; text-align: justify; }
-        .tag-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(0, 210, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.4); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 14px; }
+        .text-content p { color: #ccc; line-height: 1.7; margin-bottom: 14px; font-size: 0.95rem; text-align: justify; }
+        .tag-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(0, 210, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.4); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 14px; }
         .tag-pill i { color: var(--primary-color); }
 
         .image-box { width: 100%; height: 350px; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); position: relative; animation: fadeUp 1s ease-out forwards; }
@@ -133,26 +155,85 @@
         .feature-tag { font-size: 0.75rem; text-transform: uppercase; color: var(--accent-color); margin-bottom: 8px; }
         .feature-card p { color: #a7a7a7; font-size: 0.9rem; line-height: 1.6; }
 
-        /* Offer Modal */
+        /* Offer Modal (UPDATED) */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.4s; }
         .modal-overlay.active { opacity: 1; visibility: visible; }
-        .offer-card { position: relative; background: rgba(20, 20, 35, 0.95); border: 1px solid var(--primary-color); width: 90%; max-width: 450px; padding: 40px 30px; border-radius: 20px; text-align: center; transform: scale(0.8); transition: transform 0.4s; }
+        .offer-card { position: relative; background: rgba(20, 20, 35, 0.95); border: 1px solid var(--primary-color); width: 90%; max-width: 450px; padding: 30px; border-radius: 20px; text-align: center; transform: scale(0.8); transition: transform 0.4s; box-shadow: 0 0 30px rgba(0, 210, 255, 0.2); }
         .modal-overlay.active .offer-card { transform: scale(1); }
+        
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; color: #888; cursor: pointer; transition: 0.3s; }
         .close-btn:hover { color: white; transform: rotate(90deg); }
-        .offer-icon { font-size: 3rem; margin-bottom: 15px; background: linear-gradient(to bottom, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .offer-title { font-family: 'Montserrat'; font-size: 1.8rem; font-weight: 800; color: white; margin-bottom: 5px; }
-        .discount-box { background: rgba(255, 255, 255, 0.05); border: 1px dashed var(--primary-color); padding: 15px; border-radius: 10px; margin: 20px 0; }
-        .code-text { display: block; font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
-        .modal-register-btn { display: inline-block; width: 100%; padding: 12px 0; background: linear-gradient(90deg, var(--secondary-color), var(--primary-color)); color: white; font-weight: 700; border-radius: 50px; text-decoration: none; }
+        
+        .offer-icon { font-size: 2.5rem; margin-bottom: 10px; color: var(--primary-color); }
+        .offer-title { font-family: 'Montserrat'; font-size: 1.6rem; font-weight: 800; color: white; margin-bottom: 15px; }
+        
+        /* New Discount Box Style */
+        .discount-box { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px dashed var(--primary-color); 
+            padding: 20px 15px; 
+            border-radius: 12px; 
+            margin: 15px 0 25px 0; 
+        }
+
+        .offer-highlight {
+            font-size: 1.1rem; color: #fff; line-height: 1.5; font-weight: 500;
+        }
+        .offer-highlight span {
+            color: var(--success-color); font-weight: 700; font-size: 1.3rem; display: block; margin: 5px 0;
+        }
+        .terms-text {
+            font-size: 0.7rem; color: #aaa; margin-top: 10px; line-height: 1.4;
+        }
+
+        .modal-register-btn { 
+            display: inline-block; width: 100%; padding: 12px 0; 
+            background: linear-gradient(90deg, var(--secondary-color), var(--primary-color)); 
+            color: white; font-weight: 700; border-radius: 50px; text-decoration: none; 
+            transition: 0.3s;
+        }
+        .modal-register-btn:hover { box-shadow: 0 0 15px var(--primary-color); transform: translateY(-2px); }
+
+        /* --- FOOTER (Synced with Home) --- */
+        footer {
+            width: 100%;
+            padding: 8px 4%;
+            background: rgba(5, 5, 10, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 999;
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            margin-top: auto; /* Pushes to bottom */
+        }
+
+        .footer-left { text-align: left; }
+        .footer-right { text-align: right; display: flex; flex-direction: column; gap: 2px; }
+
+        footer a { color: var(--primary-color); text-decoration: none; transition: color 0.3s; }
+        footer a:hover { color: var(--accent-color); }
+        
+        .footer-text { margin: 0; color: rgba(255, 255, 255, 0.8); line-height: 1.4; }
+        .sub-text { font-size: 0.7rem; opacity: 0.6; }
 
         @keyframes fadeDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 
         @media (max-width: 1024px) {
-            .section-title { font-size: 2.5rem; }
+            .section-title { font-size: 2.2rem; }
             .about-grid { grid-template-columns: 1fr; }
             .image-box { height: 260px; }
+        }
+
+        @media (max-width: 768px) {
+            footer {
+                flex-direction: column; text-align: center; gap: 8px; padding: 10px; padding-bottom: 15px;
+            }
+            .footer-left, .footer-right { text-align: center; align-items: center; }
+            .page-header { padding-top: 100px; }
         }
     </style>
 </head>
@@ -161,17 +242,21 @@
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
 
+    <!-- NAVIGATION -->
     <nav>
-        <div class="logo" onclick="window.location.href='home'">LAKSHYA 2K26</div>
+        <div class="logo" onclick="window.location.href='home'">
+            <!-- Text Logo matching Home -->
+            <span class="logo-text">LAKSHYA 2K26</span>
+        </div>
         
         <ul class="nav-links" id="navLinks">
-             <li><a href="home" onclick="closeMenu()">Home</a></li>
+            <li><a href="home" onclick="closeMenu()">Home</a></li>
             <li><a href="about" class="active" onclick="closeMenu()">About Us</a></li>
             <li><a href="brochure" onclick="closeMenu()">Brochure</a></li>
             <li><a href="events" onclick="closeMenu()">Events</a></li>
             <li><a href="culturals" onclick="closeMenu()">Culturals</a></li>
             <li><a href="committee" onclick="closeMenu()">Committee</a></li>
-             <li><a href="privacy" onclick="closeMenu()">Privacy-Policy</a></li>
+            <!-- Removed Privacy Policy link -->
             <li><a href="contact" onclick="closeMenu()">Contact</a></li>
             <li><a href="register" class="btn-register" onclick="closeMenu()">Register</a></li>
             <li><a href="login" class="btn-login" onclick="closeMenu()">Login</a></li>
@@ -184,21 +269,30 @@
         </div>
     </nav>
 
-    <!-- OFFER POPUP -->
+    <!-- OFFER POPUP (UPDATED) -->
     <div class="modal-overlay" id="offerModal">
         <div class="offer-card">
             <div class="close-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></div>
-            <div class="offer-icon"><i class="fa-solid fa-gift"></i></div>
-            <h2 class="offer-title">EARLY BIRD OFFER!</h2>
-            <p style="color:#ddd;">Get 10% OFF on your registration fee.</p>
+            <div class="offer-icon"><i class="fa-solid fa-tags"></i></div>
+            <h2 class="offer-title">EXCLUSIVE OFFER!</h2>
+            
             <div class="discount-box">
-                <span class="code-text">LAKSHYA10</span>
-                <span style="font-size:0.8rem; color:#aaa;">Use this code at payment</span>
+                <p class="offer-highlight">
+                    First Registration: No Discount<br>
+                    <span>50% OFF</span>
+                    On 2nd Event Onwards!
+                </p>
+                <p class="terms-text">
+                    (Applicable only for Major, MBA & Cultural Events)<br>
+                    *Terms & Conditions Apply
+                </p>
             </div>
-            <a href="register" class="modal-register-btn">Register Now</a>
+            
+            <a href="register" class="modal-register-btn">Register Now & Save</a>
         </div>
     </div>
 
+    <!-- MAIN CONTENT -->
     <div class="page-header">
         <h1 class="section-title">ABOUT LAKSHYA</h1>
         <p class="section-subtitle">LBRCE’s National Level Techno–Cultural Fest</p>
@@ -249,7 +343,20 @@
             </div>
         </div>
     </div>
-<script src="/js/chatbot.js"></script>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-left">
+            <p class="footer-text">&copy; Designed & Developed by <a href="https://xetasolutions.in" target="_blank">Xeta</a></p>
+            <p class="footer-text sub-text">A start up from AI&DS, LBRCE</p>
+        </div>
+        <div class="footer-right">
+            <p class="footer-text">Support: <a href="mailto:lakshya@lbrce.ac.in">lakshya@lbrce.ac.in</a></p>
+            <p class="footer-text"><a href="privacy">Privacy Policy</a></p>
+        </div>
+    </footer>
+
+    <script src="/js/chatbot.js"></script>
     <script>
         const nav = document.getElementById('navLinks');
         const menuToggle = document.getElementById('mobile-menu');
@@ -272,7 +379,7 @@
 
         // Modal Auto Show
         const modal = document.getElementById('offerModal');
-        window.onload = function() { setTimeout(() => { modal.classList.add('active'); }, 800); };
+        window.onload = function() { setTimeout(() => { modal.classList.add('active'); }, 1500); };
         function closeModal() { modal.classList.remove('active'); }
 
         // Stats Animation
@@ -307,6 +414,4 @@
         });
     </script>
 </body>
-
 </html>
-
