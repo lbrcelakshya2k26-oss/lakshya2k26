@@ -39,7 +39,7 @@
 
         .container { max-width: 1000px; margin: 0 auto; padding-bottom: 80px; }
         .page-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
-        .page-header h2 { font-family: 'Montserrat', sans-serif; font-size: 2rem; color: white; }
+        .page-header h2 { font-family: 'Montserrat', sans-serif; font-size: 2rem; color: white; margin: 0; }
         .item-count { background: var(--primary-color); color: black; padding: 2px 10px; border-radius: 50px; font-size: 0.9rem; font-weight: bold; }
 
         /* CART ITEMS */
@@ -149,8 +149,12 @@
 
     <main class="main">
         <div class="container">
+            <!-- UPDATED PAGE HEADER WITH LOGO -->
             <div class="page-header">
-                <h2><i class="fa-solid fa-cart-shopping"></i> Your Cart <span class="item-count" id="cartCount">0</span></h2>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img src="/assets/logo.png" alt="LAKSHYA Logo" style="height: 55px; width: auto; filter: drop-shadow(0 0 5px rgba(0, 210, 255, 0.5));">
+                    <h2>Your Cart <span class="item-count" id="cartCount">0</span></h2>
+                </div>
             </div>
             
             <div id="cartContainer" class="cart-list"></div>
@@ -453,33 +457,27 @@
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Redirecting...';
             btn.disabled = true;
-            let createdRegIds = [];
             
-            try {
-                // 1. Create Registrations
-                for (const item of cartItems) {
-                    const res = await fetch('/api/register-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId: item.eventId, deptName: item.dept, paymentMode: 'Online', teamName: item.teamName, teamMembers: item.teamMembers }) });
-                    const data = await res.json();
-                    if (res.ok && data.registrationId) createdRegIds.push(data.registrationId);
-                }
-            } catch (e) { showPopup("Error", "Registration init failed.", 'error'); btn.disabled = false; btn.innerHTML = originalText; return; }
-            if (createdRegIds.length === 0) { showPopup("Error", "No registrations created.", 'error'); btn.disabled = false; btn.innerHTML = originalText; return; }
+            // --- NEW LOGIC: Only register if paying Cash/Later ---
+            // For Online, we skip registration creation until payment is verified.
+            const isOnline = true; // Hardcoded since we only have online now in this simplified version
             
             // 2. Create Payment Link and Redirect
             try {
+                const couponCodeToSend = activeCoupon ? activeCoupon.code : null;
                 const orderRes = await fetch('/api/payment/create-order', { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ cartItems: cartItems, couponCode: activeCoupon ? activeCoupon.code : null }) 
+                    body: JSON.stringify({ cartItems: cartItems, couponCode: couponCodeToSend }) 
                 });
                 
                 const orderData = await orderRes.json();
                 if (!orderData.paymentLink) throw new Error("Link creation failed");
 
                 // IMPORTANT: Save IDs to LocalStorage to use them after redirect
-                localStorage.setItem('LAKSHYA_PENDING_REGS', JSON.stringify(createdRegIds));
-                localStorage.setItem('LAKSHYA_PENDING_COUPON', activeCoupon ? activeCoupon.code : "");
-                // Save itemAmounts to ensure we track individual payments correctly on return
+                // Since we didn't create regs yet, we save the cart items locally to ensure we have the exact snapshot
+                localStorage.setItem('LAKSHYA_PENDING_CART', JSON.stringify(cartItems));
+                localStorage.setItem('LAKSHYA_PENDING_COUPON', couponCodeToSend || "");
                 localStorage.setItem('LAKSHYA_ITEM_AMOUNTS', JSON.stringify(orderData.itemAmounts));
 
                 // REDIRECT
