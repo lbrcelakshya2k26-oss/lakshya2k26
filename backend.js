@@ -700,30 +700,18 @@ app.post('/api/payment/create-order', isAuthenticated('participant'), async (req
 });
 
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
-    const { razorpay_payment_id, registrationIds, couponCode } = req.body;
+    const { razorpay_payment_id, couponCode, itemAmounts, cartItems } = req.body; 
     const CLIENT_URL = "https://lakshya.lbrce.ac.in/"; 
     const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
 
     try {
         if (!razorpay_payment_id) return res.status(400).json({ error: 'Missing Payment ID' });
 
-        // 1. VERIFY WITH RAZORPAY & GET ACTUAL AMOUNT PAID
+        // 1. VERIFY WITH RAZORPAY
         const payment = await razorpay.payments.fetch(razorpay_payment_id);
         if (payment.status !== 'captured' && payment.status !== 'authorized') {
             return res.status(400).json({ error: 'Payment not captured or failed.' });
         }
-
-        // FIX 3: REVERSE CALCULATE BASE AMOUNT
-        // We trust the bank: If user paid 103, we record 103.
-        const totalPaidInRupees = payment.amount / 100; // e.g., 103.00
-        
-        // Remove Tax to find Base Price
-        // Formula: Total = Base * 1.0236  =>  Base = Total / 1.0236
-        const totalBaseAmount = Math.round(totalPaidInRupees / 1.0236);
-        
-        // Distribute this base amount among items (evenly is safest for receipt if itemAmounts missing)
-        const count = registrationIds.length || 1;
-        const baseAmountPerItem = Math.floor(totalBaseAmount / count); 
 
         // 2. CHECK DUPLICATES
         const existing = await docClient.send(new ScanCommand({
@@ -736,79 +724,88 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
             return res.json({ status: 'success', message: 'Already processed' });
         }
 
-        // 3. PROCESS UPDATES
-        if (registrationIds && Array.isArray(registrationIds)) {
+        // 3. CREATE REGISTRATIONS AND UPDATE
+        if (cartItems && Array.isArray(cartItems)) {
             
             let regItemsForEmail = [];
+            let totalBaseForEmail = 0;
+            const user = req.session.user;
 
-            const updatePromises = registrationIds.map(async (regId, index) => {
+            const updatePromises = cartItems.map(async (item) => {
                 try {
-                    // Handle rounding difference on the last item
-                    let thisItemAmount = baseAmountPerItem;
-                    if (index === registrationIds.length - 1) {
-                         thisItemAmount = totalBaseAmount - (baseAmountPerItem * (count - 1));
+                    const regId = uuidv4(); 
+                    
+                    // Calculate Amount (Robust Fallback)
+                    let amountPaid = 0;
+                    if (itemAmounts && itemAmounts[item.eventId] !== undefined) {
+                        amountPaid = itemAmounts[item.eventId];
+                    } else {
+                        amountPaid = (payment.amount / 100) / cartItems.length; 
                     }
 
-                    // A. Update DB
-                    await docClient.send(new UpdateCommand({
+                    // Fetch Event Details for Title/Kit Logic
+                    const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
+                    const eventData = eventDoc.Item || {};
+                    const eventTitle = eventData.title || "Event";
+                    
+                    // Create the Record
+                    await docClient.send(new PutCommand({
                         TableName: 'Lakshya_Registrations', 
-                        Key: { registrationId: regId },
-                        UpdateExpression: "set paymentStatus = :s, paymentId = :p, paymentMode = :m, attendance = :a, couponUsed = :c, paymentDate = :d, amountPaid = :amt",
-                        ExpressionAttributeValues: {
-                            ":s": "COMPLETED", 
-                            ":p": razorpay_payment_id, 
-                            ":m": "ONLINE", 
-                            ":a": false,
-                            ":c": couponCode || "NONE", 
-                            ":d": new Date().toISOString(), 
-                            ":amt": thisItemAmount // Saving the reverse-calculated amount
+                        Item: {
+                            registrationId: regId,
+                            studentEmail: user.email,
+                            eventId: item.eventId,
+                            deptName: item.dept,
+                            teamName: item.teamName || null,
+                            teamMembers: item.teamMembers || [],
+                            paymentStatus: "COMPLETED", 
+                            paymentId: razorpay_payment_id, 
+                            paymentMode: "ONLINE", 
+                            attendance: false,
+                            couponUsed: couponCode || "NONE", 
+                            paymentDate: new Date().toISOString(), 
+                            amountPaid: amountPaid,
+                            registeredAt: new Date().toISOString()
                         }
                     }));
 
-                    // B. Fetch Details for Email
-                    const regDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Registrations', Key: { registrationId: regId }}));
-                    if (regDoc.Item) {
-                        const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: regDoc.Item.eventId }}));
-                        if(e.Item) {
-                            regItemsForEmail.push({
-                                regId: regId,
-                                title: e.Item.title,
-                                dept: regDoc.Item.deptName,
-                                paidAmount: thisItemAmount,
-                                teamName: regDoc.Item.teamName
-                            });
-                        }
-                    }
-                } catch(err) { console.error("Reg Update Error:", err); }
+                    regItemsForEmail.push({
+                        regId: regId,
+                        title: eventTitle,
+                        dept: item.dept,
+                        paidAmount: amountPaid,
+                        teamName: item.teamName
+                    });
+                    totalBaseForEmail += amountPaid;
+
+                } catch(err) { console.error("Reg Creation Error:", err); }
             });
 
             await Promise.all(updatePromises);
             
-            // FIX 2: CLEAR CART
+            // Clear Cart
             try {
-                await docClient.send(new DeleteCommand({ 
-                    TableName: 'Lakshya_Cart', 
-                    Key: { email: req.session.user.email } 
-                }));
-            } catch(e) { console.warn("Cart clear warning:", e); }
+                await docClient.send(new DeleteCommand({ TableName: 'Lakshya_Cart', Key: { email: user.email } }));
+            } catch(e) {}
 
-            // 4. SEND EMAILS
+            // --- SEND EMAILS (INBUILT TEMPLATES) ---
+            
             let userName = "Participant";
-            let userEmail = req.session.user.email;
             try {
-                const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: userEmail }}));
+                const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: user.email }}));
                 if(u.Item) userName = u.Item.fullName;
             } catch(e) {}
 
-            // Recalculate platform fee for email display based on ACTUAL payment
-            const finalPlatformFee = totalPaidInRupees - totalBaseAmount;
+            const totalPaid = payment.amount / 100;
+            const platformFee = totalPaid - totalBaseForEmail;
 
-            // --- TEMPLATE 1: Registration Confirmation ---
+            // Template 1: Registration Confirmed
             const eventsHtml = regItemsForEmail.map(item => `
                 <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #00d2ff;">
                     <p style="margin: 5px 0;"><strong>Event:</strong> ${item.title}</p>
                     <p style="margin: 5px 0;"><strong>Reg ID:</strong> ${item.regId}</p>
                     <p style="margin: 5px 0;"><strong>Dept:</strong> ${item.dept}</p>
+                    ${item.teamName ? `<p style="margin: 5px 0;"><strong>Team:</strong> ${item.teamName}</p>` : ''}
                     <div style="margin-top: 15px;">
                         <a href="${CLIENT_URL}receipt-view?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
                     </div>
@@ -824,14 +821,15 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                     <p>Dear ${userName},</p>
                     <p>Thank you for registering!</p>
                     ${eventsHtml}
+                    <p style="color: #4CAF50; font-weight: bold;">Status: Payment Successful</p>
                     <p style="color: #555; font-size: 14px; margin-top: 30px;">Best Regards,<br>Team LAKSHYA</p>
                 </div>`;
             
-            // --- TEMPLATE 2: Payment Receipt ---
+            // Template 2: Receipt
             const paymentRows = regItemsForEmail.map(item => `
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.title}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">₹${item.paidAmount}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">₹${item.paidAmount.toFixed(2)}</td>
                 </tr>
             `).join('');
             
@@ -851,11 +849,11 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                             ${paymentRows}
                             <tr>
                                 <td style="padding: 8px; border-bottom: 1px solid #eee; color: #888;">Platform Fee</td>
-                                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: #888;">₹${finalPlatformFee.toFixed(2)}</td>
+                                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: #888;">₹${platformFee.toFixed(2)}</td>
                             </tr>
                             <tr>
                                 <td style="padding: 10px; font-weight: bold;">Total Paid</td>
-                                <td style="padding: 10px; font-weight: bold; text-align: right;">₹${totalPaidInRupees}</td>
+                                <td style="padding: 10px; font-weight: bold; text-align: right;">₹${totalPaid.toFixed(2)}</td>
                             </tr>
                         </table>
                         <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #4CAF50;">
@@ -866,20 +864,21 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 </div>`;
 
             // Send Both Emails
-            sendEmail(userEmail, `Registration Confirmed - ${regItemsForEmail.length} Events`, regEmailHtml).catch(e=>console.error("Email 1 Fail", e));
-            sendEmail(userEmail, `Payment Receipt - Transaction ${razorpay_payment_id}`, receiptHtml).catch(e=>console.error("Email 2 Fail", e));
+            sendEmail(user.email, `Registration Confirmed`, regEmailHtml).catch(e=>console.error("Email 1 Fail", e));
+            sendEmail(user.email, `Payment Receipt - Transaction ${razorpay_payment_id}`, receiptHtml).catch(e=>console.error("Email 2 Fail", e));
 
             res.json({ status: 'success' }); 
 
         } else { 
-            res.json({ status: 'success', warning: 'No IDs' }); 
+            res.json({ status: 'success', warning: 'No Items' }); 
         }
 
     } catch (err) {
-        console.error("DB Update Error during Verification:", err);
-        res.status(500).json({ error: 'Database update failed.' });
+        console.error("Verify Error:", err);
+        res.status(500).json({ error: 'Verification failed.' });
     }
 });
+
 app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), async (req, res) => {
     const userEmail = req.session.user.email;
     try {
