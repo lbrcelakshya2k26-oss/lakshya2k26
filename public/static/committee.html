@@ -4,20 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Committee | LAKSHYA 2K26</title>
+
+    <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/png" href="\assets\logo.png">
+
     <style>
-        /* --- GLOBAL VARIABLES (Synced) --- */
+        /* --- GLOBAL VARIABLES --- */
         :root {
             --primary-color: #00d2ff;
             --secondary-color: #3a7bd5;
             --accent-color: #ff00cc;
             --text-color: #ffffff;
-            --glass-bg: rgba(10, 10, 20, 0.85);
+            --glass-bg: rgba(15, 15, 30, 0.85);
             --glass-border: rgba(255, 255, 255, 0.1);
             --card-hover: rgba(0, 210, 255, 0.15);
-            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.4), rgba(5, 5, 15, 0.95));
+            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.6), rgba(5, 5, 15, 0.95));
             --mobile-glass: rgba(5, 5, 12, 0.95);
         }
 
@@ -26,24 +29,23 @@
         body { 
             background-color: #0a0a0a; 
             color: var(--text-color); 
-            overflow-x: hidden;
+            overflow-x: hidden; 
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
 
-        /* --- BACKGROUND --- */
         .bg-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: url('../assets/admin-block.jpg') no-repeat center top/cover;
-            z-index: -2;
+            background: url('../assets/admin-block.jpg') no-repeat center top/cover; z-index: -2;
+            filter: brightness(0.8);
         }
         .overlay-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--dark-overlay); z-index: -1;
         }
 
-        /* --- NAVIGATION (Synced) --- */
+        /* --- NAVIGATION --- */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
             height: 80px; padding: 0 4%;
@@ -54,34 +56,31 @@
             border-bottom: 1px solid var(--glass-border);
         }
 
-        .logo {
-            cursor: pointer; z-index: 1002; display: flex; align-items: center; gap: 12px;
-        }
-
+        .logo { cursor: pointer; z-index: 1002; display: flex; align-items: center; gap: 12px; }
+        
         .logo-text {
             font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 900;
             background: linear-gradient(45deg, var(--primary-color), #ffffff);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
         }
-        
+
         .nav-links { display: flex; list-style: none; gap: 1.5rem; align-items: center; transition: 0.4s; }
 
-        .nav-links li a {
+        .nav-links a {
             text-decoration: none; color: var(--text-color); font-weight: 500;
-            font-size: 0.8rem;
-            text-transform: uppercase; letter-spacing: 0.5px;
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
             transition: 0.3s; position: relative; white-space: nowrap;
         }
 
-        .nav-links li a:hover, .nav-links li a.active { color: var(--primary-color); text-shadow: 0 0 10px var(--primary-color); }
-        .nav-links li a::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0%; height: 2px; background: var(--primary-color); transition: 0.3s; }
-        .nav-links li a:hover::after { width: 100%; }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary-color); text-shadow: 0 0 10px var(--primary-color); }
+        .nav-links a::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0%; height: 2px; background: var(--primary-color); transition: 0.3s; }
+        .nav-links a:hover::after { width: 100%; }
 
         .btn-login { padding: 0.5rem 1.2rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; font-size: 0.8rem !important; }
         .btn-register { padding: 0.5rem 1.2rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; font-size: 0.8rem !important; }
 
-        /* Mobile Menu Toggle */
+        /* Mobile Menu */
         .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 28px; height: 20px; cursor: pointer; z-index: 1003; }
         .bar { width: 100%; height: 3px; background-color: white; border-radius: 3px; transition: 0.4s; }
         
@@ -89,157 +88,9 @@
         .menu-toggle.is-active .bar:nth-child(2) { opacity: 0; }
         .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-8.5px) rotate(-45deg); background-color: var(--primary-color); }
 
-        /* --- COMMITTEE SECTION --- */
-        .container { 
-            padding: 130px 5% 80px 5%; 
-            min-height: 100vh;
-            flex: 1; /* Pushes footer down */
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .section-title {
-            text-align: center; margin-bottom: 3rem;
-            font-family: 'Montserrat', sans-serif; font-size: 3rem; font-weight: 800;
-            background: linear-gradient(to right, #fff, var(--primary-color));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
-            animation: fadeDown 1s ease-out;
-            letter-spacing: 1px;
-        }
-
-        /* Accordion Style */
-        .accordion-item { 
-            background: var(--glass-bg); 
-            border: 1px solid var(--glass-border); 
-            border-radius: 12px; 
-            margin-bottom: 1.5rem; 
-            overflow: hidden; 
-            transition: 0.3s; 
-            backdrop-filter: blur(10px);
-            animation: fadeUp 0.8s ease-out forwards;
-            opacity: 0;
-        }
-        
-        .accordion-header { 
-            padding: 1.2rem 2rem; 
-            cursor: pointer; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            background: rgba(255,255,255,0.02);
-            border-bottom: 1px solid transparent;
-            transition: 0.3s;
-        }
-
-        .accordion-header:hover { 
-            background: rgba(0, 210, 255, 0.05); 
-            border-color: rgba(0, 210, 255, 0.2);
-        }
-        
-        .accordion-header h3 { 
-            font-family: 'Montserrat'; 
-            margin: 0; 
-            font-size: 1.1rem; 
-            letter-spacing: 1px; 
-            font-weight: 600;
-            color: #ddd;
-        }
-        
-        .accordion-header.active h3 { color: var(--primary-color); }
-        .accordion-header i { transition: 0.3s; color: var(--primary-color); font-size: 1rem; }
-        
-        .accordion-content { 
-            max-height: 0; 
-            overflow: hidden; 
-            transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
-            background: rgba(0,0,0,0.2); 
-        }
-        
-        .accordion-content.open { 
-            max-height: 3000px; /* Arbitrary large height */
-            border-top: 1px solid var(--glass-border);
-        }
-
-        /* Members Grid */
-        .members-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); 
-            gap: 2rem; 
-            padding: 2.5rem; 
-        }
-
-        .member-card { 
-            background: transparent; 
-            padding: 0; 
-            border: none; 
-            border-radius: 15px; 
-            transition: 0.4s; 
-            position: relative;
-            text-align: center;
-        }
-        
-        .member-card:hover { transform: translateY(-5px); }
-        
-        .img-wrapper {
-            width: 100%;
-            aspect-ratio: 1; /* Square images */
-            overflow: hidden;
-            border-radius: 15px;
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-            margin-bottom: 15px;
-            position: relative;
-        }
-
-        .member-img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            transition: 0.5s; 
-        }
-
-        .member-card:hover .member-img { transform: scale(1.1); }
-        .member-card:hover .img-wrapper { border-color: var(--primary-color); box-shadow: 0 0 25px rgba(0, 210, 255, 0.2); }
-
-        .member-name { font-size: 1rem; font-weight: 700; margin-bottom: 5px; color: #fff; }
-        .member-role { font-size: 0.8rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
-
-        /* --- FOOTER (Synced) --- */
-        footer {
-            width: 100%;
-            padding: 8px 4%;
-            background: rgba(5, 5, 10, 0.85);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            z-index: 999;
-            border-top: 1px solid var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.75rem;
-            margin-top: auto;
-        }
-
-        .footer-left { text-align: left; }
-        .footer-right { text-align: right; display: flex; flex-direction: column; gap: 2px; }
-
-        footer a { color: var(--primary-color); text-decoration: none; transition: color 0.3s; }
-        footer a:hover { color: var(--accent-color); }
-        
-        .footer-text { margin: 0; color: rgba(255, 255, 255, 0.8); line-height: 1.4; }
-        .sub-text { font-size: 0.7rem; opacity: 0.6; }
-
-        /* Animations */
-        @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* --- RESPONSIVE BREAKPOINTS --- */
         @media (max-width: 1100px) {
             nav { padding: 0 2rem; }
             .menu-toggle { display: flex; }
-            
             .nav-links {
                 position: fixed; top: 0; right: -100%;
                 height: 100vh; width: 70%; max-width: 300px;
@@ -255,16 +106,125 @@
             .nav-links.active { right: 0; }
         }
 
+        /* --- OFFER MODAL STYLES --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.4s; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .offer-card { position: relative; background: rgba(20, 20, 35, 0.95); border: 1px solid var(--primary-color); width: 90%; max-width: 450px; padding: 30px; border-radius: 20px; text-align: center; transform: scale(0.8); transition: transform 0.4s; box-shadow: 0 0 30px rgba(0, 210, 255, 0.2); }
+        .modal-overlay.active .offer-card { transform: scale(1); }
+        
+        .close-offer-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; color: #888; cursor: pointer; transition: 0.3s; }
+        .close-offer-btn:hover { color: white; transform: rotate(90deg); }
+        .offer-icon { font-size: 2.5rem; margin-bottom: 10px; color: var(--primary-color); }
+        .offer-title { font-family: 'Montserrat'; font-size: 1.6rem; font-weight: 800; color: white; margin-bottom: 15px; }
+        .discount-box { background: rgba(255, 255, 255, 0.05); border: 1px dashed var(--primary-color); padding: 20px 15px; border-radius: 12px; margin: 15px 0 25px 0; }
+        .offer-highlight { font-size: 1.1rem; color: #fff; line-height: 1.5; font-weight: 500; }
+        .offer-highlight span { color: var(--success-color); font-weight: 700; font-size: 1.3rem; display: block; margin: 5px 0; }
+        .terms-text { font-size: 0.7rem; color: #aaa; margin-top: 10px; line-height: 1.4; }
+        .modal-register-btn { display: inline-block; width: 100%; padding: 12px 0; background: linear-gradient(90deg, var(--secondary-color), var(--primary-color)); color: white; font-weight: 700; border-radius: 50px; text-decoration: none; transition: 0.3s; }
+        .modal-register-btn:hover { box-shadow: 0 0 15px var(--primary-color); transform: translateY(-2px); }
+
+        /* --- PAGE HEADER --- */
+        .page-header { text-align: center; padding-top: 130px; padding-bottom: 30px; animation: fadeDown 1s ease-out; }
+        .section-title { font-family: 'Montserrat', sans-serif; font-size: 3rem; font-weight: 800; background: linear-gradient(to right, #fff, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .section-subtitle { font-size: 0.9rem; color: var(--primary-color); letter-spacing: 3px; text-transform: uppercase; margin-top: 10px; }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 80px 20px; flex: 1; }
+
+        /* --- COMMITTEE ACCORDION & CARDS --- */
+        .accordion-item {
+            background: var(--glass-bg); backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border); border-radius: 15px;
+            margin-bottom: 25px; overflow: hidden; transition: 0.3s;
+            animation: fadeUp 0.8s ease-out forwards;
+        }
+        
+        .accordion-header {
+            padding: 1.5rem 2rem; cursor: pointer; display: flex;
+            justify-content: space-between; align-items: center;
+            background: rgba(255, 255, 255, 0.02); transition: 0.3s;
+        }
+        .accordion-header:hover { background: var(--card-hover); border-left: 4px solid var(--primary-color); }
+        
+        .accordion-header h3 {
+            font-family: 'Montserrat', sans-serif; margin: 0;
+            font-size: 1.3rem; font-weight: 700; color: white;
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+        .accordion-header i { transition: 0.4s; color: var(--primary-color); font-size: 1.2rem; }
+        
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.5s cubic-bezier(0, 1, 0, 1); background: rgba(0,0,0,0.2); }
+        .accordion-content.open { max-height: 6000px; transition: max-height 1s ease-in-out; }
+
+        .members-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 2rem; padding: 2.5rem;
+        }
+
+        .member-card {
+            background: transparent; padding: 0;
+            border: 1px solid var(--glass-border);
+            border-radius: 15px; transition: 0.4s;
+            overflow: hidden; position: relative;
+            height: 350px; /* Fixed Height for consistency */
+        }
+
+        .member-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 30px rgba(0, 210, 255, 0.2);
+            border-color: var(--primary-color);
+        }
+
+        .member-img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: 0.4s;
+        }
+        .member-card:hover .member-img { transform: scale(1.05); }
+
+        /* Member Info Overlay */
+        .member-info {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0));
+            padding: 20px; text-align: left;
+            transform: translateY(10px); transition: 0.3s;
+        }
+        .member-card:hover .member-info { transform: translateY(0); }
+
+        .member-name {
+            font-family: 'Montserrat', sans-serif; font-size: 1.1rem;
+            font-weight: 700; color: white; margin-bottom: 4px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .member-role {
+            font-size: 0.85rem; color: var(--primary-color);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            width: 100%; padding: 8px 4%;
+            background: rgba(5, 5, 10, 0.85); backdrop-filter: blur(8px);
+            z-index: 999; border-top: 1px solid var(--glass-border);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.75rem; margin-top: auto; 
+        }
+        .footer-left { text-align: left; }
+        .footer-right { text-align: right; display: flex; flex-direction: column; gap: 2px; }
+        footer a { color: var(--primary-color); text-decoration: none; transition: color 0.3s; }
+        footer a:hover { color: var(--accent-color); }
+        .footer-text { margin: 0; color: rgba(255, 255, 255, 0.8); line-height: 1.4; }
+        .sub-text { font-size: 0.7rem; opacity: 0.6; }
+
+        @keyframes fadeDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
         @media (max-width: 768px) {
-            .container { padding: 100px 5% 50px 5%; }
-            .section-title { font-size: 2.2rem; }
-            .members-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 1.5rem; gap: 1rem; }
-            .accordion-header { padding: 1rem 1.5rem; }
-            
-            footer {
-                flex-direction: column; text-align: center; gap: 8px; padding: 10px; padding-bottom: 15px;
-            }
+            .members-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); padding: 1.5rem; gap: 1.5rem; }
+            .member-card { height: 300px; }
+            footer { flex-direction: column; text-align: center; gap: 8px; padding: 10px; padding-bottom: 15px; }
             .footer-left, .footer-right { text-align: center; align-items: center; }
+            .page-header { padding-top: 100px; }
         }
     </style>
 </head>
@@ -273,7 +233,7 @@
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
 
-    <!-- NAVBAR -->
+    <!-- NAVIGATION -->
     <nav>
         <div class="logo" onclick="window.location.href='home'">
             <span class="logo-text">LAKSHYA 2K26</span>
@@ -286,7 +246,6 @@
             <li><a href="events" onclick="closeMenu()">Events</a></li>
             <li><a href="culturals" onclick="closeMenu()">Culturals</a></li>
             <li><a href="committee" class="active" onclick="closeMenu()">Committee</a></li>
-            <!-- Removed Privacy Policy -->
             <li><a href="contact" onclick="closeMenu()">Contact</a></li>
             <li><a href="register" class="btn-register" onclick="closeMenu()">Register</a></li>
             <li><a href="login" class="btn-login" onclick="closeMenu()">Login</a></li>
@@ -299,13 +258,40 @@
         </div>
     </nav>
 
-    <!-- COMMITTEE CONTENT -->
-    <div class="container">
+    <!-- OFFER POPUP -->
+    <div class="modal-overlay" id="offerModal">
+        <div class="offer-card">
+            <div class="close-offer-btn" onclick="closeOfferModal()"><i class="fa-solid fa-xmark"></i></div>
+            <div class="offer-icon"><i class="fa-solid fa-tags"></i></div>
+            <h2 class="offer-title">EXCLUSIVE OFFER!</h2>
+            
+            <div class="discount-box">
+                <p class="offer-highlight">
+                    First Registration: No Discount<br>
+                    <span>50% OFF</span>
+                    On 2nd Event Onwards!
+                </p>
+                <p class="terms-text">
+                    (Applicable only for Major, MBA & Cultural Events)<br>
+                    *Terms & Conditions Apply
+                </p>
+            </div>
+            
+            <a href="register" class="modal-register-btn">Register Now & Save</a>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="page-header">
         <h1 class="section-title">ORGANIZING COMMITTEE</h1>
+        <p class="section-subtitle">The Team Behind The Magic</p>
+    </div>
+
+    <div class="container">
         <div id="committeeContainer">
-            <div style="text-align:center; padding: 40px; color:#aaa;">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                <p>Loading Committee Members...</p>
+            <div style="grid-column: 1/-1; text-align: center; color: #aaa;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i><br><br>
+                Loading Committee Members...
             </div>
         </div>
     </div>
@@ -324,6 +310,7 @@
 
     <script src="/js/chatbot.js"></script>
     <script>
+        // --- NAVIGATION LOGIC ---
         const nav = document.getElementById('navLinks');
         const menuToggle = document.getElementById('mobile-menu');
 
@@ -337,94 +324,78 @@
             menuToggle.classList.remove('is-active');
         }
 
-        document.addEventListener('click', function(event) {
-            if (!nav.contains(event.target) && !menuToggle.contains(event.target) && nav.classList.contains('active')) {
+        document.addEventListener('click', (e) => {
+            if (!nav.contains(e.target) && !menuToggle.contains(e.target) && nav.classList.contains('active')) {
                 closeMenu();
             }
         });
 
+        // --- OFFER MODAL LOGIC ---
+        const offerModal = document.getElementById('offerModal');
+        // Auto show offer after 1.5s
+        window.onload = function() { 
+            setTimeout(() => { offerModal.classList.add('active'); }, 1500);
+            loadCommittee(); 
+        };
+        function closeOfferModal() { offerModal.classList.remove('active'); }
+
         // --- COMMITTEE LOGIC ---
-        const priorityCategories = ["Chief Patrons", "Patrons", "Conveners", "Co-Conveners", "Coordinators"];
-
-        // Mock Data for robust preview
-        const mockCommittee = [
-            { id: 1, name: "Dr. K. Appa Rao", role: "Principal", category: "Chief Patrons", imageUrl: "https://placehold.co/400x400/00d2ff/000000?text=Principal" },
-            { id: 2, name: "Dr. L. Bali Reddy", role: "Chairman", category: "Chief Patrons", imageUrl: "https://placehold.co/400x400/00d2ff/000000?text=Chairman" },
-            
-            { id: 3, name: "Dr. K. Harinadha Reddy", role: "Vice Principal", category: "Patrons", imageUrl: "https://placehold.co/400x400/3a7bd5/ffffff?text=VP" },
-            { id: 4, name: "Deans & Directors", role: "Management", category: "Patrons", imageUrl: "https://placehold.co/400x400/3a7bd5/ffffff?text=Deans" },
-
-            { id: 5, name: "Dr. O. Rama Devi", role: "HoD, AI&DS", category: "Conveners", imageUrl: "https://placehold.co/400x400/ff00cc/ffffff?text=Convener" },
-            
-            { id: 6, name: "Mr. K. Ravi Kumar", role: "Asst. Professor", category: "Co-Conveners", imageUrl: "https://placehold.co/400x400/purple/ffffff?text=Co-Convener" },
-            { id: 7, name: "Mrs. B. Swathi", role: "Asst. Professor", category: "Co-Conveners", imageUrl: "https://placehold.co/400x400/purple/ffffff?text=Co-Convener" },
-            
-            { id: 8, name: "Student Lead 1", role: "Student Coordinator", category: "Coordinators", imageUrl: "https://placehold.co/400x400/333/ffffff?text=Student" },
-            { id: 9, name: "Student Lead 2", role: "Student Coordinator", category: "Coordinators", imageUrl: "https://placehold.co/400x400/333/ffffff?text=Student" },
-            { id: 10, name: "Student Lead 3", role: "Student Coordinator", category: "Coordinators", imageUrl: "https://placehold.co/400x400/333/ffffff?text=Student" },
-        ];
+        const priorityCategories = ["Chief Patrons", "Patrons", "Conveners", "Co-Conveners"];
 
         async function loadCommittee() {
             const container = document.getElementById('committeeContainer');
-            
             try {
-                // SIMULATING FETCH
-                // const res = await fetch('/api/committee'); 
-                // const members = await res.json();
-                
-                // USE MOCK DATA
-                const members = mockCommittee;
+                const res = await fetch('/api/committee'); 
+                const members = await res.json();
 
                 if(members.length === 0) {
-                    container.innerHTML = '<p style="text-align:center;">No committee data found.</p>';
+                    container.innerHTML = '<p style="text-align:center; color:#888;">No committee data found.</p>';
                     return;
                 }
                 
+                // Group By Category
                 const grouped = {};
                 members.forEach(m => {
-                    if (!m.category) return;
+                    if (!m.category || m.category === 'undefined' || m.category === 'null') return;
+                    // Ensure imageUrl exists (fallback handled in HTML onError, but good to check)
                     if(!grouped[m.category]) grouped[m.category] = [];
                     grouped[m.category].push(m);
                 });
 
+                // Sort Categories
                 let categories = Object.keys(grouped);
                 categories.sort((a, b) => {
                     const idxA = priorityCategories.indexOf(a);
                     const idxB = priorityCategories.indexOf(b);
-                    // If both are in priority list, sort by index
                     if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                    // If only A is in list, A comes first
                     if (idxA !== -1) return -1; 
-                    // If only B is in list, B comes first
                     if (idxB !== -1) return 1; 
-                    // Otherwise sort alphabetically
                     return a.localeCompare(b);
                 });
 
                 container.innerHTML = '';
                 categories.forEach((cat, index) => {
                     const sectionMembers = grouped[cat];
-                    // Open the first accordion by default
+                    // Open first accordion by default
                     const isOpen = index === 0 ? 'open' : ''; 
-                    const isActive = index === 0 ? 'active' : '';
                     const rotate = index === 0 ? 'style="transform: rotate(180deg)"' : '';
                     
                     let cardsHtml = '';
-                    sectionMembers.forEach((m, idx) => {
-                        const delay = (idx * 0.1) + 0.2; // Stagger animation
+                    sectionMembers.forEach(m => {
+                        const imgUrl = m.imageUrl || 'assets/default-user.png';
                         cardsHtml += `
-                            <div class="member-card" style="animation: fadeUp 0.5s ease forwards ${delay}s; opacity: 0;">
-                                <div class="img-wrapper">
-                                    <img src="${m.imageUrl}" class="member-img" alt="${m.name}" onerror="this.src='https://placehold.co/400x400/222/fff?text=Member'">
+                            <div class="member-card">
+                                <img src="${imgUrl}" class="member-img" alt="${m.name}" onerror="this.src='assets/default-user.png'">
+                                <div class="member-info">
+                                    <h4 class="member-name">${m.name}</h4>
+                                    <p class="member-role">${m.role}</p>
                                 </div>
-                                <div class="member-name">${m.name}</div>
-                                <div class="member-role">${m.role}</div>
                             </div>`;
                     });
 
                     const sectionHtml = `
                         <div class="accordion-item" style="animation-delay: ${index * 0.1}s">
-                            <div class="accordion-header ${isActive}" onclick="toggleAccordion(this)">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <h3>${cat}</h3>
                                 <i class="fa-solid fa-chevron-down" ${rotate}></i>
                             </div>
@@ -436,33 +407,27 @@
                 });
 
             } catch(e) {
-                console.error("Error:", e);
-                container.innerHTML = '<p style="text-align:center; color:#ff4444;">Failed to load committee data.</p>'; 
+                console.error("Error loading committee:", e);
+                container.innerHTML = `
+                    <div style="text-align:center; color: #ff4444;">
+                         <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem;"></i><br><br>
+                         Failed to load committee members.
+                    </div>`; 
             }
         }
 
         function toggleAccordion(header) {
             const content = header.nextElementSibling;
             const icon = header.querySelector('i');
-            
-            // Toggle current
-            const isOpen = content.classList.contains('open');
-            
-            // Optional: Close others? (Accordion behavior) - Let's keep multiple open allowed for better UX
-            
-            if(isOpen) {
-                content.classList.remove('open');
-                header.classList.remove('active');
-                icon.style.transform = 'rotate(0deg)';
-            } else {
-                content.classList.add('open');
-                header.classList.add('active');
-                icon.style.transform = 'rotate(180deg)';
-            }
+            content.classList.toggle('open');
+            icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
         }
         
-        // Slight delay to simulate loading
-        setTimeout(loadCommittee, 800);
+        window.onclick = function(event) {
+            if (event.target == offerModal) {
+                closeOfferModal();
+            }
+        }
     </script>
 </body>
 </html>
