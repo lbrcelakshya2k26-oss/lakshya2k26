@@ -5,8 +5,10 @@ document.addEventListener('DOMContentLoaded', function() {
     styleSheet.textContent = `
         /* --- SIDEBAR CONTAINER --- */
         .sidebar {
+            box-sizing: border-box;          /* FIX: Ensures padding doesn't increase total height */
             width: 260px;
-            height: 100vh;
+            height: 100vh;                   /* Fallback for older browsers */
+            height: 100dvh;                  /* FIX: Adapts to mobile address bars so footer isn't cut off */
             position: fixed;
             top: 0;
             left: 0;
@@ -125,6 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             text-align: center;
             flex-shrink: 0;
+            padding-bottom: env(safe-area-inset-bottom); /* Fix for iPhone home bar */
         }
 
         .sidebar-footer p {
