@@ -325,6 +325,33 @@
         }
         .toast i { color: var(--primary-color); font-size: 1.2rem; }
 
+        /* --- UPDATED: FORMATTED CONTENT STYLE --- */
+        /* Note: 'white-space: pre-wrap' is removed to allow Flexbox to handle the layout properly */
+        .formatted-content {
+            color: #ddd;
+        }
+        
+        /* New List Item Styling for better alignment */
+        .fmt-list-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 6px; /* Tighter gap between list items */
+            line-height: 1.5;   /* Cleaner line height */
+        }
+        
+        .fmt-bullet {
+            color: var(--primary-color);
+            font-weight: bold;
+            margin-right: 8px;
+            flex-shrink: 0; /* Prevents bullet from shrinking on multi-line text */
+            margin-top: 2px; /* Optical adjustment for alignment */
+        }
+
+        .fmt-line {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
         @media (max-width: 1024px) {
             .main-content { margin-left: 0; width: 100%; padding: 1.5rem; padding-top: 90px; }
             .header-section { gap: 1.5rem; margin-bottom: 2rem; }
@@ -402,7 +429,7 @@
                 <span class="info-chip"><i class="fa-solid fa-users"></i> <span id="modalTeam">1</span></span>
             </div>
             <hr style="border:0; border-top:1px solid var(--glass-border); margin: 1.5rem 0;">
-            <div id="modalContent" style="color:#ddd; line-height:1.6;"></div>
+            <div id="modalContent" class="formatted-content"></div>
             <div style="margin-top: 2rem;">
                 <button class="cyber-btn" onclick="switchToDeptModal()">Register Now <i class="fa-solid fa-arrow-right"></i></button>
             </div>
@@ -422,7 +449,7 @@
         </div>
     </div>
 
-    <!-- SUBMISSION MODAL (NEW) -->
+    <!-- SUBMISSION MODAL -->
     <div class="modal-overlay" id="submissionModal">
         <div class="glass-modal" style="max-width: 550px;">
             <span class="modal-close" onclick="closeModal('submissionModal')"><i class="fa-solid fa-xmark"></i></span>
@@ -486,7 +513,6 @@
         let pendingCartItem = null;
         let selectedFile = null;
 
-        // Keywords to identify cultural events for filtering OUT
         const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'art', 'rangamarthanda', 'painting', 'literary'];
 
         function showNotification(msg, isError = false) {
@@ -568,7 +594,6 @@
                 if (!res.ok) throw new Error("API Failed");
                 const fetchedEvents = await res.json();
                 
-                // --- CRITICAL CHANGE: EXCLUDE CULTURAL EVENTS ---
                 allEvents = fetchedEvents.filter(e => !isCulturalEvent(e));
 
             } catch (e) { allEvents = []; }
@@ -580,8 +605,6 @@
                 const cardHtml = createCardHtml(event);
                 let type = event.type;
                 if ((event.departments && event.departments.includes('MBA')) || event.title.includes('MBA')) type = 'MBA';
-                
-                // If it's not a known type but passed the cultural filter, default to Special
                 if (!containers[type]) type = 'Special'; 
 
                 containers[type].innerHTML += cardHtml;
@@ -619,6 +642,41 @@
             </div>`;
         }
 
+        // --- UPDATED: INTELLIGENT TEXT FORMATTER ---
+        function formatText(text) {
+            if (!text) return '';
+            
+            // 1. Split text into individual lines
+            const lines = text.split(/\r\n|\n|\r/);
+            
+            let html = '';
+            
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                
+                // IMPORTANT: Ignore empty lines to fix the "too much gap" issue
+                if (!trimmed) return; 
+
+                // Check for arrow markers to create bullet points
+                if (trimmed.startsWith('->') || trimmed.startsWith('=>')) {
+                    // Remove the arrow from the text
+                    const cleanText = trimmed.replace(/^(-?>|=>)\s*/, '');
+                    
+                    // Use a Flexbox container for perfect alignment of bullet vs text
+                    html += `
+                        <div class="fmt-list-item">
+                            <span class="fmt-bullet">•</span>
+                            <span>${cleanText}</span>
+                        </div>`;
+                } else {
+                    // Standard text line
+                    html += `<div class="fmt-line">${trimmed}</div>`;
+                }
+            });
+            
+            return html;
+        }
+
         function openInfoModal(id) {
             const event = allEvents.find(e => e.eventId === id);
             if(!event) return;
@@ -629,10 +687,22 @@
             document.getElementById('modalType').innerText = event.type || 'General';
             
             let content = '';
-            if (event.description) content += `<p style="margin-bottom:15px; font-size:1.1rem;">${event.description}</p>`;
+            
+            // Apply formatting to main description
+            if (event.description) {
+                content += `<div style="margin-bottom:15px; font-size:1.1rem;">${formatText(event.description)}</div>`;
+            }
+            
+            // Apply formatting to each section
             if(event.sections && event.sections.length > 0) {
                 event.sections.forEach(sec => {
-                    content += `<div style="margin-top:15px;"><strong style="color:white; display:block; margin-bottom:5px;">${sec.heading}</strong><p style="font-size:0.9rem; color:#ccc;">${sec.content}</p></div>`;
+                    content += `
+                    <div style="margin-top:20px;">
+                        <strong style="color:#00d2ff; display:block; margin-bottom:8px; font-size:1.1rem; text-transform:uppercase; letter-spacing:1px;">
+                            ${sec.heading}
+                        </strong>
+                        <div class="formatted-content" style="font-size:0.95rem;">${formatText(sec.content)}</div>
+                    </div>`;
                 });
             }
             document.getElementById('modalContent').innerHTML = content;

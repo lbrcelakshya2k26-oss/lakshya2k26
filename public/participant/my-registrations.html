@@ -272,10 +272,20 @@
 
         const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'art', 'rangamarthanda', 'painting', 'literary', 'major', 'mba', 'management'];
 
+        // Keywords that likely indicate a kit is included (same as backend eligibility)
+        const kitEligibleKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary', 'technical'];
+
         function isCulturalEvent(title, type) {
             const t = (type || '').toLowerCase();
             const ti = (title || '').toLowerCase();
             return culturalKeywords.some(key => t.includes(key) || ti.includes(key));
+        }
+
+        // Helper to check if event type/title suggests it gets a kit
+        function isKitCategory(eventDetails) {
+            const t = (eventDetails.type || '').toLowerCase();
+            const ti = (eventDetails.title || '').toLowerCase();
+            return kitEligibleKeywords.some(key => t.includes(key) || ti.includes(key));
         }
 
         async function init() {
@@ -308,27 +318,23 @@
                 const isCultural = isCulturalEvent(eventDetails.title, eventDetails.type);
                 const isApproved = reg.approvalStatus === 'APPROVED';
 
-                // --- NEW ROBUST KIT BADGE LOGIC ---
-                // 1. Base eligibility (Event Type)
-                const baseEligible = eventDetails.includesKit === true || (eventDetails.description && eventDetails.description.toLowerCase().includes('kit'));
+                // --- ROBUST KIT CHECK LOGIC ---
+                // Check 1: Is the event type eligible? (Fallback to description/flag)
+                const baseEligible = eventDetails.includesKit === true || 
+                                     (eventDetails.description && eventDetails.description.toLowerCase().includes('kit')) ||
+                                     isKitCategory(eventDetails);
+                
                 let showKitBadge = baseEligible;
 
-                // 2. Strict Price Check Logic
-                // If paid, verify if amountPaid >= Fee. If paid less, it implies discount -> No Kit.
+                // Check 2: If Paid, did they pay full price?
                 if (isPaid) {
                     const paid = parseFloat(reg.amountPaid) || 0;
                     const fee = parseFloat(eventDetails.fee) || 0;
-                    // Tolerance of 1 rupee for float math safety
+                    // If paid < fee (minus tolerance), it's discounted -> No Kit
                     if (paid < (fee - 1)) {
                         showKitBadge = false; 
                     }
-                } else {
-                    // If not paid yet, check if coupon is attached (pre-payment intent)
-                    if (reg.couponUsed && reg.couponUsed !== 'NONE') {
-                        // This part is trickier for pending, usually we hide to be safe or show until paid
-                        // For now, let's leave it as is for pending, assuming payment modal clarifies
-                    }
-                }
+                } 
 
                 let kitBadgeHtml = '';
                 if (showKitBadge) {
@@ -465,7 +471,12 @@
         function openPaymentModal(regId, eventId, amount) {
             const validAmount = parseFloat(amount) || 0;
             const eventInfo = eventCache[eventId];
-            const hasKit = eventInfo ? (eventInfo.includesKit === true || (eventInfo.description && eventInfo.description.toLowerCase().includes('kit'))) : false;
+            // Fix modal kit detection too
+            const hasKit = eventInfo ? (
+                eventInfo.includesKit === true || 
+                (eventInfo.description && eventInfo.description.toLowerCase().includes('kit')) ||
+                isKitCategory(eventInfo)
+            ) : false;
 
             pendingTx = { regId: regId, eventId: eventId, amount: validAmount, coupon: null, discountedBase: validAmount, eventHasKit: hasKit };
             document.getElementById('payOriginalAmount').innerText = '₹' + validAmount;
@@ -620,12 +631,15 @@
             const verifyLink = `${window.location.origin}/receipt-view?id=${regId}`;
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(verifyLink)}`;
             
-            // Logic for Receipt
             const paid = parseFloat(reg.amountPaid) || parseFloat(eventDetails.fee) || 0;
             const fee = parseFloat(eventDetails.fee) || 0;
             
-            // KIT STATUS ON RECEIPT
-            const baseEligible = eventDetails.includesKit === true || (eventDetails.description && eventDetails.description.toLowerCase().includes('kit'));
+            // --- UPDATED KIT LOGIC FOR RECEIPT ---
+            // Ensure we check category too, not just description
+            const baseEligible = eventDetails.includesKit === true || 
+                                 (eventDetails.description && eventDetails.description.toLowerCase().includes('kit')) ||
+                                 isKitCategory(eventDetails);
+            
             let kitStatusText = "";
             let kitColor = "#000";
 
@@ -643,6 +657,10 @@
                 kitStatusText = "STANDARD ENTRY (NO KIT)";
                 kitColor = "#777";
             }
+            
+            // Platform Fee Calculation for display (Approx)
+            const tax = (paid * 0.0236).toFixed(2);
+            const totalWithTax = (paid + parseFloat(tax)).toFixed(2);
 
             const win = window.open('', '', 'width=850,height=900');
             win.document.write(`
@@ -712,7 +730,7 @@
                                 <div class="label">Payment Mode</div>
                                 <div class="value">${reg.paymentMode || 'ONLINE'}</div>
                                 <div class="label">Amount Paid</div>
-                                <div class="value amount-val">₹${paid}</div>
+                                <div class="value amount-val">₹${totalWithTax}</div>
                                 <div class="label">Kit Status</div>
                                 <div class="value" style="color:${kitColor};">${kitStatusText}</div>
                             </div>
