@@ -61,8 +61,8 @@ const razorpay = new Razorpay({
 const client = new DynamoDBClient({
     region: 'ap-south-1',
     credentials: {
-        accessKeyId: 'AKIAT4YSUMZD755UHGW7',
-        secretAccessKey: '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'
+        accessKeyId: 'AKIAWJL64KMIFX67RTPV',
+        secretAccessKey: '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'
     }
 });
 const docClient = DynamoDBDocumentClient.from(client);
@@ -70,8 +70,8 @@ const docClient = DynamoDBDocumentClient.from(client);
 const s3Client = new S3Client({
     region: process.env.AWS_REGION || 'ap-south-1',
     credentials: {
-        accessKeyId: 'AKIAT4YSUMZD755UHGW7',
-        secretAccessKey: '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'
+        accessKeyId: 'AKIAWJL64KMIFX67RTPV',
+        secretAccessKey: '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'
     }
 });
 
@@ -196,7 +196,9 @@ app.get('/participant/feedback', isAuthenticated('participant'), (req, res) => {
 app.get('/participant/culturals', isAuthenticated('participant'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/participant/culturals.html'));
 });
-
+app.get('/participant/support', isAuthenticated('participant'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/participant/support.html'));
+});
 
 // --- 6. ROUTES: COORDINATOR (PROTECTED) ---
 app.get('/coordinator/dashboard', isAuthenticated('coordinator'), (req, res) => {
@@ -266,6 +268,9 @@ app.get('/admin/coupon-usage', isAuthenticated('admin'), (req, res) => {
 });
 app.get('/admin/admin-kits', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/admin-kits.html'));
+});
+app.get('/admin/querries', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/admin-querries.html'));
 });
 
 
@@ -686,7 +691,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode } = req.body;
     
     // Define your frontend domain here for the ticket links
-    const CLIENT_URL = "https://lakshya.lbrce.ac.in"; 
+    const CLIENT_URL = "https://lakshya.lbrce.ac.in/"; 
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
@@ -827,7 +832,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                         <p style="margin: 5px 0;"><strong>Dept:</strong> ${item.dept}</p>
                         ${item.teamName ? `<p style="margin: 5px 0;"><strong>Team:</strong> ${item.teamName}</p>` : ''}
                         <div style="margin-top: 15px;">
-                            <a href="${CLIENT_URL}/receipt-view?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
+                            <a href="${CLIENT_URL}/receipt-view.html?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
                         </div>
                     </div>
                 `).join('');
@@ -1423,33 +1428,50 @@ app.get('/api/admin/departments', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Failed' }); }
 });
 
+// --- ADD EVENT ENDPOINT ---
 app.post('/api/admin/add-event', isAuthenticated('admin'), upload.single('image'), async (req, res) => {
     try {
         const { title, type, description, teamSize, fee, departments, sections } = req.body;
         let imageUrl = 'default.jpg';
+        
+        // Handle File Upload
         if (req.file) {
             const fileName = `events/${uuidv4()}-${req.file.originalname}`;
             const uploadParams = {
-                Bucket: 'hirewithusjobapplications', Key: fileName,
-                Body: req.file.buffer, ContentType: req.file.mimetype
+                Bucket: 'lakshya-assets-2k26-prod-12345', 
+                Key: fileName,
+                Body: req.file.buffer, 
+                ContentType: req.file.mimetype
             };
             await s3Client.send(new PutObjectCommand(uploadParams));
-            imageUrl = `https://hirewithusjobapplications.s3.ap-south-1.amazonaws.com/${fileName}`;
+            imageUrl = `https://lakshya-assets-2k26-prod-12345.s3.ap-south-1.amazonaws.com/${fileName}`;
         }
+
+        // Create Event Item
         const eventId = uuidv4();
         const params = {
             TableName: 'Lakshya_Events',
             Item: {
-                eventId, title, type, description, teamSize, fee,
-                departments: JSON.parse(departments), sections: JSON.parse(sections),
-                imageUrl, createdAt: new Date().toISOString()
+                eventId, 
+                title, 
+                type, 
+                description, 
+                teamSize, 
+                fee,
+                // Parse the JSON strings sent by FormData
+                departments: JSON.parse(departments), 
+                sections: JSON.parse(sections),
+                imageUrl, 
+                createdAt: new Date().toISOString()
             }
         };
         await docClient.send(new PutCommand(params));
         res.json({ message: 'Event created' });
-    } catch (err) { res.status(500).json({ error: 'Failed' }); }
+    } catch (err) { 
+        console.error("Add Event Error:", err);
+        res.status(500).json({ error: 'Failed' }); 
+    }
 });
-
 app.post('/api/admin/add-department', isAuthenticated('admin'), async (req, res) => {
     const { name } = req.body;
     try {
@@ -1609,30 +1631,50 @@ app.post('/api/admin/delete-event', isAuthenticated('admin'), async (req, res) =
 app.post('/api/admin/update-event', isAuthenticated('admin'), upload.single('image'), async (req, res) => {
     try {
         const { eventId, title, type, description, fee, departments, sections } = req.body;
+        
         let updateExp = "set title=:t, #type=:ty, description=:d, fee=:f, departments=:depts, sections=:sec";
-        let expValues = { ':t': title, ':ty': type, ':d': description, ':f': fee, ':depts': JSON.parse(departments), ':sec': JSON.parse(sections) };
+        let expValues = { 
+            ':t': title, 
+            ':ty': type, 
+            ':d': description, 
+            ':f': fee, 
+            ':depts': JSON.parse(departments), 
+            ':sec': JSON.parse(sections) 
+        };
+
         if (req.file) {
             const fileName = `events/${uuidv4()}-${req.file.originalname}`;
-            await s3Client.send(new PutObjectCommand({ Bucket: 'hirewithusjobapplications', Key: fileName, Body: req.file.buffer, ContentType: req.file.mimetype }));
+            await s3Client.send(new PutObjectCommand({ 
+                Bucket: 'lakshya-assets-2k26-prod-12345', 
+                Key: fileName, 
+                Body: req.file.buffer, 
+                ContentType: req.file.mimetype 
+            }));
             updateExp += ", imageUrl=:img";
-            expValues[':img'] = `https://hirewithusjobapplications.s3.ap-south-1.amazonaws.com/${fileName}`;
+            expValues[':img'] = `https://lakshya-assets-2k26-prod-12345.s3.ap-south-1.amazonaws.com/${fileName}`;
         }
+
         await docClient.send(new UpdateCommand({
-            TableName: 'Lakshya_Events', Key: { eventId }, UpdateExpression: updateExp, ExpressionAttributeValues: expValues, ExpressionAttributeNames: { "#type": "type" }
+            TableName: 'Lakshya_Events', 
+            Key: { eventId }, 
+            UpdateExpression: updateExp, 
+            ExpressionAttributeValues: expValues, 
+            ExpressionAttributeNames: { "#type": "type" } // 'type' is a reserved word
         }));
         res.json({ message: 'Updated' });
-    } catch (err) { res.status(500).json({ error: 'Failed' }); }
-});
-
-// Committee & Misc
+    } catch (err) { 
+        console.error("Update Event Error:", err);
+        res.status(500).json({ error: 'Failed' }); 
+    }
+});// Committee & Misc
 app.post('/api/admin/add-committee-member', isAuthenticated('admin'), upload.single('image'), async (req, res) => {
     try {
         const { name, role, category } = req.body;
         let imageUrl = 'assets/default-user.png';
         if (req.file) {
             const fileName = `committee/${uuidv4()}-${req.file.originalname}`;
-            await s3Client.send(new PutObjectCommand({ Bucket: 'hirewithusjobapplications', Key: fileName, Body: req.file.buffer, ContentType: req.file.mimetype }));
-            imageUrl = `https://hirewithusjobapplications.s3.ap-south-1.amazonaws.com/${fileName}`;
+            await s3Client.send(new PutObjectCommand({ Bucket: 'lakshya-assets-2k26-prod-12345', Key: fileName, Body: req.file.buffer, ContentType: req.file.mimetype }));
+            imageUrl = `https://lakshya-assets-2k26-prod-12345.s3.ap-south-1.amazonaws.com/${fileName}`;
         }
         await docClient.send(new PutCommand({
             TableName: 'Lakshya_Committee',
@@ -1835,8 +1877,8 @@ app.post('/api/utility/upload-file', isAuthenticated('participant'), upload.sing
     try {
         if (!req.file) return res.status(400).json({ error: 'No file' });
         const fileName = `temp_uploads/${req.session.user.email}_${uuidv4()}.${req.file.originalname.split('.').pop()}`;
-        await s3Client.send(new PutObjectCommand({ Bucket: 'hirewithusjobapplications', Key: fileName, Body: req.file.buffer, ContentType: req.file.mimetype }));
-        res.json({ url: `https://hirewithusjobapplications.s3.ap-south-1.amazonaws.com/${fileName}` });
+        await s3Client.send(new PutObjectCommand({ Bucket: 'lakshya-assets-2k26-prod-12345', Key: fileName, Body: req.file.buffer, ContentType: req.file.mimetype }));
+        res.json({ url: `https://lakshya-assets-2k26-prod-12345.s3.ap-south-1.amazonaws.com/${fileName}` });
     } catch (e) { res.status(500).json({ error: 'Upload failed' }); }
 });
 
