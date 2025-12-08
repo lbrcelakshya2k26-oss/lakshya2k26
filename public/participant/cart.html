@@ -6,7 +6,7 @@
     <title>My Cart | LAKSHYA 2K26</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- Razorpay Checkout JS is NOT needed for Payment Links, but leaving it doesn't hurt -->
     <link rel="icon" type="image/png" href="/assets/logo.png">
     
     <style>
@@ -25,29 +25,25 @@
         .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center center/cover; z-index: -2; opacity: 0.6; }
         .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 5, 12, 0.92); z-index: -1; }
 
-        /* --- MAIN CONTENT --- */
         .main { 
             flex-grow: 1; 
             padding: 2.5rem; 
-            margin-left: 260px; /* Aligned with common.js sidebar width */
+            margin-left: 260px; 
             width: calc(100% - 260px); 
             overflow-y: auto; 
             transition: margin-left 0.3s; 
         }
-        
         @media (max-width: 1024px) {
             .main { width: 100%; margin-left: 0; padding: 1.5rem; padding-top: 90px; }
         }
 
         .container { max-width: 1000px; margin: 0 auto; padding-bottom: 80px; }
-        
         .page-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
         .page-header h2 { font-family: 'Montserrat', sans-serif; font-size: 2rem; color: white; }
         .item-count { background: var(--primary-color); color: black; padding: 2px 10px; border-radius: 50px; font-size: 0.9rem; font-weight: bold; }
 
-        /* --- CART ITEMS --- */
+        /* CART ITEMS */
         .cart-list { display: flex; flex-direction: column; gap: 1.5rem; }
-        
         .cart-item { 
             background: rgba(30, 30, 40, 0.6); border: 1px solid var(--glass-border); 
             border-radius: 15px; padding: 1.5rem; display: flex; flex-wrap: wrap; 
@@ -55,82 +51,47 @@
             position: relative; transition: 0.3s;
         }
         .cart-item:hover { border-color: var(--primary-color); transform: translateY(-2px); }
-        
         .item-details { flex: 1; min-width: 250px; }
         .item-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; color: white; font-family: 'Montserrat', sans-serif; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
         .item-meta { color: #aaa; font-size: 0.9rem; display: flex; gap: 15px; margin-bottom: 8px; flex-wrap: wrap; }
-        .item-meta span { display: flex; align-items: center; gap: 6px; }
-        .item-meta i { color: var(--primary-color); }
         
-        /* UPDATED KIT BADGE STYLE (Clickable) */
         .kit-badge {
-            background: linear-gradient(45deg, #ff00cc, #6600cc);
-            color: white;
-            font-size: 0.75rem;
-            padding: 5px 12px;
-            border-radius: 50px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            box-shadow: 0 2px 8px rgba(255, 0, 204, 0.3);
-            letter-spacing: 0.5px;
-            cursor: pointer; /* Makes it look clickable */
-            transition: transform 0.2s;
-            border: 1px solid rgba(255,255,255,0.2);
+            background: linear-gradient(45deg, #ff00cc, #6600cc); color: white; font-size: 0.75rem;
+            padding: 5px 12px; border-radius: 50px; font-weight: 600; display: inline-flex; align-items: center;
+            gap: 5px; box-shadow: 0 2px 8px rgba(255, 0, 204, 0.3); letter-spacing: 0.5px;
+            cursor: pointer; transition: transform 0.2s; border: 1px solid rgba(255,255,255,0.2);
         }
-        .kit-badge:hover {
-            transform: scale(1.05);
-            background: linear-gradient(45deg, #6600cc, #ff00cc);
-        }
+        .kit-badge:hover { transform: scale(1.05); background: linear-gradient(45deg, #6600cc, #ff00cc); }
 
         .item-actions { display: flex; align-items: center; gap: 20px; }
-        
-        /* UPDATED PRICE STYLE */
         .item-price { font-size: 1.5rem; font-weight: 700; color: #4caf50; display: flex; align-items: center; gap: 10px; }
         .original-price { font-size: 1rem; color: #888; text-decoration: line-through; font-weight: 400; }
         
         .btn-remove { 
-            width: 40px; height: 40px; border-radius: 50%; 
-            background: rgba(255, 68, 68, 0.1); color: #ff4444; 
-            display: flex; align-items: center; justify-content: center; 
+            width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 68, 68, 0.1); 
+            color: #ff4444; display: flex; align-items: center; justify-content: center; 
             cursor: pointer; transition: 0.3s; font-size: 1.1rem;
         }
         .btn-remove:hover { background: #ff4444; color: white; transform: rotate(90deg); }
 
-        /* --- COUPON & SUMMARY --- */
+        /* COUPON & SUMMARY */
         .offer-banner {
             background: linear-gradient(90deg, rgba(255,0,204,0.1), rgba(0,210,255,0.1));
-            border: 1px dashed var(--accent-color);
-            padding: 15px; border-radius: 10px;
-            margin-top: 2rem;
-            display: flex; justify-content: space-between; align-items: center;
+            border: 1px dashed var(--accent-color); padding: 15px; border-radius: 10px;
+            margin-top: 2rem; display: flex; justify-content: space-between; align-items: center;
         }
         .offer-text strong { color: var(--accent-color); font-size: 1.1rem; }
         .offer-text p { margin: 5px 0 0; font-size: 0.9rem; color: #ccc; }
-        .btn-use-offer {
-            background: var(--accent-color); color: white; border: none; padding: 8px 15px;
-            border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9rem;
-        }
+        .btn-use-offer { background: var(--accent-color); color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
 
         .coupon-box {
             margin-top: 1.5rem; padding: 1.5rem; background: rgba(20, 20, 35, 0.6);
             border: 1px dashed var(--primary-color); border-radius: 10px; 
             display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
         }
-        .coupon-input {
-            flex-grow: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
-            padding: 12px; color: white; border-radius: 8px; text-transform: uppercase; font-weight: bold; font-size: 1rem;
-        }
-        .btn-apply {
-            background: var(--primary-color); color: black; padding: 12px 25px; border: none;
-            border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; white-space: nowrap;
-        }
-        /* New Remove Coupon Button */
-        .btn-remove-coupon {
-            background: rgba(255, 68, 68, 0.2); color: #ff4444; padding: 12px 20px; border: 1px solid #ff4444;
-            border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; white-space: nowrap;
-        }
+        .coupon-input { flex-grow: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 12px; color: white; border-radius: 8px; text-transform: uppercase; font-weight: bold; font-size: 1rem; }
+        .btn-apply { background: var(--primary-color); color: black; padding: 12px 25px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; white-space: nowrap; }
+        .btn-remove-coupon { background: rgba(255, 68, 68, 0.2); color: #ff4444; padding: 12px 20px; border: 1px solid #ff4444; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; white-space: nowrap; }
         .btn-remove-coupon:hover { background: #ff4444; color: white; }
 
         .cart-summary { 
@@ -139,32 +100,15 @@
             display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; 
             gap: 30px; box-shadow: 0 0 30px rgba(0, 210, 255, 0.1); 
         }
-        
         .summary-details { width: 100%; max-width: 300px; }
         .price-row { display: flex; justify-content: space-between; color: #ccc; margin-bottom: 8px; font-size: 1rem; }
         .total-row { display: flex; justify-content: space-between; color: white; font-size: 1.6rem; font-weight: 800; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); }
-        
-        .kit-summary {
-            margin-top: 15px; padding-top: 15px; 
-            border-top: 1px dashed rgba(255,255,255,0.2); 
-            font-size: 0.85rem; color: #aaa;
-        }
+        .kit-summary { margin-top: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.2); font-size: 0.85rem; color: #aaa; }
         .kit-summary strong { color: var(--accent-color); display: block; margin-bottom: 5px; }
         .kit-summary ul { list-style: none; padding: 0; }
         .kit-summary li { margin-bottom: 3px; display: flex; align-items: center; gap: 5px; }
-        .kit-summary li i { color: #00ff88; font-size: 0.8rem; }
         
         .summary-actions { flex: 1; width: 100%; min-width: 280px; display: flex; flex-direction: column; gap: 20px; }
-        
-        .payment-methods { display: flex; gap: 15px; flex-wrap: wrap; }
-        .radio-group { 
-            display: flex; align-items: center; gap: 10px; cursor: pointer; 
-            padding: 12px 20px; background: rgba(255,255,255,0.05); border-radius: 8px; 
-            border: 1px solid transparent; transition: 0.3s; flex: 1; white-space: nowrap;
-        }
-        .radio-group:hover { border-color: var(--primary-color); background: rgba(0,210,255,0.1); }
-        .radio-group input { accent-color: var(--primary-color); width: 18px; height: 18px; }
-
         .btn-checkout { 
             padding: 16px; background: linear-gradient(135deg, var(--primary-color), #0088cc); 
             color: black; border: none; border-radius: 10px; font-weight: 700; font-size: 1.2rem; 
@@ -177,41 +121,29 @@
         .btn-browse { margin-top: 20px; display: inline-block; padding: 12px 30px; border: 1px solid var(--primary-color); color: var(--primary-color); text-decoration: none; border-radius: 50px; font-weight: 600; transition: 0.3s; }
         .btn-browse:hover { background: var(--primary-color); color: black; }
 
-        /* --- GENERIC MODAL --- */
+        /* MODALS */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(5px); padding: 20px; }
         .modal-content { background: #1a1a2e; padding: 2rem; border-radius: 15px; border: 1px solid var(--primary-color); width: 100%; max-width: 400px; text-align: center; animation: slideUp 0.3s ease-out; position: relative; }
         .modal-icon { font-size: 3rem; margin-bottom: 1rem; color: var(--primary-color); }
         .btn-modal { padding: 10px 25px; border-radius: 50px; border: none; font-weight: 600; cursor: pointer; background: var(--primary-color); color: black; margin-top: 10px; }
-
-        /* --- T&C LIST STYLES --- */
+        
         .tnc-list { text-align: left; margin: 15px 0; max-height: 300px; overflow-y: auto; padding-right: 5px; }
         .tnc-list ul { padding-left: 20px; margin: 0; list-style-type: disc; }
         .tnc-list li { margin-bottom: 10px; font-size: 0.85rem; color: #ddd; line-height: 1.4; }
-        .tnc-list strong { color: var(--primary-color); }
         
-        .tnc-list::-webkit-scrollbar { width: 5px; }
-        .tnc-list::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-        .tnc-list::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 5px; }
-
-        /* KIT LIST STYLES FOR POPUP */
         .kit-popup-list { text-align: left; margin: 20px 0; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px dashed var(--accent-color); }
         .kit-popup-list ul { list-style: none; padding: 0; }
         .kit-popup-list li { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; color: white; font-size: 1rem; }
-        .kit-popup-list i { color: #00ff88; font-size: 1.1rem; }
 
         @media (max-width: 768px) {
             .cart-item { flex-direction: column; align-items: flex-start; gap: 15px; }
             .item-details { width: 100%; }
-            .item-actions { width: 100%; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); }
             .cart-summary { flex-direction: column; padding: 1.5rem; }
-            .summary-details { max-width: 100%; }
             .payment-methods { flex-direction: column; }
-            .radio-group { width: 100%; }
         }
     </style>
 </head>
 <body>
-
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
 
@@ -223,132 +155,95 @@
             
             <div id="cartContainer" class="cart-list"></div>
 
-            <!-- OFFER BANNER -->
             <div id="offerBanner" class="offer-banner" style="display:none;">
-                <div class="offer-text">
-                    <strong><i class="fa-solid fa-gift"></i> Combo Offer Available!</strong>
-                    <p>Get 50% OFF on every additional event you register for.</p>
-                </div>
+                <div class="offer-text"><strong><i class="fa-solid fa-gift"></i> Combo Offer!</strong><p>50% OFF on every additional event.</p></div>
                 <button class="btn-use-offer" onclick="applyOfferCode()">Use LAKSHYA2K26</button>
             </div>
 
-            <!-- COUPON SECTION -->
             <div id="couponSection" class="coupon-box" style="display:none;">
                 <div style="flex-grow:1;">
                     <div style="margin-bottom:5px; color:var(--primary-color); font-weight:600;"><i class="fa-solid fa-tag"></i> Have a Coupon?</div>
-                    <div style="font-size:0.8rem; color:#aaa;">Enter code to get instant discount</div>
                 </div>
-                
-                <!-- Input Area (Shown when no coupon applied) -->
                 <div id="couponInputWrapper" style="display:flex; gap:10px; flex-wrap:wrap; width:100%; max-width:400px;">
                     <input type="text" id="couponInput" class="coupon-input" placeholder="Enter Code">
-                    <button class="btn-apply" onclick="applyCoupon()" id="applyBtn">Apply Coupon</button>
+                    <button class="btn-apply" onclick="applyCoupon()" id="applyBtn">Apply</button>
                 </div>
-
-                <!-- Applied State (Shown when coupon active) -->
                 <div id="couponAppliedWrapper" style="display:none; align-items:center; gap:10px; width:100%; max-width:400px; justify-content:flex-end;">
                     <span style="color:white; font-weight:bold; background:rgba(0,255,136,0.1); padding:8px 15px; border-radius:5px; border:1px solid #00ff88;">
                         <i class="fa-solid fa-check-circle"></i> <span id="appliedCodeDisplay"></span>
                     </span>
                     <button class="btn-remove-coupon" onclick="removeCoupon()">Remove</button>
                 </div>
-
-                <div id="discountMsg" class="discount-msg" style="width:100%; text-align:right; color:#00ff88; font-size:0.9rem; margin-top:5px; display:none;"></div>
-                <div id="errorMsg" class="error-msg" style="width:100%; text-align:right; color:#ff4444; font-size:0.9rem; margin-top:5px; display:none;"></div>
+                <div id="discountMsg" style="width:100%; text-align:right; color:#00ff88; font-size:0.9rem; margin-top:5px; display:none;"></div>
+                <div id="errorMsg" style="width:100%; text-align:right; color:#ff4444; font-size:0.9rem; margin-top:5px; display:none;"></div>
             </div>
 
-            <!-- SUMMARY SECTION -->
             <div id="summarySection" class="cart-summary" style="display:none;">
                 <div class="summary-details">
                     <div class="price-row"><span>Subtotal</span> <span id="subTotal">₹0</span></div>
                     <div class="price-row" id="discountRow" style="display:none; color:#00ff88;"><span>Discount</span> <span id="discountVal">- ₹0</span></div>
-                    <!-- Platform Fee Row -->
                     <div class="price-row" id="feeRow" style="color:#aaa;"><span>Platform Fee (2.36%)</span> <span id="feeVal">₹0</span></div>
                     <div class="total-row"><span>Total Payable</span> <span id="totalAmount">₹0</span></div>
-                    
-                    <!-- New Kit Details Section in Summary -->
                     <div id="kitDetails" class="kit-summary" style="display:none;">
-                        <strong><i class="fa-solid fa-box-open"></i> Registration Kits Included:</strong>
-                        <ul id="kitList"></ul>
+                        <strong><i class="fa-solid fa-box-open"></i> Kits Included:</strong><ul id="kitList"></ul>
                     </div>
                 </div>
                 
                 <div class="summary-actions">
-                    <div class="payment-methods">
-                        <label class="radio-group">
-                            <input type="radio" name="payment" value="Online" checked onclick="toggleFeeDisplay(true)"> <span><i class="fa-solid fa-credit-card"></i> Online (Razorpay)</span>
-                        </label>
-                        <!-- HIDDEN CASH OPTION -->
-                        <label class="radio-group" style="display:none;">
-                            <input type="radio" name="payment" value="Cash" onclick="toggleFeeDisplay(false)"> <span><i class="fa-solid fa-wallet"></i> Cash / Pay Later</span>
-                        </label>
+                    <div class="payment-methods" style="margin-bottom:10px; color:#aaa; font-size:0.9rem;">
+                        <i class="fa-solid fa-lock"></i> Secured by Razorpay
                     </div>
                     <button class="btn-checkout" onclick="initiateCheckout()">
-                        Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>
+                        Pay Now <i class="fa-solid fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- CUSTOM GENERIC MODAL -->
+    <!-- POPUP MODAL -->
     <div class="modal" id="customModal">
         <div class="modal-content">
             <div class="modal-icon" id="popupIcon"></div>
             <h3 id="popupTitle" style="color:white; font-family:'Montserrat'; margin-bottom:10px;"></h3>
-            <div id="popupMessage" style="color:#ccc; margin-bottom:20px; line-height:1.5;"></div>
+            <div id="popupMessage" style="color:#ccc; margin-bottom:20px;"></div>
             <div id="popupButtons" style="display:flex; justify-content:center; gap:10px;"></div>
         </div>
     </div>
 
-    <!-- KIT DETAILS MODAL (Reusing logic but with specific content) -->
+    <!-- KIT INFO MODAL -->
     <div class="modal" id="kitModal">
         <div class="modal-content">
             <div class="modal-icon"><i class="fa-solid fa-box-open" style="color: #ff00cc;"></i></div>
             <h3 style="color:white; font-family:'Montserrat'; margin-bottom:10px;">Kit Contents</h3>
-            
             <div class="kit-popup-list">
                 <ul>
-                    <li><i class="fa-solid fa-bag-shopping"></i> A Student Bag Pack</li>
-                    <li><i class="fa-solid fa-book"></i> A Scribble Pad</li>
+                    <li><i class="fa-solid fa-bag-shopping"></i> Student Bag Pack</li>
+                    <li><i class="fa-solid fa-book"></i> Scribble Pad</li>
                     <li><i class="fa-solid fa-pen-nib"></i> Pen</li>
-                    <li><i class="fa-solid fa-ticket"></i> Food Coupons worth ₹100/-</li>
+                    <li><i class="fa-solid fa-ticket"></i> Food Coupons (₹100)</li>
                 </ul>
             </div>
-            
             <button class="btn-modal" onclick="document.getElementById('kitModal').style.display='none'">Awesome!</button>
         </div>
     </div>
 
     <!-- T&C MODAL -->
     <div class="modal" id="tncModal">
-        <div class="modal-content" style="max-width:500px; text-align:left;">
-            <div style="text-align:center; margin-bottom:15px;">
-                <i class="fa-solid fa-file-contract" style="font-size:2.5rem; color:var(--primary-color);"></i>
-                <h3 style="color:white; font-family:'Montserrat'; margin-top:10px;">Coupon Terms & Conditions</h3>
-            </div>
-            
+        <div class="modal-content" style="max-width:500px;">
+            <div style="text-align:center;"><i class="fa-solid fa-file-contract" style="font-size:2.5rem; color:var(--primary-color);"></i><h3>Coupon Terms</h3></div>
             <div class="tnc-list">
                 <ul>
-                    <li>The coupon <strong>LAKSHYA2K26</strong> is applicable only to <strong>Major, MBA, and Cultural Events</strong>.</li>
-                    <li>It offers <strong>50% off</strong> on the second eligible event in a single transaction.</li>
-                    <li>The coupon <strong>cannot</strong> be applied to Special Events.</li>
-                    <li>The coupon is valid <strong>once per user</strong> and per order.</li>
-                    <li><strong>Registration kits</strong> are provided <strong>ONLY</strong> for events booked at the full price in eligible categories.</li>
-                    <li>Special Events do not include registration kits, regardless of the fee.</li>
-                    <li>The coupon cannot be combined with other offers.</li>
-                    <li>Once payment is completed, coupon benefits and kit eligibility <strong>cannot be changed</strong>.</li>
-                    <li>The organizing committee reserves the right to cancel coupon usage in case of misuse.</li>
+                    <li>Coupon <strong>LAKSHYA2K26</strong> applicable to Major, MBA, Cultural.</li>
+                    <li><strong>50% off</strong> on 2nd eligible event.</li>
+                    <li>Registration kits <strong>ONLY</strong> for full price events.</li>
+                    <li>Discounted events do <strong>NOT</strong> get a kit.</li>
                 </ul>
             </div>
-            
-            <div style="display:flex; justify-content:center; margin-top:20px;">
-                <button class="btn-modal" onclick="closeTnCPopup()">I Understand</button>
-            </div>
+            <button class="btn-modal" onclick="closeTnCPopup()">I Understand</button>
         </div>
     </div>
 
-    <!-- Connect Common Scripts -->
     <script>const CURRENT_PAGE = 'cart';</script>
     <script src="/js/common.js"></script>
     <script src="/js/chatbot.js"></script>
@@ -363,7 +258,7 @@
         function showPopup(title, message, type, callback) {
             const modal = document.getElementById('customModal');
             document.getElementById('popupTitle').innerText = title;
-            document.getElementById('popupMessage').innerHTML = message; // Changed to innerHTML to allow HTML content
+            document.getElementById('popupMessage').innerHTML = message;
             const btnContainer = document.getElementById('popupButtons');
             let iconHtml = '<i class="fa-solid fa-circle-info"></i>';
             if(type === 'success') iconHtml = '<i class="fa-solid fa-circle-check" style="color:#00ff88;"></i>';
@@ -378,31 +273,18 @@
             modal.style.display = 'flex';
         }
         function closePopup() { document.getElementById('customModal').style.display = 'none'; }
-
-        // --- KIT POPUP ---
-        function showKitPopup() {
-            document.getElementById('kitModal').style.display = 'flex';
-        }
-
-        // --- T&C MODAL FUNCTIONS ---
-        function showTnCPopup() {
-            document.getElementById('tncModal').style.display = 'flex';
-        }
-        function closeTnCPopup() {
-            document.getElementById('tncModal').style.display = 'none';
-        }
+        function showKitPopup() { document.getElementById('kitModal').style.display = 'flex'; }
+        function showTnCPopup() { document.getElementById('tncModal').style.display = 'flex'; }
+        function closeTnCPopup() { document.getElementById('tncModal').style.display = 'none'; }
 
         async function initCart() {
             try {
                 const [resEvents, resCart] = await Promise.all([fetch('/api/events'), fetch('/api/cart')]);
                 const allEvents = await resEvents.json();
                 allEvents.forEach(e => eventsCache[e.eventId] = e);
-                
                 cartItems = await resCart.json();
                 document.getElementById('cartCount').innerText = cartItems.length;
-                
-                if (cartItems.length === 0) showEmpty();
-                else renderCart();
+                if (cartItems.length === 0) showEmpty(); else renderCart();
             } catch (e) { showEmpty(); }
         }
 
@@ -426,67 +308,45 @@
                 
                 let originalFee = parseInt(ev.fee || 0);
                 total += originalFee;
-                let finalItemFee = originalFee; // Used for Display calculation
+                let finalItemFee = originalFee;
                 
                 const t = (ev.type || '').toLowerCase();
                 const isTypeEligible = t.includes('major') || t.includes('mba') || t.includes('cultural') || t.includes('music') || t.includes('dance');
-                
                 let isDiscounted = false; 
                 
-                // --- Discount Logic Calculation for Display ---
                 if (isTypeEligible) {
                     currentEligibleIndex++; 
                     if (activeCoupon && activeCoupon.code === 'LAKSHYA2K26') {
-                        const effectivePosition = historyCount + currentEligibleIndex;
-                        if (effectivePosition > 1) {
+                        if ((historyCount + currentEligibleIndex) > 1) {
                             isDiscounted = true;
-                            finalItemFee = originalFee / 2; // 50% Off
+                            finalItemFee = originalFee / 2;
                         }
                     } else if (activeCoupon && activeCoupon.percentage) {
-                        // Support for Standard Coupons (Percentage based)
                         finalItemFee = originalFee - (originalFee * activeCoupon.percentage / 100);
                     }
                 }
 
-                // --- Kit Badge Logic ---
                 let showKitBadge = item.includesKit; 
-                if (isDiscounted) {
-                    showKitBadge = false; // Discounted items lose kit
-                }
-                if (activeCoupon && activeCoupon.percentage) {
-                     // Assumption: Standard coupons might also remove kit eligibility if they reduce price?
-                     // For now, keeping your specific logic: Kit only for full price.
-                     if (finalItemFee < originalFee) showKitBadge = false;
-                }
+                if (isDiscounted) showKitBadge = false;
+                if (activeCoupon && activeCoupon.percentage && finalItemFee < originalFee) showKitBadge = false;
 
-                if (showKitBadge) {
-                    kitEligibleNames.push(ev.title);
-                }
+                if (showKitBadge) kitEligibleNames.push(ev.title);
 
-                let kitBadgeHtml = '';
-                if (showKitBadge) {
-                    kitBadgeHtml = `<span class="kit-badge" onclick="showKitPopup()"><i class="fa-solid fa-box-open"></i> KIT INCLUDED</span>`;
-                }
-
-                // --- Price Display Logic ---
                 let priceHtml = `₹${originalFee}`;
-                if (finalItemFee < originalFee) {
-                    priceHtml = `<span class="original-price">₹${originalFee}</span> ₹${finalItemFee}`;
-                }
+                if (finalItemFee < originalFee) priceHtml = `<span class="original-price">₹${originalFee}</span> ₹${finalItemFee}`;
 
-                let teamHtml = item.teamName ? `<div style="color:#ff88dd; border:1px dashed #ff88dd; padding:5px 10px; display:inline-block; border-radius:5px; font-size:0.8rem; width:fit-content;"><i class="fa-solid fa-users"></i> Team: ${item.teamName}</div>` : '';
                 container.innerHTML += `
                     <div class="cart-item">
                         <div class="item-details">
                             <div class="item-title">
                                 ${ev.title} 
-                                ${kitBadgeHtml}
+                                ${showKitBadge ? `<span class="kit-badge" onclick="showKitPopup()"><i class="fa-solid fa-box-open"></i> KIT</span>` : ''}
                             </div>
                             <div class="item-meta">
                                 <span><i class="fa-solid fa-layer-group"></i> ${ev.type}</span>
                                 <span><i class="fa-solid fa-building-columns"></i> ${item.dept}</span>
                             </div>
-                            ${teamHtml}
+                            ${item.teamName ? `<div style="color:#ff88dd; font-size:0.8rem;"><i class="fa-solid fa-users"></i> Team: ${item.teamName}</div>` : ''}
                         </div>
                         <div class="item-actions">
                             <div class="item-price">${priceHtml}</div>
@@ -496,32 +356,19 @@
             });
 
             const kitListEl = document.getElementById('kitList');
-            const kitDetailsEl = document.getElementById('kitDetails');
             kitListEl.innerHTML = '';
-            
             if (kitEligibleNames.length > 0) {
-                kitEligibleNames.forEach(name => {
-                    kitListEl.innerHTML += `<li><i class="fa-solid fa-check"></i> ${name}</li>`;
-                });
-                kitDetailsEl.style.display = 'block';
+                kitEligibleNames.forEach(name => { kitListEl.innerHTML += `<li><i class="fa-solid fa-check"></i> ${name}</li>`; });
+                document.getElementById('kitDetails').style.display = 'block';
             } else {
-                kitDetailsEl.style.display = 'none';
+                document.getElementById('kitDetails').style.display = 'none';
             }
 
-            if ((historyCount + currentEligibleIndex) >= 2) {
-                document.getElementById('offerBanner').style.display = 'flex';
-            } else {
-                document.getElementById('offerBanner').style.display = 'none';
-            }
-
+            document.getElementById('offerBanner').style.display = ((historyCount + currentEligibleIndex) >= 2) ? 'flex' : 'none';
             currentTotal = total;
             updateTotalDisplay();
             document.getElementById('summarySection').style.display = 'flex';
             document.getElementById('couponSection').style.display = 'flex';
-        }
-
-        function toggleFeeDisplay(isOnline) {
-             updateTotalDisplay();
         }
 
         function updateTotalDisplay() {
@@ -530,11 +377,8 @@
             
             if (activeCoupon) {
                 let discount = 0;
-                if (activeCoupon.discountAmount !== undefined) { 
-                     discount = activeCoupon.discountAmount;
-                } else if (activeCoupon.percentage) {
-                     discount = Math.round((currentTotal * activeCoupon.percentage) / 100);
-                }
+                if (activeCoupon.discountAmount !== undefined) discount = activeCoupon.discountAmount;
+                else if (activeCoupon.percentage) discount = Math.round((currentTotal * activeCoupon.percentage) / 100);
                 
                 finalAmount = Math.max(0, Math.round(currentTotal - discount));
                 document.getElementById('discountRow').style.display = 'flex';
@@ -543,24 +387,15 @@
                 document.getElementById('discountRow').style.display = 'none';
             }
 
-            const isOnline = document.querySelector('input[name="payment"]:checked').value === 'Online';
-            
-            if (isOnline) {
-                const platformFee = Math.ceil(finalAmount * 0.0236);
-                finalAmount += platformFee;
-                document.getElementById('feeRow').style.display = 'flex';
-                document.getElementById('feeVal').innerText = '+ ₹' + platformFee;
-            } else {
-                document.getElementById('feeRow').style.display = 'none';
-            }
-
+            // Always add Platform Fee for Online
+            const platformFee = Math.ceil(finalAmount * 0.0236);
+            finalAmount += platformFee;
+            document.getElementById('feeRow').style.display = 'flex';
+            document.getElementById('feeVal').innerText = '+ ₹' + platformFee;
             document.getElementById('totalAmount').innerText = '₹' + finalAmount;
         }
 
-        function applyOfferCode() {
-            document.getElementById('couponInput').value = "LAKSHYA2K26";
-            applyCoupon();
-        }
+        function applyOfferCode() { document.getElementById('couponInput').value = "LAKSHYA2K26"; applyCoupon(); }
 
         async function applyCoupon() {
             const code = document.getElementById('couponInput').value.trim();
@@ -568,191 +403,95 @@
             const btn = document.getElementById('applyBtn');
             const msgSuccess = document.getElementById('discountMsg');
             const msgError = document.getElementById('errorMsg');
-            
-            btn.innerText = "Checking..."; btn.disabled = true;
+            btn.innerText = "..."; btn.disabled = true;
             msgSuccess.style.display = 'none'; msgError.style.display = 'none';
-            
             try {
                 const res = await fetch('/api/coupon/validate', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ code, cartItems: cartItems }) 
                 });
-                
                 const data = await res.json();
                 if(res.ok) {
-                    activeCoupon = data; 
-                    historyCount = data.historyCount || 0; 
-
-                    let desc = "";
-                    if (data.discountAmount !== undefined) {
-                        desc = `₹${data.discountAmount} OFF`;
-                    } else {
-                        desc = `${data.percentage}% OFF`;
-                    }
-                    
-                    if (data.discountAmount === 0) {
-                        msgSuccess.innerText = "Coupon Applied! (Discount triggers on 2nd eligible event)";
-                    } else {
-                        msgSuccess.innerText = `Success! ${desc} Applied.`;
-                    }
-
-                    // SWITCH UI: Hide Input, Show Applied + Remove
+                    activeCoupon = data; historyCount = data.historyCount || 0; 
+                    msgSuccess.innerText = data.discountAmount === 0 ? "Coupon Applied! (Discount triggers on 2nd event)" : `Success! Discount Applied.`;
                     document.getElementById('couponInputWrapper').style.display = 'none';
                     document.getElementById('couponAppliedWrapper').style.display = 'flex';
                     document.getElementById('appliedCodeDisplay').innerText = code.toUpperCase();
-
                     msgSuccess.style.display = 'block';
-                    btn.innerText = "Apply Coupon"; btn.disabled = false;
                     showTnCPopup();
                 } else {
-                    activeCoupon = null;
-                    historyCount = 0; 
-                    msgError.innerText = data.error || "Invalid Coupon";
-                    msgError.style.display = 'block';
-                    btn.innerText = "Apply Coupon"; btn.disabled = false;
+                    activeCoupon = null; historyCount = 0;
+                    msgError.innerText = data.error || "Invalid Coupon"; msgError.style.display = 'block';
                 }
+                btn.innerText = "Apply"; btn.disabled = false;
                 renderCart();
-            } catch(e) {
-                msgError.innerText = "Connection error.";
-                msgError.style.display = 'block';
-                btn.innerText = "Apply Coupon"; btn.disabled = false;
-            }
+            } catch(e) { msgError.innerText = "Connection error."; msgError.style.display = 'block'; btn.disabled = false; }
         }
 
         function removeCoupon() {
-            activeCoupon = null;
-            historyCount = 0; // Reset history check
-            
-            // Reset UI
+            activeCoupon = null; historyCount = 0;
             document.getElementById('couponInput').value = '';
             document.getElementById('couponInputWrapper').style.display = 'flex';
             document.getElementById('couponAppliedWrapper').style.display = 'none';
             document.getElementById('discountMsg').style.display = 'none';
             document.getElementById('errorMsg').style.display = 'none';
-            
-            renderCart(); // Re-render to clear discounts
+            renderCart();
         }
 
-        function confirmRemove(index) { showPopup("Remove Item", "Are you sure you want to remove this event?", 'confirm', () => removeItem(index)); }
+        function confirmRemove(index) { showPopup("Remove Item", "Remove this event?", 'confirm', () => removeItem(index)); }
         async function removeItem(index) {
             cartItems.splice(index, 1);
             await fetch('/api/cart', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ items: cartItems }) });
-            
-            // On Item Remove, also remove coupon to force re-evaluation
             removeCoupon();
-            
-            if(cartItems.length === 0) showEmpty();
-            else renderCart();
+            if(cartItems.length === 0) showEmpty(); else renderCart();
         }
 
-        function initiateCheckout() {
-            const mode = document.querySelector('input[name="payment"]:checked').value;
-            showPopup("Confirm Checkout", `Proceed with ${mode} payment?`, 'confirm', () => performCheckout(mode));
-        }
+        function initiateCheckout() { showPopup("Confirm Checkout", "Proceed with payment? You will be redirected to Razorpay.", 'confirm', () => performCheckout()); }
 
-        async function performCheckout(paymentMode) {
+        async function performCheckout() {
             const btn = document.querySelector('.btn-checkout');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Redirecting...';
             btn.disabled = true;
             let createdRegIds = [];
             
             try {
                 // 1. Create Registrations
                 for (const item of cartItems) {
-                    const res = await fetch('/api/register-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId: item.eventId, deptName: item.dept, paymentMode: paymentMode, teamName: item.teamName, teamMembers: item.teamMembers }) });
+                    const res = await fetch('/api/register-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId: item.eventId, deptName: item.dept, paymentMode: 'Online', teamName: item.teamName, teamMembers: item.teamMembers }) });
                     const data = await res.json();
                     if (res.ok && data.registrationId) createdRegIds.push(data.registrationId);
                 }
-            } catch (e) { showPopup("Error", "Registration init failed.", 'error'); btn.disabled = false; return; }
-            if (createdRegIds.length === 0) { showPopup("Error", "No registrations created.", 'error'); btn.disabled = false; return; }
+            } catch (e) { showPopup("Error", "Registration init failed.", 'error'); btn.disabled = false; btn.innerHTML = originalText; return; }
+            if (createdRegIds.length === 0) { showPopup("Error", "No registrations created.", 'error'); btn.disabled = false; btn.innerHTML = originalText; return; }
             
-            if (paymentMode === 'Cash') { finishOrder(); return; }
-            
-            if (paymentMode === 'Online') {
-                try {
-                    const orderRes = await fetch('/api/payment/create-order', { 
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify({ 
-                            cartItems: cartItems, 
-                            couponCode: activeCoupon ? activeCoupon.code : null 
-                        }) 
-                    });
-                    
-                    const orderData = await orderRes.json();
-                    if (!orderData.id) throw new Error("Order creation failed");
-                    if (!orderData.key_id) throw new Error("Payment Key Missing from Server.");
+            // 2. Create Payment Link and Redirect
+            try {
+                const orderRes = await fetch('/api/payment/create-order', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ cartItems: cartItems, couponCode: activeCoupon ? activeCoupon.code : null }) 
+                });
+                
+                const orderData = await orderRes.json();
+                if (!orderData.paymentLink) throw new Error("Link creation failed");
 
-                    const amountPerItem = Math.round((orderData.amount / 100) / createdRegIds.length);
-                    const regAmounts = {};
-                    createdRegIds.forEach(id => regAmounts[id] = amountPerItem);
+                // IMPORTANT: Save IDs to LocalStorage to use them after redirect
+                localStorage.setItem('LAKSHYA_PENDING_REGS', JSON.stringify(createdRegIds));
+                localStorage.setItem('LAKSHYA_PENDING_COUPON', activeCoupon ? activeCoupon.code : "");
+                // Save itemAmounts to ensure we track individual payments correctly on return
+                localStorage.setItem('LAKSHYA_ITEM_AMOUNTS', JSON.stringify(orderData.itemAmounts));
 
-                    const options = {
-                        "key": orderData.key_id, 
-                        "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee",
-                        "image": "/assets/logo.png",
-                        "order_id": orderData.id, 
-                        "handler": async function (response) {
-                            try {
-                                const verifyRes = await fetch('/api/payment/verify', { 
-                                    method: 'POST', 
-                                    headers: { 'Content-Type': 'application/json' }, 
-                                    body: JSON.stringify({ 
-                                        razorpay_order_id: response.razorpay_order_id, 
-                                        razorpay_payment_id: response.razorpay_payment_id, 
-                                        razorpay_signature: response.razorpay_signature, 
-                                        registrationIds: createdRegIds, 
-                                        couponCode: activeCoupon ? activeCoupon.code : null,
-                                        registrationAmounts: regAmounts
-                                    }) 
-                                });
+                // REDIRECT
+                window.location.href = orderData.paymentLink;
 
-                                if (!verifyRes.ok) throw new Error("Server Validation Error");
-
-                                const verifyData = await verifyRes.json();
-                                if (verifyData.status === 'success') finishOrder();
-                                else { 
-                                    showPopup("Failed", "Verification failed.", 'error'); 
-                                    btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>';
-                                    btn.disabled = false; 
-                                }
-                            } catch (error) {
-                                console.error(error);
-                                btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>';
-                                btn.disabled = false;
-                                showPopup("Payment Status", "Payment detected, but we couldn't verify it instantly. Please check 'My Registrations' in a few moments.", 'error');
-                            }
-                        },
-                        "prefill": { "email": "student@example.com" }, "theme": { "color": "#00d2ff" },
-                        "modal": { "ondismiss": function() { 
-                            btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>'; 
-                            btn.disabled = false; 
-                        }}
-                    };
-                    const rzp1 = new Razorpay(options);
-                    rzp1.on('payment.failed', function (response){ 
-                        showPopup("Payment Failed", response.error.description, 'error'); 
-                        btn.disabled = false; 
-                        btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>'; 
-                    });
-                    rzp1.open();
-                } catch (e) { 
-                    console.error(e); 
-                    showPopup("Error", e.message || "Payment gateway error.", 'error'); 
-                    btn.disabled = false; 
-                    btn.innerHTML = 'Proceed to Checkout <i class="fa-solid fa-arrow-right"></i>';
-                }
+            } catch (e) { 
+                console.error(e); 
+                showPopup("Error", e.message || "Payment gateway error.", 'error'); 
+                btn.disabled = false; 
+                btn.innerHTML = originalText;
             }
         }
-
-        async function finishOrder() {
-            await fetch('/api/cart', { method: 'DELETE' });
-            showPopup("Success!", "Registration Successful!", 'success');
-            setTimeout(() => window.location.href = 'my-registrations', 2000);
-        }
-
-        function logout() { localStorage.clear(); window.location.href = '../login'; }
         initCart();
     </script>
 </body>

@@ -6,6 +6,7 @@
     <title>My Registrations | LAKSHYA 2K26</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Note: Checkout.js is not needed for Redirect Links, but keeping it doesn't hurt -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <link rel="icon" type="image/png" href="/assets/logo.png">
     
@@ -272,7 +273,6 @@
 
         const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'art', 'rangamarthanda', 'painting', 'literary', 'major', 'mba', 'management'];
 
-        // Keywords that likely indicate a kit is included (same as backend eligibility)
         const kitEligibleKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary', 'technical'];
 
         function isCulturalEvent(title, type) {
@@ -281,7 +281,6 @@
             return culturalKeywords.some(key => t.includes(key) || ti.includes(key));
         }
 
-        // Helper to check if event type/title suggests it gets a kit
         function isKitCategory(eventDetails) {
             const t = (eventDetails.type || '').toLowerCase();
             const ti = (eventDetails.title || '').toLowerCase();
@@ -319,14 +318,14 @@
                 const isApproved = reg.approvalStatus === 'APPROVED';
 
                 // --- ROBUST KIT CHECK LOGIC ---
-                // Check 1: Is the event type eligible? (Fallback to description/flag)
+                // 1. Base Eligibility
                 const baseEligible = eventDetails.includesKit === true || 
                                      (eventDetails.description && eventDetails.description.toLowerCase().includes('kit')) ||
                                      isKitCategory(eventDetails);
                 
                 let showKitBadge = baseEligible;
 
-                // Check 2: If Paid, did they pay full price?
+                // 2. Discount Check: If Paid, did they pay full price?
                 if (isPaid) {
                     const paid = parseFloat(reg.amountPaid) || 0;
                     const fee = parseFloat(eventDetails.fee) || 0;
@@ -471,7 +470,6 @@
         function openPaymentModal(regId, eventId, amount) {
             const validAmount = parseFloat(amount) || 0;
             const eventInfo = eventCache[eventId];
-            // Fix modal kit detection too
             const hasKit = eventInfo ? (
                 eventInfo.includesKit === true || 
                 (eventInfo.description && eventInfo.description.toLowerCase().includes('kit')) ||
@@ -566,59 +564,43 @@
         function showTnCPopup() { document.getElementById('tncModal').style.display = 'flex'; }
         function closeTnCPopup() { document.getElementById('tncModal').style.display = 'none'; }
 
+        // --- UPDATED PROCESS PAYMENT (FIXED FOR REDIRECT) ---
         async function processPayment() {
             const btn = document.getElementById('btnFinalPay');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...'; btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Redirecting...';
+            btn.disabled = true;
+
             const couponCodeToSend = pendingTx.coupon ? pendingTx.coupon.code : null;
 
             try {
                 const singleItemCart = [{ eventId: pendingTx.eventId }];
-                const orderRes = await fetch('/api/payment/create-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cartItems: singleItemCart, couponCode: couponCodeToSend }) });
+                const orderRes = await fetch('/api/payment/create-order', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ cartItems: singleItemCart, couponCode: couponCodeToSend }) 
+                });
+                
                 const orderData = await orderRes.json();
-                if (!orderData.id) throw new Error("Failed to create payment order.");
-                closePaymentModal();
-
-                // Backend now sends "itemAmounts" object with exact calculated values
-                // Use that if available, otherwise fallback
-                let regAmounts = {};
-                if (orderData.itemAmounts) {
-                    regAmounts[pendingTx.regId] = orderData.itemAmounts[pendingTx.eventId];
-                } else {
-                    regAmounts[pendingTx.regId] = orderData.amount / 100;
+                
+                if (!orderData.paymentLink) {
+                    throw new Error("Link creation failed. Please check backend configuration.");
                 }
 
-                const options = {
-                    "key": orderData.key_id, 
-                    "amount": orderData.amount, "currency": "INR", "name": "LAKSHYA 2K26", "description": "Event Registration Fee",
-                    "image": "/assets/logo.png",
-                    "order_id": orderData.id, 
-                    "handler": async function (response) {
-                        try {
-                            const verifyRes = await fetch('/api/payment/verify', {
-                                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                    razorpay_order_id: response.razorpay_order_id, 
-                                    razorpay_payment_id: response.razorpay_payment_id, 
-                                    razorpay_signature: response.razorpay_signature, 
-                                    registrationIds: [pendingTx.regId], 
-                                    itemAmounts: orderData.itemAmounts, // Pass this back to verify for saving
-                                    cartItems: singleItemCart
-                                })
-                            });
-                            const verifyData = await verifyRes.json();
-                            if (verifyData.status === 'success') { alert("Payment Successful!"); init(); } 
-                            else { alert("Verification failed."); btn.innerHTML = originalText; btn.disabled = false; }
-                        } catch (err) { alert("Payment recorded, verification timed out. Refresh page."); }
-                    },
-                    "prefill": { "name": currentUser.name, "email": currentUser.email, "contact": currentUser.mobile }, 
-                    "theme": { "color": "#00d2ff" },
-                    "modal": { "ondismiss": function() { btn.innerHTML = originalText; btn.disabled = false; } }
-                };
-                const rzp1 = new Razorpay(options);
-                rzp1.on('payment.failed', function (response){ alert("Payment Failed"); btn.innerHTML = originalText; btn.disabled = false; });
-                rzp1.open();
-            } catch (e) { alert("Payment init failed."); btn.innerHTML = originalText; btn.disabled = false; }
+                // IMPORTANT: Save IDs to LocalStorage to use them after redirect
+                localStorage.setItem('LAKSHYA_PENDING_REGS', JSON.stringify([pendingTx.regId]));
+                localStorage.setItem('LAKSHYA_PENDING_COUPON', couponCodeToSend || "");
+                localStorage.setItem('LAKSHYA_ITEM_AMOUNTS', JSON.stringify(orderData.itemAmounts));
+
+                // REDIRECT TO PAYMENT LINK
+                window.location.href = orderData.paymentLink;
+
+            } catch (e) {
+                console.error(e);
+                alert("Payment initiation failed. Please try again.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
 
         function printReceipt(regId) {
@@ -635,7 +617,6 @@
             const fee = parseFloat(eventDetails.fee) || 0;
             
             // --- UPDATED KIT LOGIC FOR RECEIPT ---
-            // Ensure we check category too, not just description
             const baseEligible = eventDetails.includesKit === true || 
                                  (eventDetails.description && eventDetails.description.toLowerCase().includes('kit')) ||
                                  isKitCategory(eventDetails);
@@ -645,11 +626,9 @@
 
             if (baseEligible) {
                 if (paid < (fee - 1)) {
-                    // Paid less than fee -> Discount -> No Kit
                     kitStatusText = "NO KIT (DISCOUNT APPLIED)";
                     kitColor = "#d9534f"; // Red
                 } else {
-                    // Paid Full -> Kit
                     kitStatusText = "REGISTRATION KIT INCLUDED";
                     kitColor = "#00d2ff"; // Blue
                 }
@@ -658,7 +637,6 @@
                 kitColor = "#777";
             }
             
-            // Platform Fee Calculation for display (Approx)
             const tax = (paid * 0.0236).toFixed(2);
             const totalWithTax = (paid + parseFloat(tax)).toFixed(2);
 
