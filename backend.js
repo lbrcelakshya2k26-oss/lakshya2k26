@@ -691,7 +691,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationIds, couponCode } = req.body;
     
     // Define your frontend domain here for the ticket links
-    const CLIENT_URL = "https://lakshya.lbrce.ac.in/"; 
+    const CLIENT_URL = "https://lakshya.lbrce.ac.in"; 
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto.createHmac('sha256', RAZORPAY_KEY_SECRET).update(body.toString()).digest('hex');
@@ -832,7 +832,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                         <p style="margin: 5px 0;"><strong>Dept:</strong> ${item.dept}</p>
                         ${item.teamName ? `<p style="margin: 5px 0;"><strong>Team:</strong> ${item.teamName}</p>` : ''}
                         <div style="margin-top: 15px;">
-                            <a href="${CLIENT_URL}/receipt-view.html?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
+                            <a href="${CLIENT_URL}/receipt-view?id=${item.regId}" style="display: inline-block; background-color: #00d2ff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">View Ticket</a>
                         </div>
                     </div>
                 `).join('');
