@@ -29,9 +29,7 @@
     <script>
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
-            // Razorpay returns razorpay_payment_id in the URL
             const paymentId = urlParams.get('razorpay_payment_id');
-            const paymentStatus = urlParams.get('razorpay_payment_link_status'); // 'paid'
 
             const title = document.getElementById('title');
             const message = document.getElementById('message');
@@ -47,8 +45,8 @@
                 return;
             }
 
-            // Retrieve saved data
-            const regIds = JSON.parse(localStorage.getItem('LAKSHYA_PENDING_REGS'));
+            // Retrieve data
+            const cartItems = JSON.parse(localStorage.getItem('LAKSHYA_PENDING_CART')); // NEW
             const coupon = localStorage.getItem('LAKSHYA_PENDING_COUPON');
             const itemAmounts = JSON.parse(localStorage.getItem('LAKSHYA_ITEM_AMOUNTS'));
 
@@ -58,7 +56,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         razorpay_payment_id: paymentId,
-                        registrationIds: regIds,
+                        cartItems: cartItems, // Pass Cart Items
                         couponCode: coupon,
                         itemAmounts: itemAmounts
                     })
@@ -75,7 +73,7 @@
                     btn.href = "my-registrations";
                     
                     // Clean up
-                    localStorage.removeItem('LAKSHYA_PENDING_REGS');
+                    localStorage.removeItem('LAKSHYA_PENDING_CART');
                     localStorage.removeItem('LAKSHYA_PENDING_COUPON');
                     localStorage.removeItem('LAKSHYA_ITEM_AMOUNTS');
                 } else {
