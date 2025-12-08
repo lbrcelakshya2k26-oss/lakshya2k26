@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
             box-sizing: border-box;          /* FIX: Ensures padding doesn't increase total height */
             width: 260px;
             height: 100vh;                   /* Fallback for older browsers */
-            height: 100dvh;                  /* FIX: Adapts to mobile address bars so footer isn't cut off */
+            height: 100dvh;                  /* FIX: Adapts to mobile address bars */
             position: fixed;
             top: 0;
             left: 0;
@@ -169,7 +169,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         /* Breakpoint */
         @media (max-width: 1024px) {
-            .sidebar { transform: translateX(-100%); }
+            .sidebar { 
+                transform: translateX(-100%);
+                padding-bottom: 6rem !important; /* Force extra space at bottom for mobile nav bars */ 
+            }
             .sidebar.active { transform: translateX(0); }
             .mobile-header { display: flex; }
         }
