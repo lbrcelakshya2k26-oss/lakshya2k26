@@ -152,7 +152,7 @@
             </div>
             <div class="stat-card" style="--primary-color: #ff00cc;">
                 <h3 id="totalRevenue">₹0</h3>
-                <p>Est. Revenue</p>
+                <p>Actual Revenue</p>
             </div>
         </div>
 
@@ -216,12 +216,28 @@
                 const total = allRegistrations.length;
                 const paid = allRegistrations.filter(r => r.paymentStatus === 'COMPLETED').length;
                 const pending = total - paid;
-                const revenue = paid * 200;
+                
+                // --- FIX: CALCULATE REVENUE FROM ACTUAL PAYMENTS ---
+                let totalRevenue = 0;
+                allRegistrations.forEach(r => {
+                    if (r.paymentStatus === 'COMPLETED') {
+                        // Use amountPaid from DB, fallback to 200 only if undefined, 
+                        // fallback to 0 if data is corrupt
+                        const val = parseFloat(r.amountPaid);
+                        if (!isNaN(val)) {
+                            totalRevenue += val;
+                        } else {
+                            // Only fallback to 200 if payment is marked complete but amount is missing
+                            // (Legacy data support)
+                            totalRevenue += 200; 
+                        }
+                    }
+                });
 
                 document.getElementById('totalReg').innerText = total;
                 document.getElementById('confirmedPay').innerText = paid;
                 document.getElementById('pendingPay').innerText = pending;
-                document.getElementById('totalRevenue').innerText = '₹' + revenue;
+                document.getElementById('totalRevenue').innerText = '₹' + totalRevenue.toLocaleString('en-IN'); // Formatted
 
                 // Populate Chart
                 const eventCounts = {};
@@ -297,7 +313,13 @@
                 const leadEmail = reg.studentEmail || "N/A";
                 const college = user.college || "-";
                 const dept = user.dept || "-";
-                const payment = reg.paymentStatus === 'COMPLETED' ? (reg.paymentMode || 'Paid') : 'Pending';
+                
+                // Show Paid Amount in Payment Column
+                let payment = reg.paymentStatus === 'COMPLETED' ? (reg.paymentMode || 'Paid') : 'Pending';
+                if(reg.paymentStatus === 'COMPLETED' && reg.amountPaid) {
+                    payment += ` (₹${reg.amountPaid})`;
+                }
+
                 const attendance = reg.attendance ? "Present" : "Absent";
                 const score = reg.totalScore || "0";
 
