@@ -588,7 +588,16 @@
             });
         }
 
+        // --- UPDATED: IS CULTURAL EVENT LOGIC ---
         function isCulturalEvent(event) {
+            // 1. STRICT CHECK: If Admin selected a Technical/Special type, it is NOT cultural
+            const safeTypes = ['Special', 'Major', 'MBA', 'Technical'];
+            // Check exact match or case-insensitive match against the event type
+            if (safeTypes.some(safe => (event.type || '').toLowerCase() === safe.toLowerCase())) {
+                return false; 
+            }
+
+            // 2. Otherwise, check for keywords as usual
             const t = (event.type || '').toLowerCase();
             const title = (event.title || '').toLowerCase();
             return culturalKeywords.some(key => t.includes(key) || title.includes(key));
@@ -608,6 +617,7 @@
                 if (!res.ok) throw new Error("API Failed");
                 const fetchedEvents = await res.json();
                 
+                // --- FIXED FILTERING ---
                 allEvents = fetchedEvents.filter(e => !isCulturalEvent(e));
 
             } catch (e) { allEvents = []; }
