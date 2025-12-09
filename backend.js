@@ -1351,7 +1351,17 @@ app.get('/api/admin/stats', isAuthenticated('admin'), async (req, res) => {
             docClient.send(new ScanCommand({ TableName: 'Lakshya_Registrations' }))
         ]);
         const registrations = regs.Items || [];
-        const totalRevenue = registrations.reduce((sum, r) => r.paymentStatus === 'COMPLETED' ? sum + 200 : sum, 0);
+        
+        // --- FIXED REVENUE CALCULATION ---
+        const totalRevenue = registrations.reduce((sum, r) => {
+            if (r.paymentStatus === 'COMPLETED') {
+                // If amountPaid exists, use it. If not (legacy data), fallback to 200.
+                const paid = parseFloat(r.amountPaid);
+                return sum + (isNaN(paid) ? 200 : paid);
+            }
+            return sum;
+        }, 0);
+
         const deptCounts = {};
         registrations.forEach(r => { const d = r.deptName || 'General'; deptCounts[d] = (deptCounts[d] || 0) + 1; });
         const paymentCounts = { Paid: 0, Pending: 0 };
@@ -1855,7 +1865,7 @@ app.use('/api/chat', chatRoute);
 app.get('/api/culturals', async (req, res) => {
     try {
         const data = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
-        const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'fashion', 'art'];
+        const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'fashion'];
         const culturalEvents = (data.Items || []).filter(e => {
             const t = (e.type || '').toLowerCase() + (e.title || '').toLowerCase();
             return culturalKeywords.some(key => t.includes(key));
@@ -1863,6 +1873,7 @@ app.get('/api/culturals', async (req, res) => {
         res.json(culturalEvents);
     } catch (err) { res.status(500).json({ error: 'Failed' }); }
 });
+
 app.get('/admin/reports', isAuthenticated('admin'), (req, res) => {
     // Make sure you save the HTML file as 'reports.html' in 'public/admin/' folder
     res.sendFile(path.join(__dirname, 'public/admin/reports.html'));
