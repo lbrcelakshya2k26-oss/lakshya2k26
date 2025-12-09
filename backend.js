@@ -378,20 +378,26 @@ app.post('/api/auth/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(401).json({ error: 'Invalid password' });
 
+        // --- UPDATE STARTS HERE ---
+        // Logic: If 'managedEventIds' exists, use it.
+        // If only old 'managedEventId' exists, wrap it in an array.
+        // Otherwise empty array.
+        const eventIds = user.managedEventIds || (user.managedEventId ? [user.managedEventId] : []);
+
         req.session.user = { 
             email: user.email, 
             role: user.role, 
             name: user.fullName,
             dept: user.dept,
-            managedEventId: user.managedEventId || null 
+            managedEventIds: eventIds // Store the ARRAY
         };
+        // --- UPDATE ENDS HERE ---
         
         res.status(200).json({ message: 'Login successful' });
     } catch (err) {
         res.status(500).json({ error: 'Login failed' });
     }
 });
-
 app.post('/api/auth/send-otp', async (req, res) => {
     const { email } = req.body;
 
@@ -665,7 +671,7 @@ app.post('/api/payment/create-order', isAuthenticated('participant'), async (req
         const amountInPaise = Math.round(finalTotal * 100); 
 
         // 6. Create Payment Link
-        const CALLBACK_URL = "https://lakshya.lbrce.ac.in/participant/payment-success"; 
+        const CALLBACK_URL = "http://localhost:3000/participant/payment-success"; 
 
         const paymentLink = await razorpay.paymentLink.create({
             amount: amountInPaise, 
@@ -700,9 +706,11 @@ app.post('/api/payment/create-order', isAuthenticated('participant'), async (req
 });
 
 app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res) => {
-    const { razorpay_payment_id, couponCode, itemAmounts, cartItems } = req.body; 
+    // ADD pendingRegIds to the destructured body
+    const { razorpay_payment_id, couponCode, itemAmounts, cartItems, pendingRegIds } = req.body; 
     const CLIENT_URL = "https://lakshya.lbrce.ac.in/"; 
     const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
+    const user = req.session.user;
 
     try {
         if (!razorpay_payment_id) return res.status(400).json({ error: 'Missing Payment ID' });
@@ -713,7 +721,8 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
             return res.status(400).json({ error: 'Payment not captured or failed.' });
         }
 
-        // 2. CHECK DUPLICATES
+        // 2. CHECK DUPLICATES (Idempotency)
+        // We check if this payment ID is already used in any registration
         const existing = await docClient.send(new ScanCommand({
             TableName: 'Lakshya_Registrations',
             FilterExpression: 'paymentId = :pid',
@@ -724,18 +733,77 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
             return res.json({ status: 'success', message: 'Already processed' });
         }
 
-        // 3. CREATE REGISTRATIONS AND UPDATE
-        if (cartItems && Array.isArray(cartItems)) {
-            
-            let regItemsForEmail = [];
-            let totalBaseForEmail = 0;
-            const user = req.session.user;
+        let regItemsForEmail = [];
+        let totalBaseForEmail = 0;
 
-            const updatePromises = cartItems.map(async (item) => {
+        // =========================================================
+        // SCENARIO A: UPDATING EXISTING REGISTRATIONS (From My Registrations Page)
+        // =========================================================
+        if (pendingRegIds && Array.isArray(pendingRegIds) && pendingRegIds.length > 0) {
+            
+            const updatePromises = pendingRegIds.map(async (regId) => {
+                try {
+                    // 1. Fetch the existing registration to get event ID
+                    const getRes = await docClient.send(new GetCommand({
+                        TableName: 'Lakshya_Registrations',
+                        Key: { registrationId: regId }
+                    }));
+                    const existingReg = getRes.Item;
+                    if (!existingReg) return; // Skip if invalid
+
+                    // 2. Determine Amount Paid
+                    let amountPaid = 0;
+                    if (itemAmounts && itemAmounts[existingReg.eventId] !== undefined) {
+                        amountPaid = itemAmounts[existingReg.eventId];
+                    } else {
+                        // Fallback: If single item, use total paid
+                        amountPaid = (payment.amount / 100);
+                    }
+
+                    // 3. Update the Record
+                    await docClient.send(new UpdateCommand({
+                        TableName: 'Lakshya_Registrations',
+                        Key: { registrationId: regId },
+                        UpdateExpression: "set paymentStatus = :s, paymentId = :pid, paymentMode = :pm, couponUsed = :cu, paymentDate = :pd, amountPaid = :ap",
+                        ExpressionAttributeValues: {
+                            ":s": "COMPLETED",
+                            ":pid": razorpay_payment_id,
+                            ":pm": "ONLINE",
+                            ":cu": couponCode || "NONE",
+                            ":pd": new Date().toISOString(),
+                            ":ap": amountPaid
+                        }
+                    }));
+
+                    // 4. Fetch Event Title for Email
+                    const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: existingReg.eventId } }));
+                    const eventTitle = eventDoc.Item ? eventDoc.Item.title : "Event";
+
+                    regItemsForEmail.push({
+                        regId: regId,
+                        title: eventTitle,
+                        dept: existingReg.deptName,
+                        paidAmount: amountPaid,
+                        teamName: existingReg.teamName
+                    });
+                    totalBaseForEmail += amountPaid;
+
+                } catch (err) { console.error("Update Reg Error:", err); }
+            });
+
+            await Promise.all(updatePromises);
+        }
+        
+        // =========================================================
+        // SCENARIO B: CREATING NEW REGISTRATIONS (From Cart Page)
+        // =========================================================
+        else if (cartItems && Array.isArray(cartItems) && cartItems.length > 0) {
+            
+            const createPromises = cartItems.map(async (item) => {
                 try {
                     const regId = uuidv4(); 
                     
-                    // Calculate Amount (Robust Fallback)
+                    // Calculate Amount
                     let amountPaid = 0;
                     if (itemAmounts && itemAmounts[item.eventId] !== undefined) {
                         amountPaid = itemAmounts[item.eventId];
@@ -743,7 +811,7 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                         amountPaid = (payment.amount / 100) / cartItems.length; 
                     }
 
-                    // Fetch Event Details for Title/Kit Logic
+                    // Fetch Event Details
                     const eventDoc = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: item.eventId } }));
                     const eventData = eventDoc.Item || {};
                     const eventTitle = eventData.title || "Event";
@@ -781,15 +849,21 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
                 } catch(err) { console.error("Reg Creation Error:", err); }
             });
 
-            await Promise.all(updatePromises);
+            await Promise.all(createPromises);
             
-            // Clear Cart
+            // Clear Cart only for Scenario B
             try {
                 await docClient.send(new DeleteCommand({ TableName: 'Lakshya_Cart', Key: { email: user.email } }));
             } catch(e) {}
+        } 
+        
+        else { 
+            // Neither cart items nor pending IDs provided
+            return res.json({ status: 'success', warning: 'No Items Processed' }); 
+        }
 
-            // --- SEND EMAILS (INBUILT TEMPLATES) ---
-            
+        // --- SEND EMAILS (Combined Logic) ---
+        if (regItemsForEmail.length > 0) {
             let userName = "Participant";
             try {
                 const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: user.email }}));
@@ -866,19 +940,15 @@ app.post('/api/payment/verify', isAuthenticated('participant'), async (req, res)
             // Send Both Emails
             sendEmail(user.email, `Registration Confirmed`, regEmailHtml).catch(e=>console.error("Email 1 Fail", e));
             sendEmail(user.email, `Payment Receipt - Transaction ${razorpay_payment_id}`, receiptHtml).catch(e=>console.error("Email 2 Fail", e));
-
-            res.json({ status: 'success' }); 
-
-        } else { 
-            res.json({ status: 'success', warning: 'No Items' }); 
         }
+
+        res.json({ status: 'success' }); 
 
     } catch (err) {
         console.error("Verify Error:", err);
         res.status(500).json({ error: 'Verification failed.' });
     }
 });
-
 app.get('/api/participant/dashboard-stats', isAuthenticated('participant'), async (req, res) => {
     const userEmail = req.session.user.email;
     try {
@@ -944,24 +1014,31 @@ app.get('/api/coordinator/dashboard-data', isAuthenticated('coordinator'), async
     try {
         const user = req.session.user;
         const userDept = user.dept;
-        const managedEventId = user.managedEventId;
+        const managedEventIds = user.managedEventIds || [];
 
-        // SCENARIO 1: Specific Event Coordinator
-        if (managedEventId) {
-            // FIX: Use SCAN to find registrations for this event across ALL departments
-            const params = {
-                TableName: 'Lakshya_Registrations',
-                FilterExpression: 'eventId = :eid',
-                ExpressionAttributeValues: { ':eid': managedEventId }
-            };
-            const data = await docClient.send(new ScanCommand(params));
+        // SCENARIO 1: Multi-Event Coordinator
+        if (managedEventIds.length > 0) {
+            let allRegistrations = [];
+            
+            // Run a scan for each event ID in parallel
+            const promises = managedEventIds.map(eid => 
+                docClient.send(new ScanCommand({
+                    TableName: 'Lakshya_Registrations',
+                    FilterExpression: 'eventId = :eid',
+                    ExpressionAttributeValues: { ':eid': eid }
+                }))
+            );
+            
+            const results = await Promise.all(promises);
+            results.forEach(r => { if(r.Items) allRegistrations.push(...r.Items); });
+            
             return res.json({ 
-                dept: `Event: ${managedEventId}`, 
-                registrations: data.Items || [] 
+                dept: 'My Managed Events', 
+                registrations: allRegistrations 
             });
         }
 
-        // SCENARIO 2: Department Coordinator
+        // SCENARIO 2: Department Coordinator (Standard Fallback)
         if (!userDept) return res.json({ dept: 'Unknown', registrations: [] });
         
         const params = {
@@ -978,61 +1055,91 @@ app.get('/api/coordinator/dashboard-data', isAuthenticated('coordinator'), async
         res.status(500).json({ error: 'Failed to load data' });
     }
 });
-
 // 2. Get Events List (My Events)
 app.get('/api/coordinator/my-events', isAuthenticated('coordinator'), async (req, res) => {
-    // If specific event coordinator, return ONLY that event
-    if(req.session.user.managedEventId) {
+    const user = req.session.user;
+    const managedEventIds = user.managedEventIds || [];
+
+    // SCENARIO 1: Specific List (Cultural/Special Coordinators)
+    if (managedEventIds.length > 0) {
         try {
-            const data = await docClient.send(new GetCommand({ 
-                TableName: 'Lakshya_Events', 
-                Key: { eventId: req.session.user.managedEventId } 
-            }));
-            return res.json(data.Item ? [data.Item] : []);
+            const promises = managedEventIds.map(eid => 
+                docClient.send(new GetCommand({ 
+                    TableName: 'Lakshya_Events', 
+                    Key: { eventId: eid } 
+                }))
+            );
+            const results = await Promise.all(promises);
+            const myEvents = results.map(r => r.Item).filter(i => i); 
+            return res.json(myEvents);
         } catch(e) { return res.json([]); }
     }
 
-    // Else return all events for the dept
-    const userDept = req.session.user.dept;
+    // SCENARIO 2: Normal Dept Coordinators
+    const userDept = user.dept;
     if (!userDept) return res.json([]);
+
     try {
         const data = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
         const allEvents = data.Items || [];
-        const myEvents = allEvents.filter(e => e.departments && e.departments.includes(userDept));
+        
+        const myEvents = allEvents.filter(e => {
+            // 1. Basic Check: Is this event open to my department?
+            const isRelevant = e.departments && e.departments.includes(userDept);
+            if (!isRelevant) return false;
+
+            // 2. STRICT FILTER: Hide ONLY Cultural events
+            // We REMOVED 'major' from here so Dept Coords can see their Major events
+            const type = (e.type || '').toLowerCase();
+            const title = (e.title || '').toLowerCase();
+            
+            // Only hide these specific cultural categories
+            const culturalKeywords = ['cultural', 'music', 'dance', 'drama', 'fashion', 'singing', 'art', 'literary'];
+            
+            if (userDept !== 'CULTURAL') {
+                if (culturalKeywords.some(k => type.includes(k) || title.includes(k))) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
         res.json(myEvents);
     } catch(e) { res.status(500).json({ error: 'Failed' }); }
 });
-
 // 3. Get Students for Attendance (FIXED for Specific Event Coordinators)
 app.get('/api/coordinator/event-students', isAuthenticated('coordinator'), async (req, res) => {
     const { eventId } = req.query;
     const user = req.session.user;
-    const managedEventId = user.managedEventId;
+    const managedEventIds = user.managedEventIds || [];
 
     try {
         let items = [];
 
-        // If Specific Event Coordinator: Force usage of managedEventId
-        if (managedEventId) {
-            // Security check: Ensure they are asking for their own event
-            if(eventId && eventId !== managedEventId) {
+        // SCENARIO 1: Multi-Event Coordinator
+        if (managedEventIds.length > 0) {
+            // Security: Ensure they are asking for one of THEIR events
+            if(eventId && !managedEventIds.includes(eventId)) {
                  return res.json([]); 
             }
             
-            // Scan filtering by EventID + Paid Status (Across all depts)
-            const params = {
-                TableName: 'Lakshya_Registrations',
-                FilterExpression: 'eventId = :eid AND paymentStatus = :paid',
-                ExpressionAttributeValues: {
-                    ':eid': managedEventId,
-                    ':paid': 'COMPLETED'
-                }
-            };
-            const data = await docClient.send(new ScanCommand(params));
-            items = data.Items || [];
+            // If eventId provided, fetch for that one. If not, fetch for ALL managed.
+            const idsToFetch = eventId ? [eventId] : managedEventIds;
+
+            const promises = idsToFetch.map(eid => 
+                docClient.send(new ScanCommand({
+                    TableName: 'Lakshya_Registrations',
+                    FilterExpression: 'eventId = :eid AND paymentStatus = :paid',
+                    ExpressionAttributeValues: { ':eid': eid, ':paid': 'COMPLETED' }
+                }))
+            );
+            
+            const results = await Promise.all(promises);
+            results.forEach(r => { if(r.Items) items.push(...r.Items); });
         } 
+        // SCENARIO 2: Dept Coordinator
         else {
-            // Regular Dept Coordinator: Query by Dept
             const params = {
                 TableName: 'Lakshya_Registrations',
                 IndexName: 'DepartmentIndex',
@@ -1050,41 +1157,33 @@ app.get('/api/coordinator/event-students', isAuthenticated('coordinator'), async
 
         res.json(items);
     } catch(e) {
-        console.error("Event Students Error:", e);
         res.status(500).json({ error: 'Failed to fetch students' });
     }
 });
-
 // 4. Pending Payments (FIXED for Specific Event Coordinators)
 app.get('/api/coordinator/pending-payments', isAuthenticated('coordinator'), async (req, res) => {
     try {
         const user = req.session.user;
-        const managedEventId = user.managedEventId;
+        const managedEventIds = user.managedEventIds || [];
         let items = [];
 
-        if (managedEventId) {
-            // Specific Event Coordinator: Scan by EventID, NOT Completed
-            const params = {
-                TableName: 'Lakshya_Registrations',
-                FilterExpression: 'eventId = :eid AND paymentStatus <> :paid',
-                ExpressionAttributeValues: {
-                    ':eid': managedEventId,
-                    ':paid': 'COMPLETED'
-                }
-            };
-            const data = await docClient.send(new ScanCommand(params));
-            items = data.Items || [];
+        if (managedEventIds.length > 0) {
+            const promises = managedEventIds.map(eid => 
+                docClient.send(new ScanCommand({
+                    TableName: 'Lakshya_Registrations',
+                    FilterExpression: 'eventId = :eid AND paymentStatus <> :paid',
+                    ExpressionAttributeValues: { ':eid': eid, ':paid': 'COMPLETED' }
+                }))
+            );
+            const results = await Promise.all(promises);
+            results.forEach(r => { if(r.Items) items.push(...r.Items); });
         } else {
-            // Dept Coordinator: Query by Dept, NOT Completed
             const params = {
                 TableName: 'Lakshya_Registrations',
                 IndexName: 'DepartmentIndex',
                 KeyConditionExpression: 'deptName = :dept',
                 FilterExpression: 'paymentStatus <> :paid',
-                ExpressionAttributeValues: {
-                    ':dept': user.dept,
-                    ':paid': 'COMPLETED'
-                }
+                ExpressionAttributeValues: { ':dept': user.dept, ':paid': 'COMPLETED' }
             };
             const data = await docClient.send(new QueryCommand(params));
             items = data.Items || [];
@@ -1092,42 +1191,84 @@ app.get('/api/coordinator/pending-payments', isAuthenticated('coordinator'), asy
 
         res.json(items);
     } catch (err) {
-        console.error("Pending Payments Error:", err);
         res.status(500).json({ error: 'Failed to fetch data' });
     }
 });
-
 // 5. Quick Attendance (Lookup)
 app.post('/api/coordinator/quick-attendance', isAuthenticated('coordinator'), async (req, res) => {
-    const { identifier } = req.body;
-    const params = {
-        TableName: 'Lakshya_Registrations',
-        Key: { registrationId: identifier },
-        UpdateExpression: "set attendance = :a",
-        ExpressionAttributeValues: { ":a": true },
-        ReturnValues: "ALL_NEW"
-    };
-    try {
-        const data = await docClient.send(new UpdateCommand(params));
-        if (data.Attributes) {
-            res.json({ message: 'Success', studentEmail: data.Attributes.studentEmail, eventId: data.Attributes.eventId });
-        } else {
-            res.status(404).json({ error: 'Registration ID not found' });
-        }
-    } catch (err) { res.status(500).json({ error: 'Lookup failed' }); }
-});
+    const { identifier } = req.body; // This is the Registration ID from QR Code
+    const user = req.session.user;
+    const managedEventIds = user.managedEventIds || [];
 
+    try {
+        // STEP 1: Fetch the registration first to check permission
+        const getParams = {
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId: identifier }
+        };
+        const getResult = await docClient.send(new GetCommand(getParams));
+        const reg = getResult.Item;
+
+        if (!reg) {
+            return res.status(404).json({ error: 'Invalid QR Code' });
+        }
+
+        // STEP 2: Verify Coordinator Permission
+        // If coordinator has a specific list, the student's event MUST be in that list
+        if (managedEventIds.length > 0 && !managedEventIds.includes(reg.eventId)) {
+            return res.status(403).json({ error: 'Student does not belong to your managed events.' });
+        }
+        
+        // Also check if Dept Coordinator (fallback) matches department
+        if (managedEventIds.length === 0 && user.dept && reg.deptName !== user.dept) {
+             return res.status(403).json({ error: 'Student belongs to a different department.' });
+        }
+
+        // STEP 3: Mark Present
+        const updateParams = {
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId: identifier },
+            UpdateExpression: "set attendance = :a",
+            ExpressionAttributeValues: { ":a": true },
+            ReturnValues: "ALL_NEW"
+        };
+
+        const data = await docClient.send(new UpdateCommand(updateParams));
+        
+        res.json({ 
+            message: 'Success', 
+            studentEmail: data.Attributes.studentEmail, 
+            eventId: data.Attributes.eventId,
+            studentName: data.Attributes.teamName || 'Student' // useful for frontend display
+        });
+
+    } catch (err) { 
+        console.error("Quick Attendance Error:", err);
+        res.status(500).json({ error: 'Lookup failed' }); 
+    }
+});
 // 6. Mark Attendance
 app.post('/api/coordinator/mark-attendance', isAuthenticated('coordinator'), async (req, res) => {
     const { registrationId, status } = req.body;
+    
+    // Optional: Add security check here similar to above if you want strict security
+    // For now, we update strictly by ID which is generally safe for manual toggles
+    
     const params = {
-        TableName: 'Lakshya_Registrations', Key: { registrationId },
-        UpdateExpression: "set attendance = :a", ExpressionAttributeValues: { ":a": status }
+        TableName: 'Lakshya_Registrations', 
+        Key: { registrationId },
+        UpdateExpression: "set attendance = :a", 
+        ExpressionAttributeValues: { ":a": status }
     };
-    try { await docClient.send(new UpdateCommand(params)); res.json({ message: 'Attendance updated' }); }
-    catch (err) { res.status(500).json({ error: 'Update failed' }); }
+    
+    try { 
+        await docClient.send(new UpdateCommand(params)); 
+        res.json({ message: 'Attendance updated' }); 
+    }
+    catch (err) { 
+        res.status(500).json({ error: 'Update failed' }); 
+    }
 });
-
 // 7. Mark Paid
 app.post('/api/coordinator/mark-paid', isAuthenticated('coordinator'), async (req, res) => {
     const { registrationId } = req.body;
@@ -1177,26 +1318,19 @@ app.post('/api/coordinator/export-data', isAuthenticated('coordinator'), async (
 app.get('/api/coordinator/scoring-details', isAuthenticated('coordinator'), async (req, res) => {
     const { eventId } = req.query;
     const user = req.session.user;
-    const deptName = user.dept; // For scheme ID, we might need adjustments if event ID coordinator
-
-    // Assumption: Specific event coordinators still use a specific dept name for the scheme
-    // OR the scheme ID should just use the eventId if deptName is irrelevant.
-    // Keeping logic simple: Use session dept. If managedEventId, maybe use 'General' or default?
+    const managedEventIds = user.managedEventIds || [];
     
-    // Fallback: If managedEventId, we might not have a dept. 
-    // BUT usually scoring schemes are dept specific. 
-    // If specific event coord, we assume they access the scheme defined for that event.
-    
-    // For now, retaining existing logic but adding null check
-    if (!eventId || (!deptName && !user.managedEventId)) return res.status(400).json({ error: "Missing params" });
+    // Validate request
+    if (!eventId) return res.status(400).json({ error: "Missing eventId" });
+    if (managedEventIds.length > 0 && !managedEventIds.includes(eventId)) {
+        return res.status(403).json({ error: "Unauthorized for this event" });
+    }
 
     try {
-        // A. Fetch Scheme
-        // Use deptName if available, else maybe default. 
-        // NOTE: If Specific Event Coord doesn't have a dept, they might not be able to CREATE a scheme properly
-        // without this. Assuming Admin created it.
-        const effectiveDept = deptName || "General"; 
-        const schemeId = `${eventId}#${effectiveDept}`;
+        // Fetch Scheme (Scheme ID is typically eventId#DeptName)
+        // Since this coord manages specific events, we try to construct ID using the user's dept (e.g., CULTURAL)
+        const deptName = user.dept || "General"; 
+        const schemeId = `${eventId}#${deptName}`;
         
         const schemeRes = await docClient.send(new GetCommand({
             TableName: 'Lakshya_ScoringSchemes', Key: { schemeId }
@@ -1204,28 +1338,15 @@ app.get('/api/coordinator/scoring-details', isAuthenticated('coordinator'), asyn
         const scheme = schemeRes.Item;
         if (!scheme) return res.json({ enabled: false, message: "Scoring not configured." });
 
-        // B. Fetch Students (PRESENT only)
-        // Similar logic to event-students, need to handle managedEventId
-        let students = [];
-        if (user.managedEventId) {
-             const params = {
-                TableName: 'Lakshya_Registrations',
-                FilterExpression: 'eventId = :eid AND attendance = :att',
-                ExpressionAttributeValues: { ':eid': user.managedEventId, ':att': true }
-             };
-             const data = await docClient.send(new ScanCommand(params));
-             students = data.Items || [];
-        } else {
-             const params = {
-                TableName: 'Lakshya_Registrations',
-                IndexName: 'DepartmentIndex',
-                KeyConditionExpression: 'deptName = :dept',
-                FilterExpression: 'eventId = :eid AND attendance = :att', 
-                ExpressionAttributeValues: { ':dept': deptName, ':eid': eventId, ':att': true }
-            };
-            const data = await docClient.send(new QueryCommand(params));
-            students = data.Items || [];
-        }
+        // Fetch Students (Present only)
+        // We use Scan here because we know exactly which eventId we are looking for
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            FilterExpression: 'eventId = :eid AND attendance = :att',
+            ExpressionAttributeValues: { ':eid': eventId, ':att': true }
+        };
+        const data = await docClient.send(new ScanCommand(params));
+        const students = data.Items || [];
 
         res.json({
             enabled: true,
@@ -1236,13 +1357,11 @@ app.get('/api/coordinator/scoring-details', isAuthenticated('coordinator'), asyn
                 studentEmail: s.studentEmail,
                 totalScore: s.totalScore || 0,
                 scoreBreakdown: s.scoreBreakdown || {}, 
-                teamName: s.teamName, // Added team name passthrough
-                teamMembers: s.teamMembers // Added members passthrough
+                teamName: s.teamName
             }))
         });
     } catch (err) { res.status(500).json({ error: "Failed to load scoring data" }); }
 });
-
 // 11. Submit Scores
 app.post('/api/coordinator/submit-scores', isAuthenticated('coordinator'), async (req, res) => {
     const { eventId, scores, finalize } = req.body; 
@@ -1273,16 +1392,20 @@ app.post('/api/coordinator/submit-scores', isAuthenticated('coordinator'), async
 // 12. View Submissions
 app.get('/api/coordinator/submissions', isAuthenticated('coordinator'), async (req, res) => {
     const user = req.session.user;
+    const managedEventIds = user.managedEventIds || [];
+
     try {
         let items = [];
-        if (user.managedEventId) {
-             const params = {
-                TableName: 'Lakshya_Registrations',
-                FilterExpression: 'eventId = :eid',
-                ExpressionAttributeValues: { ':eid': user.managedEventId }
-             };
-             const data = await docClient.send(new ScanCommand(params));
-             items = data.Items || [];
+        if (managedEventIds.length > 0) {
+            const promises = managedEventIds.map(eid => 
+                docClient.send(new ScanCommand({
+                    TableName: 'Lakshya_Registrations',
+                    FilterExpression: 'eventId = :eid',
+                    ExpressionAttributeValues: { ':eid': eid }
+                }))
+            );
+            const results = await Promise.all(promises);
+            results.forEach(r => { if(r.Items) items.push(...r.Items); });
         } else {
             const params = {
                 TableName: 'Lakshya_Registrations',
@@ -1295,20 +1418,29 @@ app.get('/api/coordinator/submissions', isAuthenticated('coordinator'), async (r
         }
         
         const withSubs = items.filter(r => r.submissionTitle || r.submissionUrl);
+        // Sort by Date
+        withSubs.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
         res.json(withSubs);
     } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
-
 // 13. Event Control
 app.get('/api/coordinator/event-controls', isAuthenticated('coordinator'), async (req, res) => {
     const user = req.session.user;
+    const managedEventIds = user.managedEventIds || [];
+
     try {
-        // For Event Control, if specific event coord, just return their one event
         let myEvents = [];
-        if (user.managedEventId) {
-             const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: user.managedEventId }}));
-             if(e.Item) myEvents.push(e.Item);
-        } else {
+
+        // SCENARIO 1: Multi-Event Coordinator
+        if (managedEventIds.length > 0) {
+            const promises = managedEventIds.map(eid => 
+                docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: eid }}))
+            );
+            const results = await Promise.all(promises);
+            myEvents = results.map(r => r.Item).filter(i => i);
+        } 
+        // SCENARIO 2: Department Coordinator
+        else {
              const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
              myEvents = (eventData.Items || []).filter(e => e.departments && e.departments.includes(user.dept));
         }
@@ -1316,17 +1448,20 @@ app.get('/api/coordinator/event-controls', isAuthenticated('coordinator'), async
         const statusData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_EventStatus' }));
         const statusMap = {};
         (statusData.Items || []).forEach(s => {
-            if (s.deptName === user.dept || user.managedEventId) statusMap[s.eventId] = s.isOpen;
+            // Check if status belongs to this user's scope
+            if (s.deptName === user.dept || managedEventIds.includes(s.eventId)) {
+                statusMap[s.eventId] = s.isOpen;
+            }
         });
 
         const result = myEvents.map(e => ({
-            eventId: e.eventId, title: e.title,
+            eventId: e.eventId, 
+            title: e.title,
             isOpen: statusMap[e.eventId] !== false 
         }));
         res.json(result);
     } catch (e) { res.status(500).json({ error: "Failed" }); }
 });
-
 app.post('/api/coordinator/toggle-event', isAuthenticated('coordinator'), async (req, res) => {
     const { eventId, isOpen } = req.body;
     const userDept = req.session.user.dept || "General";
@@ -1997,21 +2132,21 @@ app.get('/api/public/receipt-details/:regId', async (req, res) => {
 // --- API: Get Submissions for Coordinator ---
 app.get('/api/coordinator/submissions', isAuthenticated('coordinator'), async (req, res) => {
     const user = req.session.user;
+    const managedEventIds = user.managedEventIds || [];
+
     try {
         let items = [];
-        
-        // 1. Fetch Registrations based on role (Event Coord vs Dept Coord)
-        if (user.managedEventId) {
-             // If Specific Event Coordinator: Get only their event
-             const params = {
-                TableName: 'Lakshya_Registrations',
-                FilterExpression: 'eventId = :eid',
-                ExpressionAttributeValues: { ':eid': user.managedEventId }
-             };
-             const data = await docClient.send(new ScanCommand(params));
-             items = data.Items || [];
+        if (managedEventIds.length > 0) {
+            const promises = managedEventIds.map(eid => 
+                docClient.send(new ScanCommand({
+                    TableName: 'Lakshya_Registrations',
+                    FilterExpression: 'eventId = :eid',
+                    ExpressionAttributeValues: { ':eid': eid }
+                }))
+            );
+            const results = await Promise.all(promises);
+            results.forEach(r => { if(r.Items) items.push(...r.Items); });
         } else {
-            // If Department Coordinator: Get all events for their department
             const params = {
                 TableName: 'Lakshya_Registrations',
                 IndexName: 'DepartmentIndex',
@@ -2022,20 +2157,12 @@ app.get('/api/coordinator/submissions', isAuthenticated('coordinator'), async (r
             items = data.Items || [];
         }
         
-        // 2. Filter only those with submissions (Title OR Url)
-        // We filter here in code to avoid complex DynamoDB FilterExpressions
-        const submissions = items.filter(r => r.submissionTitle || r.submissionUrl);
-
-        // 3. Sort by Date (Newest First)
-        submissions.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
-
-        res.json(submissions);
-    } catch (err) { 
-        console.error("Submissions Fetch Error:", err);
-        res.status(500).json({ error: "Failed to fetch submissions" }); 
-    }
+        const withSubs = items.filter(r => r.submissionTitle || r.submissionUrl);
+        // Sort by Date
+        withSubs.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+        res.json(withSubs);
+    } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
-
 // --- API: Coordinator Approve Registration (Enable Payment) ---
 app.post('/api/coordinator/approve-registration', isAuthenticated('coordinator'), async (req, res) => {
     const { registrationId } = req.body;
@@ -2380,36 +2507,30 @@ app.get('/api/admin/coupon-usage', isAuthenticated('admin'), async (req, res) =>
 app.get('/api/coordinator/approvals', isAuthenticated('coordinator'), async (req, res) => {
     try {
         const user = req.session.user;
-        const userDept = user.dept;
-        const managedEventId = user.managedEventId;
-        
+        const managedEventIds = user.managedEventIds || [];
         let items = [];
 
-        // Step 1: Fetch PENDING registrations based on role
-        if (managedEventId) {
-            // SCENARIO A: Specific Event Coordinator
-            const params = {
-                TableName: 'Lakshya_Registrations',
-                FilterExpression: 'eventId = :eid AND paymentStatus = :status',
-                ExpressionAttributeValues: {
-                    ':eid': managedEventId,
-                    ':status': 'PENDING'
-                }
-            };
-            const data = await docClient.send(new ScanCommand(params));
-            items = data.Items || [];
-        } else {
-            // SCENARIO B: Department Coordinator
-            // Query by Dept, then filter by Status
+        // SCENARIO 1: Multi-Event Coordinator
+        if (managedEventIds.length > 0) {
+            // Fetch PENDING regs for all 3 events
+            const promises = managedEventIds.map(eid => 
+                docClient.send(new ScanCommand({
+                    TableName: 'Lakshya_Registrations',
+                    FilterExpression: 'eventId = :eid AND paymentStatus = :status',
+                    ExpressionAttributeValues: { ':eid': eid, ':status': 'PENDING' }
+                }))
+            );
+            const results = await Promise.all(promises);
+            results.forEach(r => { if(r.Items) items.push(...r.Items); });
+        } 
+        // SCENARIO 2: Department Coordinator
+        else {
             const params = {
                 TableName: 'Lakshya_Registrations',
                 IndexName: 'DepartmentIndex',
                 KeyConditionExpression: 'deptName = :dept',
                 FilterExpression: 'paymentStatus = :status',
-                ExpressionAttributeValues: {
-                    ':dept': userDept,
-                    ':status': 'PENDING'
-                }
+                ExpressionAttributeValues: { ':dept': user.dept, ':status': 'PENDING' }
             };
             const data = await docClient.send(new QueryCommand(params));
             items = data.Items || [];
@@ -2417,43 +2538,33 @@ app.get('/api/coordinator/approvals', isAuthenticated('coordinator'), async (req
 
         if (items.length === 0) return res.json([]);
 
-        // Step 2: Fetch Event Titles and User Details for the frontend
-        // (We need to look up event titles and student names/rolls manually in DynamoDB)
-        
-        // A. Fetch all Events to map IDs to Titles
+        // --- FETCH NAMES & TITLES FOR DISPLAY ---
         const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
         const eventMap = {};
         (eventData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
 
-        // B. Fetch User Details for each registration
         const formattedRequests = await Promise.all(items.map(async (reg) => {
             let userName = "Unknown";
             let userRoll = "N/A";
-
             try {
                 const userRes = await docClient.send(new GetCommand({
-                    TableName: 'Lakshya_Users',
-                    Key: { email: reg.studentEmail }
+                    TableName: 'Lakshya_Users', Key: { email: reg.studentEmail }
                 }));
                 if (userRes.Item) {
                     userName = userRes.Item.fullName;
                     userRoll = userRes.Item.rollNo;
                 }
-            } catch (e) { console.error("User fetch error", e); }
-
-            // Determine display name
-            const displayName = reg.teamName ? reg.teamName : userName;
-            const regType = reg.teamName ? 'Team Registration' : 'Individual';
+            } catch (e) {}
 
             return {
                 id: reg.registrationId,
-                name: displayName,
+                name: reg.teamName ? reg.teamName : userName,
                 roll: userRoll,
                 event: eventMap[reg.eventId] || reg.eventId,
-                type: regType,
+                type: reg.teamName ? 'Team' : 'Individual',
                 status: reg.paymentStatus,
-                txId: reg.transactionId || 'N/A', // Ensure this field exists in your DB items
-                proofUrl: reg.screenshotUrl || '',   // Ensure this field exists
+                txId: reg.transactionId || 'N/A',
+                proofUrl: reg.screenshotUrl || '',
                 timestamp: reg.registeredAt
             };
         }));
@@ -2465,7 +2576,6 @@ app.get('/api/coordinator/approvals', isAuthenticated('coordinator'), async (req
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
 // 2. POST: Approve Request
 app.post('/api/coordinator/approve', isAuthenticated('coordinator'), async (req, res) => {
     try {
@@ -2527,29 +2637,26 @@ app.post('/api/coordinator/decline', isAuthenticated('coordinator'), async (req,
 app.get('/api/coordinator/kit-beneficiaries', isAuthenticated('coordinator'), async (req, res) => {
     try {
         const user = req.session.user;
-        const userDept = user.dept;
-        const managedEventId = user.managedEventId;
-
+        const managedEventIds = user.managedEventIds || [];
         let items = [];
 
-        // 1. Fetch COMPLETED registrations based on Coordinator Role
-        if (managedEventId) {
-            // Specific Event Coordinator
-            const params = {
-                TableName: 'Lakshya_Registrations',
-                FilterExpression: 'eventId = :eid AND paymentStatus = :status',
-                ExpressionAttributeValues: { ':eid': managedEventId, ':status': 'COMPLETED' }
-            };
-            const data = await docClient.send(new ScanCommand(params));
-            items = data.Items || [];
+        if (managedEventIds.length > 0) {
+            const promises = managedEventIds.map(eid => 
+                docClient.send(new ScanCommand({
+                    TableName: 'Lakshya_Registrations',
+                    FilterExpression: 'eventId = :eid AND paymentStatus = :status',
+                    ExpressionAttributeValues: { ':eid': eid, ':status': 'COMPLETED' }
+                }))
+            );
+            const results = await Promise.all(promises);
+            results.forEach(r => { if(r.Items) items.push(...r.Items); });
         } else {
-            // Department Coordinator
             const params = {
                 TableName: 'Lakshya_Registrations',
                 IndexName: 'DepartmentIndex',
                 KeyConditionExpression: 'deptName = :dept',
                 FilterExpression: 'paymentStatus = :status',
-                ExpressionAttributeValues: { ':dept': userDept, ':status': 'COMPLETED' }
+                ExpressionAttributeValues: { ':dept': user.dept, ':status': 'COMPLETED' }
             };
             const data = await docClient.send(new QueryCommand(params));
             items = data.Items || [];
@@ -2557,7 +2664,7 @@ app.get('/api/coordinator/kit-beneficiaries', isAuthenticated('coordinator'), as
 
         if (items.length === 0) return res.json([]);
 
-        // 2. Fetch Events (to check fees and eligibility)
+        // --- FILTER FOR KIT ELIGIBILITY ---
         const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
         const eventMap = {}; 
         (eventData.Items || []).forEach(e => {
@@ -2565,72 +2672,52 @@ app.get('/api/coordinator/kit-beneficiaries', isAuthenticated('coordinator'), as
                 title: e.title, 
                 fee: parseFloat(e.fee), 
                 type: (e.type || '').toLowerCase(),
-                includesKit: checkKitEligibility(e.type)
+                includesKit: checkKitEligibility(e.type) // Uses your existing helper
             };
         });
 
-        // 3. Filter for Kit Eligibility & Fetch Student Details
         const beneficiaries = [];
-        
-        await Promise.all(items.map(async (reg) => {
+        for (const reg of items) {
             const eventInfo = eventMap[reg.eventId];
-            if (!eventInfo) return;
+            if (!eventInfo || !eventInfo.includesKit) continue;
 
-            // CHECK 1: Is the event type eligible for a kit?
-            if (!eventInfo.includesKit) return;
-
-            // CHECK 2: Did they pay the full fee? (Tolerance of 1 rupee)
+            // Check if full fee paid
             const amountPaid = parseFloat(reg.amountPaid) || 0;
-            const fullFee = eventInfo.fee;
-            
-            // If they paid less than fee (e.g. 50% off), they DON'T get a kit
-            if (amountPaid < (fullFee - 1)) return;
+            if (amountPaid < (eventInfo.fee - 1)) continue;
 
-            // If we are here, they get a kit. Fetch User Details.
-            let studentName = "Unknown";
-            let rollNo = "N/A";
-            let mobile = "N/A";
-
+            // Get User Details
+            let studentName = "Unknown", rollNo = "N/A", mobile = "N/A";
             try {
                 const userRes = await docClient.send(new GetCommand({
-                    TableName: 'Lakshya_Users',
-                    Key: { email: reg.studentEmail }
+                    TableName: 'Lakshya_Users', Key: { email: reg.studentEmail }
                 }));
                 if (userRes.Item) {
                     studentName = userRes.Item.fullName;
                     rollNo = userRes.Item.rollNo;
                     mobile = userRes.Item.mobile;
                 }
-            } catch (e) { console.error("User fetch error", e); }
+            } catch (e) {}
 
-            // UPDATED: Now includes eventId and studentEmail for linking
             beneficiaries.push({
                 registrationId: reg.registrationId, 
-                eventId: reg.eventId,              // <--- ADDED for link
-                studentName: studentName,           
-                studentEmail: reg.studentEmail,    // <--- ADDED for display/link
-                rollNo: rollNo,
-                mobile: mobile,
+                eventId: reg.eventId,
+                studentName, studentEmail: reg.studentEmail, rollNo, mobile,
                 eventTitle: eventInfo.title,        
                 eventType: eventInfo.type,          
                 dept: reg.deptName,
-                paymentDate: reg.paymentDate || reg.registeredAt,
-                amountPaid: amountPaid,
                 kitCollected: reg.kitCollected === true,
                 attendance: reg.attendance === true 
             });
-        }));
+        }
 
-        // Sort alphabetically by Name
         beneficiaries.sort((a, b) => a.studentName.localeCompare(b.studentName));
-
         res.json(beneficiaries);
 
     } catch (error) {
-        console.error("Kit Beneficiaries Error:", error);
         res.status(500).json({ error: "Failed to fetch list" });
     }
 });
+
 app.post('/api/coordinator/toggle-kit-status', isAuthenticated('coordinator'), async (req, res) => {
     const { registrationId, status } = req.body;
 
