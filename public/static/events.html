@@ -166,7 +166,8 @@
         .event-card:hover .event-img-display { transform: scale(1.1); box-shadow: 0 0 25px rgba(0, 210, 255, 0.6); }
 
         .event-title { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: white; line-height: 1.3; }
-        .event-subtitle { font-size: 0.9rem; color: var(--primary-color); letter-spacing: 1px; margin-bottom: 1rem; text-transform: uppercase; }
+        .event-subtitle { font-size: 0.9rem; color: var(--primary-color); letter-spacing: 1px; margin-bottom: 0.5rem; text-transform: uppercase; }
+        .event-dept { font-size: 0.85rem; color: #aaa; margin-bottom: 1rem; font-weight: 500; }
         .event-desc { font-size: 0.9rem; color: #ccc; margin-bottom: 1.5rem; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 
         .card-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: auto; }
@@ -491,9 +492,19 @@
                 let category = 'Special';
                 const type = (event.type || '').toLowerCase();
                 const title = (event.title || '').toLowerCase();
+                
+                // Regex for strict 'MBA' checking (whole word only) to avoid matching "Combat"
+                const mbaRegex = /\bmba\b/;
 
-                if (type.includes('major') || title.includes('major')) category = 'Major';
-                else if (type.includes('mba') || title.includes('mba') || (event.departments && event.departments.includes('MBA'))) category = 'MBA';
+                if (type.includes('major') || title.includes('major')) {
+                    category = 'Major';
+                } else if (
+                    mbaRegex.test(type) || 
+                    mbaRegex.test(title) || 
+                    (event.departments && event.departments.includes('MBA'))
+                ) {
+                    category = 'MBA';
+                }
                 
                 // Icon Logic
                 let iconClass = 'fa-solid fa-calendar-star'; 
@@ -508,6 +519,13 @@
                     visualElement = `<img src="${event.imageUrl}" class="event-img-display" alt="Event Icon" onerror="this.style.display='none'">`;
                 }
 
+                // Department Logic
+                let deptDisplay = '';
+                if (event.departments) {
+                     const depts = Array.isArray(event.departments) ? event.departments.join(', ') : event.departments;
+                     deptDisplay = `<p class="event-dept">${depts}</p>`;
+                }
+
                 const card = document.createElement('div');
                 card.className = 'event-card';
                 card.style.animationDelay = `${delay}s`;
@@ -515,6 +533,7 @@
                     ${visualElement}
                     <h3 class="event-title">${event.title}</h3>
                     <p class="event-subtitle">${event.type}</p>
+                    ${deptDisplay}
                     <p class="event-desc">${event.description || 'Join us for this amazing event!'}</p>
                     <div class="card-actions">
                         <button class="btn-read-more" onclick="openEventModal('${event.eventId}')">Read More</button>
