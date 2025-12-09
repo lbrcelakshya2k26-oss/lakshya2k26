@@ -671,7 +671,7 @@ app.post('/api/payment/create-order', isAuthenticated('participant'), async (req
         const amountInPaise = Math.round(finalTotal * 100); 
 
         // 6. Create Payment Link
-        const CALLBACK_URL = "http://localhost:3000/participant/payment-success"; 
+        const CALLBACK_URL = "https://lakshya.lbrce.ac.in/participant/payment-success"; 
 
         const paymentLink = await razorpay.paymentLink.create({
             amount: amountInPaise, 
