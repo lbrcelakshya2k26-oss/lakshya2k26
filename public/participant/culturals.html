@@ -116,14 +116,16 @@
 
         .card-image-container {
             height: 180px; width: 100%; overflow: hidden; position: relative; flex-shrink: 0;
+            background: #000; display: flex; align-items: center; justify-content: center;
         }
         .card-img {
-            width: 100%; height: 100%; object-fit: cover; transition: 0.6s;
+            width: 100%; height: 100%; object-fit: contain; transition: 0.6s;
         }
         .event-card:hover .card-img { transform: scale(1.1); }
         .card-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(to bottom, transparent 50%, rgba(10,10,10,0.9));
+            pointer-events: none;
         }
 
         .card-body { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; gap: 10px; }
@@ -233,6 +235,25 @@
             display: flex; align-items: center; gap: 15px;
         }
         .toast i { color: var(--accent-color); }
+
+        /* --- FORMATTED TEXT STYLES --- */
+        .fmt-list-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 6px; 
+            line-height: 1.5;   
+        }
+        .fmt-bullet {
+            color: var(--accent-color);
+            font-weight: bold;
+            margin-right: 8px;
+            flex-shrink: 0; 
+            margin-top: 2px;
+        }
+        .fmt-line {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
 
         @media (max-width: 1024px) {
             .main-content { margin-left: 0; width: 100%; padding: 1.5rem; padding-top: 90px; }
@@ -381,7 +402,16 @@
             } catch(e) { console.log("User fetch error", e); }
         }
 
+        // --- UPDATED: IS CULTURAL EVENT LOGIC ---
         function isCulturalEvent(event) {
+            // 1. STRICT CHECK: If Admin selected a Technical/Special type, it is NOT cultural
+            const safeTypes = ['Special', 'Major', 'MBA', 'Technical'];
+            // Check exact match or case-insensitive match against the event type
+            if (safeTypes.some(safe => (event.type || '').toLowerCase() === safe.toLowerCase())) {
+                return false; 
+            }
+
+            // 2. Otherwise, check for keywords as usual
             const t = (event.type || '').toLowerCase();
             const title = (event.title || '').toLowerCase();
             return culturalKeywords.some(key => t.includes(key) || title.includes(key));
@@ -398,6 +428,7 @@
                 const fullList = await res.json();
                 
                 // --- FILTER IN ONLY CULTURAL EVENTS ---
+                // We reuse the same logic: if it returns true, it's cultural
                 allEvents = fullList.filter(e => isCulturalEvent(e));
                 
                 container.innerHTML = '';
@@ -449,6 +480,28 @@
             });
         }
 
+        // --- ADDED: TEXT FORMATTER (Consistent with Events Page) ---
+        function formatText(text) {
+            if (!text) return '';
+            const lines = text.split(/\r\n|\n|\r/);
+            let html = '';
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return; 
+                if (trimmed.startsWith('->') || trimmed.startsWith('=>')) {
+                    const cleanText = trimmed.replace(/^(-?>|=>)\s*/, '');
+                    html += `
+                        <div class="fmt-list-item">
+                            <span class="fmt-bullet">•</span>
+                            <span>${cleanText}</span>
+                        </div>`;
+                } else {
+                    html += `<div class="fmt-line">${trimmed}</div>`;
+                }
+            });
+            return html;
+        }
+
         // --- REUSED MODAL LOGIC ---
         function openInfoModal(id) {
             const event = allEvents.find(e => e.eventId === id);
@@ -457,10 +510,16 @@
             document.getElementById('modalFee').innerText = event.fee;
             
             let content = '';
-            if (event.description) content += `<p style="margin-bottom:15px; font-size:1.1rem;">${event.description}</p>`;
+            if (event.description) {
+                 content += `<div style="margin-bottom:15px; font-size:1.1rem;">${formatText(event.description)}</div>`;
+            }
             if(event.sections && event.sections.length > 0) {
                 event.sections.forEach(sec => {
-                    content += `<div style="margin-top:15px;"><strong style="color:white; display:block; margin-bottom:5px;">${sec.heading}</strong><p style="font-size:0.9rem; color:#ccc;">${sec.content}</p></div>`;
+                    content += `
+                    <div style="margin-top:15px;">
+                        <strong style="color:white; display:block; margin-bottom:5px;">${sec.heading}</strong>
+                        <div class="formatted-content" style="font-size:0.9rem;">${formatText(sec.content)}</div>
+                    </div>`;
                 });
             }
             document.getElementById('modalContent').innerHTML = content;
