@@ -1951,7 +1951,7 @@ app.post('/api/admin/delete-coupon', isAuthenticated('admin'), async (req, res) 
 //         const amountInPaise = Math.round(finalTotal * 100); 
 
 //         // 6. Create Payment Link (Redirect Method)
-//         const CALLBACK_URL = "http://localhost:3000/participant/payment-success"; 
+//         const CALLBACK_URL = "https://lakshya.lbrce.ac.in/participant/payment-success"; 
 
 //         const paymentLink = await razorpay.paymentLink.create({
 //             amount: amountInPaise, 
