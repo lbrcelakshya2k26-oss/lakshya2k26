@@ -124,7 +124,7 @@ async function sendEmail(to, subject, htmlContent) {
     const toAddresses = Array.isArray(to) ? to : to.split(',').map(e => e.trim());
 
     const params = {
-        FromEmailAddress: '"LAKSHYA 2K26" <support@testify-lac.com>', 
+        FromEmailAddress: '"LAKSHYA 2K26" <events@xetasolutions.in>', 
         Destination: { ToAddresses: toAddresses },
         Content: {
             Simple: {
@@ -401,6 +401,16 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/send-otp', async (req, res) => {
     const { email } = req.body;
 
+    // 0. RATE LIMITING (45 Seconds)
+    // Check if OTP was sent recently to this session
+    const cooldown = 45 * 1000; // 45 seconds in milliseconds
+    const now = Date.now();
+
+    if (req.session.lastOtpTime && (now - req.session.lastOtpTime < cooldown)) {
+        const remainingSeconds = Math.ceil((cooldown - (now - req.session.lastOtpTime)) / 1000);
+        return res.status(429).json({ error: `Please wait ${remainingSeconds}s before resending.` });
+    }
+
     // 1. ROBUST CHECK: Does user exist?
     try {
         const userCheck = await docClient.send(new GetCommand({
@@ -421,35 +431,93 @@ app.post('/api/auth/send-otp', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     req.session.otp = otp;
     
+    // Save timestamp for Rate Limiting
+    req.session.lastOtpTime = Date.now();
+    
     // 3. Email Template
     const htmlContent = `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f4f4; padding: 20px;">
-        <div style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-            <div style="background-color: #00d2ff; padding: 20px; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px;">LAKSHYA 2K26</h1>
-            </div>
-            <div style="padding: 30px; text-align: center;">
-                <h2 style="color: #333333; margin-top: 0;">Verify Your Email</h2>
-                <div style="margin: 30px 0;">
-                    <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #00d2ff; background-color: #f0faff; padding: 15px 30px; border-radius: 5px; border: 1px dashed #00d2ff;">
-                        ${otp}
-                    </span>
-                </div>
-                <p style="color: #666;">Use this code to complete your registration.</p>
-            </div>
-        </div>
-    </div>`;
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f6f8; padding: 20px;">
+  
+  <div style="background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 6px 16px rgba(0,0,0,0.08);">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #00d2ff, #3a7bd5); padding: 25px; text-align: center;">
+      <img 
+        src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png"
+        alt="LAKSHYA Logo"
+        style="height: 60px; margin-bottom: 12px;"
+      />
+      <h1 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: 1px;">
+        LAKSHYA 2K26
+      </h1>
+      <p style="color: #eafaff; margin: 6px 0 0; font-size: 14px;">
+        The Annual Techno-Cultural Festival of LBRCE
+      </p>
+    </div>
+
+    <!-- Body -->
+    <div style="padding: 35px; text-align: center;">
+      <h2 style="color: #333333; margin-top: 0;">
+        Email Verification Code
+      </h2>
+
+      <p style="color: #555; font-size: 15px; margin-top: 10px;">
+        Thank you for registering for <strong>LAKSHYA 2K26</strong> 🎉  
+        Please use the verification code below to complete your registration.
+      </p>
+
+      <!-- OTP -->
+      <div style="margin: 30px 0;">
+        <span style="
+          font-size: 32px;
+          font-weight: 700;
+          letter-spacing: 6px;
+          color: #00a8cc;
+          background-color: #f0fbff;
+          padding: 16px 36px;
+          border-radius: 6px;
+          border: 2px dashed #00d2ff;
+          display: inline-block;
+        ">
+          ${otp}
+        </span>
+      </div>
+
+      <p style="color: #666; font-size: 14px;">
+        This code is valid for a <strong>limited time</strong>.  
+        Please do not share it with anyone for security reasons.
+      </p>
+
+      <p style="color: #777; font-size: 13px; margin-top: 25px;">
+        If you did not initiate this request, you may safely ignore this email.
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f8f9fb; padding: 18px; text-align: center; border-top: 1px solid #eee;">
+      <p style="color: #999; font-size: 12px; margin: 0;">
+        © LAKSHYA 2K26 · Lakireddy Bali Reddy College of Engineering  
+      </p>
+      <p style="color: #999; font-size: 12px; margin: 4px 0 0;">
+        This is an automated email. Please do not reply.
+      </p>
+    </div>
+
+  </div>
+</div>
+`;
 
     // 4. Send Email
     try {
         await sendEmail(email, "LAKSHYA 2K26 - Email Verification", htmlContent);
-        res.json({ message: 'OTP sent', debug_otp: otp }); // debug_otp for testing
+        res.json({ message: 'OTP sent', debug_otp: otp }); 
     } catch (e) {
         console.error("OTP Error:", e);
+        // Reset timestamp if sending failed so they can try again immediately
+        req.session.lastOtpTime = null; 
         res.status(500).json({ error: 'Failed to send OTP' });
     }
 });
-
 
 // --- 9. API ROUTES: MOCKED PAYMENT & REGISTRATION ---
 app.post('/api/register-event', isAuthenticated('participant'), async (req, res) => {
