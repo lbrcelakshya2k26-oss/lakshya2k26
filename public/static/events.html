@@ -8,10 +8,10 @@
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="\assets\logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo.png">
 
     <style>
-        /* --- GLOBAL VARIABLES (Synced with About) --- */
+        /* --- GLOBAL VARIABLES --- */
         :root {
             --primary-color: #00d2ff;
             --secondary-color: #3a7bd5;
@@ -47,7 +47,7 @@
             background: var(--dark-overlay); z-index: -1;
         }
 
-        /* --- NAVIGATION (Synced with About) --- */
+        /* --- NAVIGATION --- */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
             height: 80px; padding: 0 4%;
@@ -122,7 +122,7 @@
             flex: 1;
         }
 
-        /* --- EVENTS CATEGORY SECTIONS --- */
+        /* --- CATEGORY SECTIONS --- */
         .category-section { margin-bottom: 60px; }
         .category-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; }
         .category-title { font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 1px; }
@@ -223,7 +223,7 @@
         }
         .info-chip i { color: var(--primary-color); }
 
-        /* Formatting Styles from logged-in page */
+        /* Formatting Styles */
         .fmt-list-item { display: flex; align-items: flex-start; margin-bottom: 6px; line-height: 1.5; }
         .fmt-bullet { color: var(--primary-color); font-weight: bold; margin-right: 8px; flex-shrink: 0; margin-top: 2px; }
         .fmt-line { margin-bottom: 8px; line-height: 1.5; color: #ddd; }
@@ -234,7 +234,7 @@
         @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes scaleUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        /* --- FOOTER (Synced with About) --- */
+        /* --- FOOTER --- */
         footer {
             width: 100%;
             padding: 8px 4%;
@@ -272,7 +272,7 @@
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
 
-    <!-- NAVIGATION (Synced) -->
+    <!-- NAVIGATION -->
     <nav>
         <div class="logo" onclick="window.location.href='home'">
             <span class="logo-text">LAKSHYA 2K26</span>
@@ -297,7 +297,7 @@
         </div>
     </nav>
 
-    <!-- OFFER POPUP (Synced) -->
+    <!-- OFFER POPUP -->
     <div class="modal-overlay" id="offerModal">
         <div class="offer-card">
             <div class="close-offer-btn" onclick="closeOfferModal()"><i class="fa-solid fa-xmark"></i></div>
@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- FOOTER (Synced) -->
+    <!-- FOOTER -->
     <footer>
         <div class="footer-left">
             <p class="footer-text">&copy; Designed & Developed by <a href="https://xetasolutions.in" target="_blank">Xeta</a></p>
@@ -420,7 +420,7 @@
             }
         });
 
-        // --- OFFER MODAL LOGIC (Synced) ---
+        // --- OFFER MODAL LOGIC ---
         const offerModal = document.getElementById('offerModal');
         // Auto show offer after 1.5s
         window.onload = function() { 
@@ -429,14 +429,32 @@
         };
         function closeOfferModal() { offerModal.classList.remove('active'); }
 
-        // --- EVENTS FETCH & CATEGORIZATION LOGIC ---
+        // --- EVENTS FETCH LOGIC ---
         let allEvents = [];
 
         async function fetchEvents() {
             try {
                 const response = await fetch('/api/events');
                 if (!response.ok) throw new Error("Failed to fetch");
-                allEvents = await response.json();
+                const fullList = await response.json();
+                
+                // 1. FILTERING LOGIC
+                allEvents = fullList.filter(event => {
+                    // Step A: Exclude "Special", "Major", "MBA" types (Safety Check)
+                    const safeTypes = ['Special', 'Major', 'MBA', 'Technical'];
+                    const eType = (event.type || '').toLowerCase();
+                    if (safeTypes.some(safe => eType === safe.toLowerCase())) {
+                        return true; 
+                    }
+
+                    // Step B: Check for Cultural Keywords
+                    const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'rangamarthanda',  'literary', 'acting', 'art', 'paint'];
+                    const t = eType;
+                    const title = (event.title || '').toLowerCase();
+                    // Include if NOT cultural
+                    return !culturalKeywords.some(key => t.includes(key) || title.includes(key));
+                });
+
                 renderEvents(allEvents);
             } catch (error) {
                 console.error("Error loading events:", error);
@@ -461,21 +479,12 @@
             mbaContainer.innerHTML = '';
             specialContainer.innerHTML = '';
 
-            // Filter out cultural events (assuming technical page)
-            const techEvents = events.filter(e => {
-                const type = (e.type || '').toLowerCase();
-                const title = (e.title || '').toLowerCase();
-                // Keywords to identify cultural events
-                const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'art', 'rangamarthanda', 'painting', 'literary'];
-                return !culturalKeywords.some(key => type.includes(key) || title.includes(key));
-            });
-
-            if (techEvents.length === 0) {
+            if (events.length === 0) {
                 specialContainer.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">No technical events found.</div>';
                 return;
             }
 
-            techEvents.forEach((event, index) => {
+            events.forEach((event, index) => {
                 const delay = (index % 5) * 0.1; 
                 
                 // Determine Category
@@ -525,7 +534,7 @@
             if (specialContainer.children.length === 0) specialContainer.innerHTML = '<div style="color:#666;">No Special Events listed.</div>';
         }
 
-        // --- TEXT FORMATTER (Ported from Logged-in Page) ---
+        // --- TEXT FORMATTER ---
         function formatText(text) {
             if (!text) return '';
             const lines = text.split(/\r\n|\n|\r/);

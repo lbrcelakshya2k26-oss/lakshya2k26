@@ -8,10 +8,10 @@
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="\assets\logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo.png">
 
     <style>
-        /* --- GLOBAL VARIABLES (Synced with Events) --- */
+        /* --- GLOBAL VARIABLES --- */
         :root {
             --primary-color: #00d2ff;
             --secondary-color: #3a7bd5;
@@ -47,7 +47,7 @@
             background: var(--dark-overlay); z-index: -1;
         }
 
-        /* --- NAVIGATION (Synced) --- */
+        /* --- NAVIGATION --- */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
             height: 80px; padding: 0 4%;
@@ -122,19 +122,14 @@
             flex: 1;
         }
 
-        /* --- CATEGORY SECTIONS --- */
-        .category-section { margin-bottom: 60px; }
-        .category-header { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; }
-        .category-title { font-family: 'Montserrat', sans-serif; font-size: 1.8rem; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 1px; }
-        .category-line { flex-grow: 1; height: 1px; background: linear-gradient(90deg, var(--glass-border), transparent); }
-
+        /* --- EVENTS GRID (SINGLE) --- */
         .events-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 2rem;
         }
 
-        /* --- EVENT CARD (Synced) --- */
+        /* --- EVENT CARD --- */
         .event-card {
             background: var(--glass-bg);
             backdrop-filter: blur(10px);
@@ -234,7 +229,7 @@
         @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes scaleUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        /* --- FOOTER (Synced) --- */
+        /* --- FOOTER --- */
         footer {
             width: 100%;
             padding: 8px 4%;
@@ -272,7 +267,7 @@
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
 
-    <!-- NAVIGATION (Synced) -->
+    <!-- NAVIGATION -->
     <nav>
         <div class="logo" onclick="window.location.href='home'">
             <span class="logo-text">LAKSHYA 2K26</span>
@@ -297,7 +292,7 @@
         </div>
     </nav>
 
-    <!-- OFFER POPUP (Synced) -->
+    <!-- OFFER POPUP -->
     <div class="modal-overlay" id="offerModal">
         <div class="offer-card">
             <div class="close-offer-btn" onclick="closeOfferModal()"><i class="fa-solid fa-xmark"></i></div>
@@ -328,42 +323,14 @@
 
     <div class="container">
         
-        <!-- Stage Events Section -->
-        <div class="category-section" id="sec-Stage">
-            <div class="category-header">
-                <div class="category-title">Stage Competitions</div>
-                <div class="category-line"></div>
-            </div>
-            <div class="events-grid" id="stageEventsContainer">
-                <div style="color:#aaa;">Loading Stage Events...</div>
-            </div>
-        </div>
-
-        <!-- Literary & Arts Section -->
-        <div class="category-section" id="sec-Arts">
-            <div class="category-header">
-                <div class="category-title">Literary & Arts</div>
-                <div class="category-line"></div>
-            </div>
-            <div class="events-grid" id="artsEventsContainer">
-                 <div style="color:#aaa;">Loading Arts Events...</div>
-            </div>
-        </div>
-
-        <!-- Special Events Section -->
-        <div class="category-section" id="sec-Special">
-            <div class="category-header">
-                <div class="category-title">Special & Flagship</div>
-                <div class="category-line"></div>
-            </div>
-            <div class="events-grid" id="specialEventsContainer">
-                 <div style="color:#aaa;">Loading Special Events...</div>
-            </div>
+        <!-- SINGLE CONTAINER FOR ALL CULTURAL EVENTS -->
+        <div class="events-grid" id="culturalEventsContainer">
+             <div style="color:#aaa; text-align:center;">Loading Cultural Events...</div>
         </div>
 
     </div>
 
-    <!-- EVENT READ MORE MODAL (Synced) -->
+    <!-- EVENT READ MORE MODAL -->
     <div class="modal" id="eventModal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeEventModal()"><i class="fa-solid fa-xmark"></i></span>
@@ -386,7 +353,7 @@
         </div>
     </div>
 
-    <!-- FOOTER (Synced) -->
+    <!-- FOOTER -->
     <footer>
         <div class="footer-left">
             <p class="footer-text">&copy; Designed & Developed by <a href="https://xetasolutions.in" target="_blank">Xeta</a></p>
@@ -420,7 +387,7 @@
             }
         });
 
-        // --- OFFER MODAL LOGIC (Synced) ---
+        // --- OFFER MODAL LOGIC ---
         const offerModal = document.getElementById('offerModal');
         window.onload = function() { 
             setTimeout(() => { offerModal.classList.add('active'); }, 1500);
@@ -428,7 +395,7 @@
         };
         function closeOfferModal() { offerModal.classList.remove('active'); }
 
-        // --- EVENTS FETCH & CATEGORIZATION LOGIC ---
+        // --- EVENTS FETCH LOGIC ---
         let allEvents = [];
 
         async function fetchEvents() {
@@ -437,11 +404,18 @@
                 if (!response.ok) throw new Error("Failed to fetch");
                 const fullList = await response.json();
                 
-                // Keyword filter specifically for Cultural Events
-                const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'art', 'rangamarthanda', 'painting', 'literary', 'acting'];
-                
+                // 1. FILTERING LOGIC
                 allEvents = fullList.filter(event => {
-                    const t = (event.type || '').toLowerCase();
+                    // Step A: Exclude "Special", "Major", "MBA" types (Safety Check)
+                    const safeTypes = ['Special', 'Major', 'MBA', 'Technical'];
+                    const eType = (event.type || '').toLowerCase();
+                    if (safeTypes.some(safe => eType === safe.toLowerCase())) {
+                        return false; 
+                    }
+
+                    // Step B: Check for Cultural Keywords
+                    const culturalKeywords = ['cultural', 'music', 'dance', 'singing', 'drama', 'skit', 'fashion', 'rangamarthanda',  'literary', 'acting', 'art', 'paint'];
+                    const t = eType;
                     const title = (event.title || '').toLowerCase();
                     return culturalKeywords.some(key => t.includes(key) || title.includes(key));
                 });
@@ -449,15 +423,10 @@
                 renderEvents(allEvents);
             } catch (error) {
                 console.error("Error loading events:", error);
-                const errorMsg = `
+                document.getElementById('culturalEventsContainer').innerHTML = `
                     <div style="grid-column: 1/-1; text-align: center; color: #ff4444;">
-                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem;"></i><br><br>
                         Failed to load events.
-                    </div>
-                `;
-                document.getElementById('stageEventsContainer').innerHTML = errorMsg;
-                document.getElementById('artsEventsContainer').innerHTML = errorMsg;
-                document.getElementById('specialEventsContainer').innerHTML = errorMsg;
+                    </div>`;
             }
         }
 
@@ -473,32 +442,16 @@
         }
 
         function renderEvents(events) {
-            const stageContainer = document.getElementById('stageEventsContainer');
-            const artsContainer = document.getElementById('artsEventsContainer');
-            const specialContainer = document.getElementById('specialEventsContainer');
-            
-            stageContainer.innerHTML = '';
-            artsContainer.innerHTML = '';
-            specialContainer.innerHTML = '';
+            const container = document.getElementById('culturalEventsContainer');
+            container.innerHTML = '';
 
             if (events.length === 0) {
-                specialContainer.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">No cultural events found yet.</div>';
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">No cultural events found yet.</div>';
                 return;
             }
 
             events.forEach((event, index) => {
                 const delay = (index % 5) * 0.1; 
-                const t = (event.title + ' ' + event.type).toLowerCase();
-
-                // Determine Category logic for Culturals
-                let category = 'Special';
-                if (t.includes('dance') || t.includes('music') || t.includes('singing') || t.includes('drama') || t.includes('skit') || t.includes('fashion')) {
-                    category = 'Stage';
-                } else if (t.includes('art') || t.includes('painting') || t.includes('rangoli') || t.includes('literary') || t.includes('writing')) {
-                    category = 'Arts';
-                }
-
-                // Determine Icon
                 let iconClass = getCulturalIcon(event.title, event.type);
 
                 let visualElement = `<i class="${iconClass} event-icon"></i>`;
@@ -519,17 +472,8 @@
                         <a href="register" class="btn-card-register">Register</a>
                     </div>
                 `;
-
-                // Append to correct container
-                if (category === 'Stage') stageContainer.appendChild(card);
-                else if (category === 'Arts') artsContainer.appendChild(card);
-                else specialContainer.appendChild(card);
+                container.appendChild(card);
             });
-
-            // Handle empty sections
-            if (stageContainer.children.length === 0) stageContainer.innerHTML = '<div style="color:#666;">No Stage Events listed.</div>';
-            if (artsContainer.children.length === 0) artsContainer.innerHTML = '<div style="color:#666;">No Literary/Arts Events listed.</div>';
-            if (specialContainer.children.length === 0) specialContainer.innerHTML = '<div style="color:#666;">No Special Events listed.</div>';
         }
 
         // --- TEXT FORMATTER ---
@@ -567,13 +511,9 @@
             document.getElementById('modalType').innerText = event.type || 'General';
             
             let content = '';
-            
-            // Description with formatting
             if (event.description) {
                 content += `<div style="margin-bottom:15px; font-size:1rem;">${formatText(event.description)}</div>`;
             }
-            
-            // Sections with formatting
             if (event.sections && event.sections.length > 0) {
                 event.sections.forEach(sec => {
                     content += `
@@ -590,17 +530,11 @@
             eventModal.style.display = 'flex';
         }
 
-        function closeEventModal() {
-            eventModal.style.display = 'none';
-        }
+        function closeEventModal() { eventModal.style.display = 'none'; }
 
         window.onclick = function(event) {
-            if (event.target == eventModal) {
-                closeEventModal();
-            }
-            if (event.target == offerModal) {
-                closeOfferModal();
-            }
+            if (event.target == eventModal) closeEventModal();
+            if (event.target == offerModal) closeOfferModal();
         }
     </script>
 </body>

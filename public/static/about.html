@@ -74,7 +74,7 @@
 
         .nav-links a {
             text-decoration: none; color: var(--text-color); font-weight: 500;
-            font-size: 0.8rem; /* DECREASED MENU ITEM SIZE */
+            font-size: 0.8rem;
             text-transform: uppercase; letter-spacing: 0.5px;
             transition: 0.3s; position: relative; white-space: nowrap;
         }
@@ -124,16 +124,18 @@
         }
 
         /* Grid */
-        .about-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-top: 30px; align-items: center; }
+        .about-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; margin-top: 30px; align-items: start; }
         .glass-panel { background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 40px; position: relative; overflow: hidden; animation: fadeUp 0.8s ease-out forwards; }
         .glass-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: linear-gradient(to bottom, var(--primary-color), var(--accent-color)); }
         
         .text-content h3 { font-family: 'Montserrat'; font-size: 1.8rem; margin-bottom: 18px; color: white; }
-        .text-content p { color: #ccc; line-height: 1.7; margin-bottom: 14px; font-size: 0.95rem; text-align: justify; }
+        .text-content p { color: #ccc; line-height: 1.8; margin-bottom: 20px; font-size: 0.95rem; text-align: justify; }
+        .text-content p:last-child { margin-bottom: 0; }
+        
         .tag-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(0, 210, 255, 0.08); border: 1px solid rgba(0, 210, 255, 0.4); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 14px; }
         .tag-pill i { color: var(--primary-color); }
 
-        .image-box { width: 100%; height: 350px; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); position: relative; animation: fadeUp 1s ease-out forwards; }
+        .image-box { width: 100%; height: 500px; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); position: relative; animation: fadeUp 1s ease-out forwards; }
         .image-box img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; }
         .image-box:hover img { transform: scale(1.05); }
         .image-tag { position: absolute; bottom: 15px; left: 15px; padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.6); font-size: 0.75rem; text-transform: uppercase; }
@@ -155,7 +157,7 @@
         .feature-tag { font-size: 0.75rem; text-transform: uppercase; color: var(--accent-color); margin-bottom: 8px; }
         .feature-card p { color: #a7a7a7; font-size: 0.9rem; line-height: 1.6; }
 
-        /* Offer Modal (UPDATED) */
+        /* Offer Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.4s; }
         .modal-overlay.active { opacity: 1; visibility: visible; }
         .offer-card { position: relative; background: rgba(20, 20, 35, 0.95); border: 1px solid var(--primary-color); width: 90%; max-width: 450px; padding: 30px; border-radius: 20px; text-align: center; transform: scale(0.8); transition: transform 0.4s; box-shadow: 0 0 30px rgba(0, 210, 255, 0.2); }
@@ -256,7 +258,6 @@
             <li><a href="events" onclick="closeMenu()">Events</a></li>
             <li><a href="culturals" onclick="closeMenu()">Culturals</a></li>
             <li><a href="committee" onclick="closeMenu()">Committee</a></li>
-            <!-- Removed Privacy Policy link -->
             <li><a href="contact" onclick="closeMenu()">Contact</a></li>
             <li><a href="register" class="btn-register" onclick="closeMenu()">Register</a></li>
             <li><a href="login" class="btn-login" onclick="closeMenu()">Login</a></li>
@@ -301,10 +302,20 @@
     <div class="container">
         <div class="about-grid">
             <div class="glass-panel text-content">
-                <div class="tag-pill"><i class="fa-solid fa-location-dot"></i> Lakireddy Bali Reddy College of Engineering, Mylavaram</div>
-                <h3>The Spirit of LAKSHYA</h3>
-                <p><strong>LAKSHYA 2K26</strong> is the flagship National Level Techno–Cultural Fest of <strong>LBRCE</strong>, curated to celebrate ideas, innovation, and imagination.</p>
-                <p>From intense <strong>paper &amp; poster presentations</strong> to high–energy <strong>quizzes, coding battles, and cultural showcases</strong>, LAKSHYA is designed as a complete experience.</p>
+                <div class="tag-pill"><i class="fa-solid fa-location-dot"></i> LBRCE, Mylavaram</div>
+                <h3>The Flagship Fest</h3>
+                
+                <p>
+                    <strong>LAKSHYA</strong> is the National Level Technical & Cultural Fest of <strong>Lakireddy Bali Reddy College of Engineering (LBRCE), Mylavaram</strong>. As the college’s flagship annual event, it serves as a vibrant platform that brings together innovation, creativity, and celebration.
+                </p>
+
+                <p>
+                    Organized by the students of LBRCE with strong academic and institutional support, LAKSHYA offers a diverse range of <strong>technical competitions, cultural showcases, and special events</strong>. The fest provides a unique opportunity for students to explore emerging technologies, present innovative ideas, and demonstrate their creative talents on a grand stage.
+                </p>
+
+                <p>
+                    With participation from students across various engineering institutions, LAKSHYA aims to encourage <strong>learning beyond classrooms</strong>, collaboration, leadership, and holistic development. Over the years, it has grown into a recognized national-level fest that truly reflects the energetic spirit and technical excellence of LBRCE.
+                </p>
             </div>
             <div class="image-box">
                 <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&q=80&w=2070" alt="Lakshya Fest Crowd">
@@ -326,19 +337,19 @@
                     <div class="feature-icon"><i class="fa-solid fa-microchip"></i></div>
                     <div class="feature-tag">Technical Arena</div>
                     <h4>Paper &amp; Poster Presentations</h4>
-                    <p>Showcase cutting–edge research and innovative prototypes.</p>
+                    <p>Showcase cutting–edge research and innovative prototypes in front of industry experts.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fa-solid fa-lightbulb"></i></div>
                     <div class="feature-tag">Innovation Hub</div>
-                    <h4>Ideathons</h4>
-                    <p>Tackle real–time challenges and pitch bold ideas.</p>
+                    <h4>Ideathons &amp; Hackathons</h4>
+                    <p>Tackle real–time challenges, pitch bold ideas, and solve complex problems under pressure.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon"><i class="fa-solid fa-music"></i></div>
                     <div class="feature-tag">Cultural Stage</div>
-                    <h4>Performances</h4>
-                    <p>From classical to contemporary, enjoy the rhythm and colour.</p>
+                    <h4>Spotlights &amp; Performances</h4>
+                    <p>From classical dance to modern music, explore the rhythm and colour of our cultural events.</p>
                 </div>
             </div>
         </div>
