@@ -195,18 +195,41 @@
         /* Validation Error */
         input.error, select.error { border-color: var(--error-color); }
 
-        /* OTP Section */
+        /* OTP Section UI Enhanced */
         .otp-wrapper { display: flex; gap: 12px; align-items: stretch; }
         .otp-wrapper .input-wrapper { flex: 1; }
         
         .btn-otp {
-            padding: 0 25px; background: rgba(255, 255, 255, 0.05); 
-            border: 1px solid var(--secondary-color); border-radius: 12px;
-            color: var(--primary-color); font-weight: 600; cursor: pointer; 
-            white-space: nowrap; transition: 0.3s; font-size: 0.85rem;
+            padding: 0 20px; 
+            min-width: 140px; /* Fixed width to prevent jumping during countdown */
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid var(--secondary-color); 
+            border-radius: 12px;
+            color: var(--primary-color); 
+            font-weight: 600; 
+            cursor: pointer; 
+            white-space: nowrap; 
+            transition: all 0.3s ease; 
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .btn-otp:hover { background: var(--secondary-color); color: white; box-shadow: 0 0 15px rgba(58, 123, 213, 0.3); }
-        .btn-otp:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-otp:hover:not(:disabled) { 
+            background: var(--secondary-color); 
+            color: white; 
+            box-shadow: 0 0 15px rgba(58, 123, 213, 0.3); 
+        }
+
+        /* Disabled State for Countdown */
+        .btn-otp:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+            border-color: #555; 
+            color: #aaa; 
+            background: rgba(0,0,0,0.2);
+        }
 
         .otp-verify-box { 
             display: none; margin-top: 20px; padding: 20px; 
@@ -474,6 +497,7 @@
                                 <i class="fas fa-envelope input-icon"></i>
                                 <input type="email" id="emailInput" placeholder="Enter valid email" required>
                             </div>
+                            <!-- MODIFIED BUTTON FOR TIMER -->
                             <button type="button" id="otpBtn" class="btn-otp" onclick="sendOTP()">Get OTP</button>
                         </div>
                     </div>
@@ -646,6 +670,34 @@
             if (popupCallback) { popupCallback(); popupCallback = null; }
         }
 
+        // --- OTP TIMER LOGIC (UPDATED) ---
+        let otpTimer = null;
+        let timeLeft = 45;
+
+        function startResendTimer() {
+            const otpBtn = document.getElementById('otpBtn');
+            timeLeft = 45; // Reset to 45 seconds
+            
+            otpBtn.disabled = true;
+            otpBtn.innerText = `Resend in ${timeLeft}s`;
+            
+            // Clear any existing timer
+            if (otpTimer) clearInterval(otpTimer);
+
+            otpTimer = setInterval(() => {
+                timeLeft--;
+                otpBtn.innerText = `Resend in ${timeLeft}s`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(otpTimer);
+                    otpBtn.disabled = false;
+                    otpBtn.innerText = "Resend OTP";
+                    otpBtn.style.color = "white"; 
+                    otpBtn.style.background = "var(--secondary-color)";
+                }
+            }, 1000);
+        }
+
         // --- API LOGIC ---
         async function sendOTP() {
             const email = document.getElementById('emailInput').value;
@@ -655,7 +707,9 @@
                 showPopup('Invalid Email', 'Please enter a valid email address first.', 'error'); return; 
             }
 
-            otpBtn.innerText = "Sending..."; otpBtn.disabled = true;
+            // UI State: Sending
+            otpBtn.innerText = "Sending..."; 
+            otpBtn.disabled = true;
 
             try {
                 const response = await fetch('/api/auth/send-otp', {
@@ -671,9 +725,20 @@
                     return;
                 }
 
+                // Handle Rate Limiting (429) from Backend
+                if (response.status === 429) {
+                    showPopup('Please Wait', result.error, 'error');
+                    // Restart timer based on backend message or default
+                    startResendTimer(); 
+                    return;
+                }
+
                 if (response.ok) {
                     showPopup('OTP Sent!', 'Please check your inbox (and spam).', 'success');
-                    document.getElementById('otpGroup').style.display = 'block'; otpBtn.innerText = "Sent";
+                    document.getElementById('otpGroup').style.display = 'block';
+                    
+                    // Start the countdown timer
+                    startResendTimer();
                 } else {
                     showPopup('Error', result.error || 'Failed to send OTP', 'error');
                     otpBtn.innerText = "Get OTP"; otpBtn.disabled = false;
