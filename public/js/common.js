@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <ul class="menu">
             <li><a href="/participant/dashboard" data-page="dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
             <li><a href="/participant/events" data-page="events"><i class="fa-solid fa-microchip"></i> Technical Events</a></li>
-            <li><a href="/participant/culturals" data-page="culturals"><i class="fa-solid fa-music"></i> Cultural Events</a></li>
+            <li><a href="/participant/culturals" data-page="culturals"><i class="fa-solid fa-music"></i> Rangamarthanda</a></li>
             <li><a href="/participant/cart" data-page="cart"><i class="fa-solid fa-cart-shopping"></i> My Cart</a></li>
             <li><a href="/participant/my-registrations" data-page="my-registrations"><i class="fa-solid fa-ticket"></i> Registrations</a></li>
             <li><a href="/participant/feedback" data-page="feedback"><i class="fa-solid fa-comment-dots"></i> Feedback</a></li>
