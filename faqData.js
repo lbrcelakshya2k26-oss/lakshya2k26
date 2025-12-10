@@ -86,7 +86,7 @@ module.exports = [
         id: 'payment_failed',
         keywords: ['payment failed', 'transaction failed', 'amount deducted'],
         answer: "If your payment failed or the amount was deducted without successful registration, please contact support with your transaction ID.",
-        action: { text: "Payment Support", link: "participant/support" }
+        action: { text: "Payment Support", link: "/support" }
     },
     {
         id: 'receipt',
@@ -101,3 +101,4 @@ module.exports = [
         action: { text: "Contact Support", link: "/support" }
     }
 ];
+
