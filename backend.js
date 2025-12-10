@@ -275,6 +275,13 @@ app.get('/admin/admin-kits', isAuthenticated('admin'), (req, res) => {
 app.get('/admin/querries', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/admin-querries.html'));
 });
+app.get('/admin/all-users', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/all-users.html'));
+});
+app.get('/admin/send-mails', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/admin-broadcast.html'));
+});
+
 
 
 const getEmailTemplate = (type, data) => {
@@ -3136,6 +3143,152 @@ app.post('/api/admin/resolve-query', isAuthenticated('admin'), async (req, res) 
         res.status(500).json({ error: "Failed to resolve query" });
     }
 });
+
+app.get('/api/admin/all-users', isAuthenticated('admin'), async (req, res) => {
+    try {
+        // 1. Parallel Fetch: Users, Registrations, and Events
+        const [usersData, regsData, eventsData] = await Promise.all([
+            docClient.send(new ScanCommand({ TableName: 'Lakshya_Users' })),
+            docClient.send(new ScanCommand({ TableName: 'Lakshya_Registrations' })),
+            docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }))
+        ]);
+        
+        const users = usersData.Items || [];
+        const regs = regsData.Items || [];
+        const events = eventsData.Items || [];
+
+        // 2. Create Event ID -> Title Map
+        const eventMap = {};
+        events.forEach(e => eventMap[e.eventId] = e.title);
+
+        // 3. Map Registrations by User Email
+        const regLookup = {};
+        regs.forEach(r => {
+            const email = r.studentEmail;
+            if (!regLookup[email]) regLookup[email] = [];
+            
+            // Resolve Event Name (use ID if Name not found)
+            const eventName = eventMap[r.eventId] || r.eventId;
+            regLookup[email].push(eventName);
+        });
+
+        // 4. Enrich User Objects
+        const enrichedUsers = users.map(user => {
+            const { password, ...safeData } = user;
+            const userRegs = regLookup[user.email] || [];
+            
+            return {
+                ...safeData,
+                regCount: userRegs.length,
+                regEvents: userRegs // Array of Event Names
+            };
+        });
+
+        // 5. Sort by Join Date
+        enrichedUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+        res.json(enrichedUsers);
+
+    } catch (err) {
+        console.error("Fetch Users Error:", err);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+app.post('/api/admin/broadcast-email', isAuthenticated('admin'), upload.array('attachments'), async (req, res) => {
+    try {
+        const { recipients, subject, message } = req.body;
+        
+        if (!recipients || !subject) {
+            return res.status(400).json({ error: "Recipients and Subject are required." });
+        }
+
+        // 1. Handle File Uploads (Upload to S3 -> Get Links)
+        let attachmentsHtml = '';
+        if (req.files && req.files.length > 0) {
+            attachmentsHtml += `<div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee;">
+                                <strong style="color: #0c2d48;">📎 Attachments:</strong>`;
+            
+            for (const file of req.files) {
+                const fileExt = file.originalname.split('.').pop().toLowerCase();
+                const fileName = `broadcast/${uuidv4()}-${file.originalname}`;
+                
+                // Upload to S3
+                const uploadParams = {
+                    Bucket: 'lakshya-assets-2k26-prod-12345', // Your bucket name
+                    Key: fileName,
+                    Body: file.buffer,
+                    ContentType: file.mimetype
+                };
+                await s3Client.send(new PutObjectCommand(uploadParams));
+                
+                const fileUrl = `https://lakshya-assets-2k26-prod-12345.s3.ap-south-1.amazonaws.com/${fileName}`;
+
+                // Check if Image or Document
+                if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+                    attachmentsHtml += `<p style="text-align:center; margin-top:15px;"><img src="${fileUrl}" alt="Attachment" style="max-width: 100%; height: auto; border-radius: 6px; border: 1px solid #ddd;"></p>`;
+                } else {
+                    attachmentsHtml += `<p style="margin-top:10px;">📄 <a href="${fileUrl}" target="_blank" style="color: #1f75ad; text-decoration: none; font-weight: bold;">Download ${file.originalname}</a></p>`;
+                }
+            }
+            attachmentsHtml += `</div>`;
+        }
+
+        // 2. Construct Full Email HTML (Using your Custom Template)
+        const fullEmailBody = `
+            <div style="background:#eff2f6;padding:20px;font-family:Arial,Helvetica,sans-serif;">
+              <div style="max-width:720px;margin:auto;background:#ffffff;padding:30px;border-radius:8px;">
+
+                <!-- Logo -->
+                <div style="text-align:center;margin-bottom:20px;">
+                  <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png" alt="LAKSHYA 2K26 Logo" style="max-width:160px;height:auto;" />
+                </div>
+
+                <!-- Header -->
+                <h1 style="text-align:center;color:#0c2d48;margin-bottom:5px;">LAKSHYA 2K26</h1>
+                <h3 style="text-align:center;color:#1a5f91;font-weight:normal;margin-top:0;">National Level Technical & Cultural Fest</h3>
+
+                <!-- Admin Message Content -->
+                <div style="line-height:1.6;color:#333;margin-top:25px;font-size:15px;">
+                   ${message.replace(/\n/g, '<br>')}
+                </div>
+
+                <!-- Attachments Section (Injected dynamically) -->
+                ${attachmentsHtml}
+
+                <!-- Standard Event Info Footer -->
+                <div style="background:#f4f9ff;border-left:5px solid #1f75ad;padding:15px;margin:25px 0;">
+                  <strong>✨ Event Details</strong><br>
+                  📅 Date: <strong>3rd January 2026</strong><br>
+                  📍 Venue: <strong>LBRCE, Mylavaram</strong>
+                </div>
+
+                <!-- Footer -->
+                <p style="text-align:center;color:#666;font-size:13px;margin-top:25px;border-top:1px solid #eee;padding-top:20px;">
+                  Team LAKSHYA 2K26<br>
+                  Lakireddy Bali Reddy College of Engineering (LBRCE)
+                </p>
+
+              </div>
+            </div>
+        `;
+
+        // 3. Send Emails (Loop through recipients)
+        const emailList = recipients.split(',').map(e => e.trim()).filter(e => e);
+        
+        // Use Promise.all to send in parallel
+        const sendPromises = emailList.map(email => sendEmail(email, subject, fullEmailBody));
+        
+        await Promise.all(sendPromises);
+
+        res.json({ success: true, count: emailList.length });
+
+    } catch (error) {
+        console.error("Broadcast Error:", error);
+        res.status(500).json({ error: "Failed to send emails." });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
     app.listen(PORT, () => { console.log(`Server running on http://localhost:${PORT}`); });
