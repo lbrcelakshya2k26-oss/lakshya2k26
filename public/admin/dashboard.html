@@ -218,7 +218,7 @@
             <div class="stat-card" style="--primary-color: #4caf50;"> 
                 <h3 id="totalRev" style="color:#4caf50;">₹0</h3>
                 <p>Calculated Revenue</p>
-                <div class="stat-sub">Paid Registrations * Fee</div>
+                <div class="stat-sub">Actual Payment Data</div>
             </div>
             <div class="stat-card" style="--primary-color: #ffc107;"> 
                 <h3 id="paidCount" style="color:#ffc107;">0</h3>
@@ -326,7 +326,17 @@
             const totalReg = filteredRegs.length;
             const paidRegs = filteredRegs.filter(r => r.paymentStatus === 'COMPLETED').length;
             const pendingRegs = totalReg - paidRegs;
-            const revenue = paidRegs * 200;
+            
+            // --- ACTUAL REVENUE CALCULATION FIX ---
+            // Replaces the old "paidRegs * 200" logic
+            const revenue = filteredRegs.reduce((sum, r) => {
+                if (r.paymentStatus === 'COMPLETED') {
+                    const amt = parseFloat(r.amountPaid);
+                    // Use actual amount, or 200 if missing (legacy)
+                    return sum + (isNaN(amt) ? 200 : amt); 
+                }
+                return sum;
+            }, 0);
             
             const eventCounts = {};
             filteredRegs.forEach(r => {
@@ -337,7 +347,10 @@
 
             document.getElementById('totalReg').innerText = totalReg;
             document.getElementById('regSub').innerText = filterLabel;
-            document.getElementById('totalRev').innerText = '₹' + revenue;
+            
+            // Format Revenue with Commas
+            document.getElementById('totalRev').innerText = '₹' + revenue.toLocaleString('en-IN');
+            
             document.getElementById('paidCount').innerText = paidRegs;
             document.getElementById('activeEvents').innerText = activeEventsCount;
 
