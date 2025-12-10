@@ -90,93 +90,57 @@
             font-weight: bold; color: black; font-size: 1.2rem;
         }
 
-        /* --- IMPORTANT NOTICE BOX IMPROVED --- */
+        /* --- IMPORTANT NOTICE BOX --- */
         .info-notice {
-            position: relative;
-            background: linear-gradient(135deg, rgba(255, 0, 204, 0.1), rgba(10, 10, 20, 0.6));
+            background: rgba(255, 0, 204, 0.08);
             border: 1px solid rgba(255, 0, 204, 0.3);
-            border-left: 6px solid var(--accent-color);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 3rem;
-            backdrop-filter: blur(10px);
+            border-left: 4px solid var(--accent-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2.5rem;
+            backdrop-filter: blur(5px);
             display: flex;
-            gap: 25px;
+            gap: 20px;
             align-items: flex-start;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 0, 204, 0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
-            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
         }
-        .info-notice::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
-            opacity: 0.5;
-        }
-        .info-notice:hover { 
-            transform: translateY(-5px); 
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 0 30px rgba(255, 0, 204, 0.2);
-        }
-        
-        .notice-icon-wrapper {
-            flex-shrink: 0;
-            width: 60px; height: 60px;
-            background: rgba(255, 0, 204, 0.1);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            border: 1px solid rgba(255, 0, 204, 0.3);
-            box-shadow: 0 0 15px rgba(255, 0, 204, 0.2);
-        }
+        .info-notice:hover { transform: translateY(-2px); }
         .info-notice i.notice-icon {
             color: var(--accent-color);
             font-size: 1.8rem;
+            margin-top: 2px;
         }
-        
-        .notice-content { flex-grow: 1; }
-        
         .notice-content h4 {
             color: white;
             font-family: 'Rajdhani', sans-serif;
             text-transform: uppercase;
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            margin-bottom: 12px;
-            text-shadow: 0 0 10px rgba(255, 0, 204, 0.5);
-            display: flex; align-items: center; gap: 10px;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
         }
-        
         .notice-content p {
-            color: #d0d0e0;
-            font-size: 1rem;
-            line-height: 1.7;
-            margin-bottom: 15px;
-            font-weight: 300;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 10px;
         }
-        
         .notice-dates {
             display: flex;
-            gap: 30px;
+            gap: 20px;
             flex-wrap: wrap;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
-        
         .date-item {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: var(--primary-color);
-            font-family: 'Rajdhani', sans-serif;
             font-weight: 600;
-            letter-spacing: 0.5px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            text-transform: uppercase;
+            gap: 8px;
         }
-        .date-item span { color: white; text-shadow: 0 0 5px rgba(255,255,255,0.5); }
-        .date-item i { color: var(--primary-color); font-size: 1.1rem; }
 
         /* --- EVENT CARDS --- */
         .cards-grid {
@@ -380,24 +344,22 @@
 
         <!-- SPECIAL NOTICE FOR RANGAMARTHANDA -->
         <div class="info-notice">
-            <div class="notice-icon-wrapper">
-                <i class="fa-solid fa-bullhorn notice-icon"></i>
-            </div>
+            <i class="fa-solid fa-bullhorn notice-icon"></i>
             <div class="notice-content">
-                <h4><span style="color:var(--accent-color);">IMPORTANT:</span> Rangamarthanda Registration</h4>
+                <h4>Registration Note: Rangamarthanda (Culturals)</h4>
                 <p>
-                    The registration process for <strong>Rangamarthanda (Culturals)</strong> is unique. 
-                    Participants must <strong>submit a clear video/audio file</strong> during registration for the initial screening. 
-                    Shortlisted candidates will be contacted by our team for payment and further process.
+                    The registration process for Rangamarthanda is different from other events. 
+                    Participants are required to <strong>submit a clear video/audio file</strong> during the registration process for screening purposes. 
+                    After the screening round, our team will get back to you regarding payment and further steps.
                 </p>
                 <div class="notice-dates">
                     <div class="date-item">
                         <i class="fa-regular fa-calendar-xmark"></i> 
-                        <div>Closes: <span>25/12/25</span></div>
+                        Registration Closes: <span style="color:white; margin-left:5px;">25/12/25</span>
                     </div>
                     <div class="date-item">
                         <i class="fa-regular fa-envelope"></i> 
-                        <div>Shortlist By: <span>27/12/25</span></div>
+                        Shortlist Announcement: <span style="color:white; margin-left:5px;">On or before 27/12/25</span>
                     </div>
                 </div>
             </div>
@@ -465,6 +427,7 @@
             <span class="modal-close" onclick="closeModal('teamModal')"><i class="fa-solid fa-xmark"></i></span>
             <h2 style="font-family:'Rajdhani'; color:var(--accent-color);">Team Details</h2>
             <p style="color:#aaa; margin-bottom:15px;">Add your team members below.</p>
+            
             
             <div style="margin-bottom:15px;">
                 <label style="color:white; display:block; margin-bottom:5px;">Team Name</label>
