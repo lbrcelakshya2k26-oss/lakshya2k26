@@ -231,6 +231,9 @@ app.get('/coordinator/approvals', isAuthenticated('coordinator'), (req, res) => 
 app.get('/coordinator/benficiaries', isAuthenticated('coordinator'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/coordinator/benficiaries.html'));
 });
+app.get('/coordinator/add-team', isAuthenticated('coordinator'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/coordinator/add-team.html'));
+});
 
 // --- 7. ROUTES: ADMIN (PROTECTED) ---
 app.get('/admin/dashboard', isAuthenticated('admin'), (req, res) => {
@@ -280,6 +283,9 @@ app.get('/admin/all-users', isAuthenticated('admin'), (req, res) => {
 });
 app.get('/admin/send-mails', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/admin-broadcast.html'));
+});
+app.get('/admin/view-teams', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/view-team.html'));
 });
 
 
@@ -3199,6 +3205,10 @@ app.post('/api/admin/broadcast-email', isAuthenticated('admin'), upload.array('a
     try {
         const { recipients, subject, message } = req.body;
         
+        // Parse the boolean flags sent from frontend
+        const isHtml = req.body.isHtml === 'true';
+        const skipTemplate = req.body.skipTemplate === 'true';
+        
         if (!recipients || !subject) {
             return res.status(400).json({ error: "Recipients and Subject are required." });
         }
@@ -3206,8 +3216,14 @@ app.post('/api/admin/broadcast-email', isAuthenticated('admin'), upload.array('a
         // 1. Handle File Uploads (Upload to S3 -> Get Links)
         let attachmentsHtml = '';
         if (req.files && req.files.length > 0) {
-            attachmentsHtml += `<div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee;">
-                                <strong style="color: #0c2d48;">📎 Attachments:</strong>`;
+            // Style differently based on whether it's a raw page or template
+            if (skipTemplate) {
+                attachmentsHtml += `<div style="margin: 20px; padding: 15px; border-top: 1px solid #ccc; font-family: sans-serif;">
+                                    <strong>📎 Attachments:</strong><br>`;
+            } else {
+                attachmentsHtml += `<div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee;">
+                                    <strong style="color: #0c2d48;">📎 Attachments:</strong>`;
+            }
             
             for (const file of req.files) {
                 const fileExt = file.originalname.split('.').pop().toLowerCase();
@@ -3215,7 +3231,7 @@ app.post('/api/admin/broadcast-email', isAuthenticated('admin'), upload.array('a
                 
                 // Upload to S3
                 const uploadParams = {
-                    Bucket: 'lakshya-assets-2k26-prod-12345', // Your bucket name
+                    Bucket: 'lakshya-assets-2k26-prod-12345',
                     Key: fileName,
                     Body: file.buffer,
                     ContentType: file.mimetype
@@ -3234,44 +3250,58 @@ app.post('/api/admin/broadcast-email', isAuthenticated('admin'), upload.array('a
             attachmentsHtml += `</div>`;
         }
 
-        // 2. Construct Full Email HTML (Using your Custom Template)
-        const fullEmailBody = `
-            <div style="background:#eff2f6;padding:20px;font-family:Arial,Helvetica,sans-serif;">
-              <div style="max-width:720px;margin:auto;background:#ffffff;padding:30px;border-radius:8px;">
+        // 2. Construct Full Email Body based on flags
+        let fullEmailBody = '';
 
-                <!-- Logo -->
-                <div style="text-align:center;margin-bottom:20px;">
-                  <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png" alt="LAKSHYA 2K26 Logo" style="max-width:160px;height:auto;" />
+        if (skipTemplate) {
+            // OPTION A: Full Custom Page
+            // User provides complete HTML. We simply append attachments at the end if they exist.
+            fullEmailBody = message + (attachmentsHtml ? attachmentsHtml : '');
+        } else {
+            // OPTION B: Standard Template
+            // Determine inner content processing
+            const innerContent = isHtml 
+                ? message // Inject Raw HTML
+                : message.replace(/\n/g, '<br>'); // Convert newlines for plain text
+
+            fullEmailBody = `
+                <div style="background:#eff2f6;padding:20px;font-family:Arial,Helvetica,sans-serif;">
+                  <div style="max-width:720px;margin:auto;background:#ffffff;padding:30px;border-radius:8px;">
+
+                    <!-- Logo -->
+                    <div style="text-align:center;margin-bottom:20px;">
+                      <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png" alt="LAKSHYA 2K26 Logo" style="max-width:160px;height:auto;" />
+                    </div>
+
+                    <!-- Header -->
+                    <h1 style="text-align:center;color:#0c2d48;margin-bottom:5px;">LAKSHYA 2K26</h1>
+                    <h3 style="text-align:center;color:#1a5f91;font-weight:normal;margin-top:0;">National Level Technical & Cultural Fest</h3>
+
+                    <!-- Message Content -->
+                    <div style="line-height:1.6;color:#333;margin-top:25px;font-size:15px;">
+                       ${innerContent}
+                    </div>
+
+                    <!-- Attachments Section -->
+                    ${attachmentsHtml}
+
+                    <!-- Standard Event Info Footer -->
+                    <div style="background:#f4f9ff;border-left:5px solid #1f75ad;padding:15px;margin:25px 0;">
+                      <strong>✨ Event Details</strong><br>
+                      📅 Date: <strong>3rd January 2026</strong><br>
+                      📍 Venue: <strong>LBRCE, Mylavaram</strong>
+                    </div>
+
+                    <!-- Footer -->
+                    <p style="text-align:center;color:#666;font-size:13px;margin-top:25px;border-top:1px solid #eee;padding-top:20px;">
+                      Team LAKSHYA 2K26<br>
+                      Lakireddy Bali Reddy College of Engineering (LBRCE)
+                    </p>
+
+                  </div>
                 </div>
-
-                <!-- Header -->
-                <h1 style="text-align:center;color:#0c2d48;margin-bottom:5px;">LAKSHYA 2K26</h1>
-                <h3 style="text-align:center;color:#1a5f91;font-weight:normal;margin-top:0;">National Level Technical & Cultural Fest</h3>
-
-                <!-- Admin Message Content -->
-                <div style="line-height:1.6;color:#333;margin-top:25px;font-size:15px;">
-                   ${message.replace(/\n/g, '<br>')}
-                </div>
-
-                <!-- Attachments Section (Injected dynamically) -->
-                ${attachmentsHtml}
-
-                <!-- Standard Event Info Footer -->
-                <div style="background:#f4f9ff;border-left:5px solid #1f75ad;padding:15px;margin:25px 0;">
-                  <strong>✨ Event Details</strong><br>
-                  📅 Date: <strong>3rd January 2026</strong><br>
-                  📍 Venue: <strong>LBRCE, Mylavaram</strong>
-                </div>
-
-                <!-- Footer -->
-                <p style="text-align:center;color:#666;font-size:13px;margin-top:25px;border-top:1px solid #eee;padding-top:20px;">
-                  Team LAKSHYA 2K26<br>
-                  Lakireddy Bali Reddy College of Engineering (LBRCE)
-                </p>
-
-              </div>
-            </div>
-        `;
+            `;
+        }
 
         // 3. Send Emails (Loop through recipients)
         const emailList = recipients.split(',').map(e => e.trim()).filter(e => e);
@@ -3289,6 +3319,438 @@ app.post('/api/admin/broadcast-email', isAuthenticated('admin'), upload.array('a
     }
 });
 
+// --- ADD TO YOUR backend.js ---
+
+// 1. ADD Team Member
+// --- REPLACE THE EXISTING 'add-team-member' ROUTE IN backend.js ---
+
+// --- REPLACE THE EXISTING 'add-team-member' ROUTE IN backend.js ---
+
+app.post('/api/coordinator/add-team-member', isAuthenticated('coordinator'), upload.single('image'), async (req, res) => {
+    try {
+        const { fullName, mobile, email, type, year, deptName, eventName, position } = req.body;
+        
+        // 1. Image Upload
+        let imageUrl = 'assets/default-user.png'; 
+        if (req.file) {
+            const fileName = `team/${deptName}/${uuidv4()}-${req.file.originalname}`;
+            const uploadParams = {
+                Bucket: 'lakshya-assets-2k26-prod-12345', 
+                Key: fileName,
+                Body: req.file.buffer,
+                ContentType: req.file.mimetype
+            };
+            await s3Client.send(new PutObjectCommand(uploadParams));
+            imageUrl = `https://lakshya-assets-2k26-prod-12345.s3.ap-south-1.amazonaws.com/${fileName}`;
+        }
+
+        // 2. Save to Database
+        const teamItem = {
+            memberId: uuidv4(),
+            deptName: deptName,
+            roleType: type,
+            fullName: fullName,
+            mobile: mobile,
+            email: email,
+            year: type === 'student' ? year : 'N/A', 
+            eventName: eventName,       
+            position: position,          
+            imageUrl: imageUrl,
+            addedBy: req.session.user.email,
+            createdAt: new Date().toISOString()
+        };
+
+        await docClient.send(new PutCommand({
+            TableName: 'Lakshya_EventTeam',
+            Item: teamItem
+        }));
+
+        // 3. SELECT EMAIL TEMPLATE BASED ON TYPE
+        let emailSubject = "";
+        let emailBodyContent = "";
+
+
+
+if (type === "faculty") {
+    // --- FACULTY TEMPLATE ---
+    emailSubject = "Appointment as Faculty Coordinator | LAKSHYA 2K26";
+    emailBodyContent = `
+<table width="100%" cellpadding="0" cellspacing="0" border="0" 
+       style="font-family:'Segoe UI',Tahoma,sans-serif;background:#fff;">
+<tr><td align="center">
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="max-width:600px;width:100%;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">
+
+        <!-- HEADER -->
+        <tr>
+            <td align="center" style="background:linear-gradient(135deg,#1e3c72,#2a5298);padding:25px 15px;">
+                <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png"
+                     style="width:42px;height:auto;margin-bottom:10px;" />
+
+                <h1 style="color:#fff;margin:0;font-size:22px;font-weight:600;">
+                    Faculty Appointment
+                </h1>
+                <p style="color:#dbe2ff;margin:5px 0 0;font-size:13px;">
+                    LAKSHYA 2K26 • Lakireddy Bali Reddy College of Engineering
+                </p>
+            </td>
+        </tr>
+
+        <!-- BODY -->
+        <tr>
+            <td style="padding:25px 18px;color:#333;">
+                
+                <p style="font-size:15px;line-height:1.6;">
+                    Respected <strong>${fullName}</strong>,
+                </p>
+
+                <p style="font-size:14px;line-height:1.6;color:#555;">
+                    We are pleased to inform you that you have been appointed as a 
+                    <strong>Faculty Coordinator</strong> for <strong>LAKSHYA 2K26</strong>.
+                </p>
+
+                <!-- ROLE CARD -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                       style="background:#f5f8ff;border-left:5px solid #2a5298;border-radius:6px;border:1px solid #e0e6f1;margin:20px 0;">
+                <tr><td style="padding:15px;">
+
+                    <p style="margin:0;font-size:11px;color:#666;text-transform:uppercase;font-weight:600;">
+                        Designation
+                    </p>
+                    <p style="margin:6px 0 15px;font-size:18px;font-weight:600;color:#1e3c72;">
+                        ${position}
+                    </p>
+
+                    <!-- MOBILE-SAFE TABLE -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td width="50%" style="padding-right:10px;vertical-align:top;">
+                            <p style="margin:0;font-size:11px;text-transform:uppercase;color:#666;font-weight:600;">
+                                Domain / Event
+                            </p>
+                            <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:#333;">
+                                ${eventName}
+                            </p>
+                        </td>
+
+                        <td width="50%" style="padding-left:10px;vertical-align:top;">
+                            <p style="margin:0;font-size:11px;text-transform:uppercase;color:#666;font-weight:600;">
+                                Department
+                            </p>
+                            <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:#333;">
+                                ${deptName}
+                            </p>
+                        </td>
+                    </tr>
+                    </table>
+
+                </td></tr>
+                </table>
+
+                <p style="font-size:14px;line-height:1.6;color:#555;">
+                    Your leadership and guidance will be instrumental in making this event successful.
+                    We sincerely appreciate your support.
+                </p>
+            </td>
+        </tr>
+
+        <!-- FOOTER -->
+        <tr>
+            <td align="center" style="background:#f4f6f9;padding:15px;font-size:12px;color:#777;border-top:1px solid #e5e5e5;">
+                <p style="margin:0;">LAKSHYA 2K26 • Lakireddy Bali Reddy College of Engineering</p>
+                <p style="margin:4px 0 10px;">This is an automated email. Please do not reply.</p>
+                <p style="margin:0;">
+                    Powered by <a href="https://xetasolutions.in" style="color:#1e3c72;font-weight:600;text-decoration:none;">Xeta Solutions</a>
+                </p>
+            </td>
+        </tr>
+
+    </table>
+
+</td></tr>
+</table>
+    `;
+}
+
+else {
+    // --- STUDENT TEMPLATE ---
+    emailSubject = "Welcome to the Team | LAKSHYA 2K26";
+    emailBodyContent = `
+<table width="100%" cellpadding="0" cellspacing="0" border="0" 
+       style="font-family:'Segoe UI',Tahoma,sans-serif;background:#fff;">
+<tr><td align="center">
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="max-width:600px;width:100%;border:1px solid #eee;border-radius:12px;overflow:hidden;">
+
+        <!-- HEADER -->
+        <tr>
+            <td align="center" style="background:linear-gradient(135deg,#1e3c72,#2a5298);padding:25px 15px;">
+                <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png"
+                     style="width:38px;height:auto;margin-bottom:10px;" />
+
+                <h1 style="color:#fff;margin:0;font-size:22px;font-weight:600;">
+                    Welcome Aboard!
+                </h1>
+                <p style="color:#dbe2ff;margin:5px 0 0;font-size:13px;">
+                    LAKSHYA 2K26 Team
+                </p>
+            </td>
+        </tr>
+
+        <!-- BODY -->
+        <tr>
+            <td style="padding:25px 18px;color:#333;">
+                
+                <p style="font-size:15px;line-height:1.6;">
+                    Dear <strong>${fullName}</strong>,
+                </p>
+
+                <p style="font-size:14px;line-height:1.6;color:#555;">
+                    Congratulations! You have been selected as a member of the organizing team for 
+                    <strong>LAKSHYA 2K26</strong>.
+                </p>
+
+                <!-- ROLE CARD -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                       style="background:#f5f8ff;border-left:5px solid #2a5298;border-radius:6px;border:1px solid #e0e6f1;margin:20px 0;">
+                <tr><td style="padding:15px;">
+
+                    <p style="margin:0;font-size:11px;color:#666;text-transform:uppercase;font-weight:600;">
+                        Your Role
+                    </p>
+                    <p style="margin:6px 0 15px;font-size:18px;font-weight:600;color:#1e3c72;">
+                        ${position}
+                    </p>
+
+                    <!-- MOBILE FRIENDLY TABLE -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td width="50%" style="padding-right:10px;vertical-align:top;">
+                            <p style="margin:0;font-size:11px;text-transform:uppercase;color:#666;font-weight:600;">
+                                Event / Domain
+                            </p>
+                            <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:#333;">
+                                ${eventName}
+                            </p>
+                        </td>
+
+                        <td width="50%" style="padding-left:10px;vertical-align:top;">
+                            <p style="margin:0;font-size:11px;text-transform:uppercase;color:#666;font-weight:600;">
+                                Year
+                            </p>
+                            <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:#333;">
+                                ${deptName}
+                            </p>
+                        </td>
+                    </tr>
+                    </table>
+
+                </td></tr>
+                </table>
+
+                <p style="font-size:14px;line-height:1.6;color:#555;">
+                    Get ready to collaborate, learn, and make this fest a grand success!
+                </p>
+            </td>
+        </tr>
+
+        <!-- FOOTER -->
+        <tr>
+            <td align="center" style="background:#f8f9fa;padding:15px;font-size:12px;color:#777;border-top:1px solid #eee;">
+                <p style="margin:0;">LAKSHYA 2K26 • Lakireddy Bali Reddy College of Engineering</p>
+                <p style="margin:5px 0 10px;">This is an automated email.</p>
+                <p style="margin:0;">
+                    Powered by <a href="https://xetasolutions.in" 
+                    style="color:#1e3c72;font-weight:600;text-decoration:none;">Xeta Solutions</a>
+                </p>
+            </td>
+        </tr>
+
+    </table>
+
+</td></tr>
+</table>
+    `;
+}
+
+// FINAL WRAPPER
+const finalEmailHtml = `
+    <div style="font-family:'Segoe UI',sans-serif;background:#ffffff;">
+        ${emailBodyContent}
+    </div>
+`;
+
+
+        // Send Email
+        sendEmail(email, emailSubject, finalEmailHtml).catch(err => console.error("Email failed:", err));
+
+        res.json({ message: 'Added successfully & Email Sent!' });
+
+    } catch (err) {
+        console.error("Add Team Error:", err);
+        res.status(500).json({ error: 'Failed to add member.' });
+    }
+});// 2. FETCH Team List (New)
+app.get('/api/coordinator/team-members', isAuthenticated('coordinator'), async (req, res) => {
+    try {
+        const userDept = req.session.user.dept;
+        
+        // Security Check
+        if(!userDept) return res.status(400).json({ error: "Department not found in session" });
+
+        // Query by Department (Efficient)
+        const params = {
+            TableName: 'Lakshya_EventTeam',
+            KeyConditionExpression: 'deptName = :d',
+            ExpressionAttributeValues: { ':d': userDept }
+        };
+
+        const data = await docClient.send(new QueryCommand(params));
+        
+        // Sort: Faculty first, then by Name
+        const items = data.Items || [];
+        items.sort((a, b) => {
+            if (a.roleType !== b.roleType) return a.roleType === 'faculty' ? -1 : 1;
+            return a.fullName.localeCompare(b.fullName);
+        });
+
+        res.json(items);
+
+    } catch (err) {
+        console.error("Fetch Team Error:", err);
+        res.status(500).json({ error: "Failed to fetch list" });
+    }
+});
+app.get('/api/coordinator/team-members', isAuthenticated('coordinator'), async (req, res) => {
+    try {
+        const userDept = req.session.user.dept;
+        
+        // Security Check
+        if(!userDept) return res.status(400).json({ error: "Department not found in session" });
+
+        // Query by Department (Efficient)
+        const params = {
+            TableName: 'Lakshya_EventTeam',
+            KeyConditionExpression: 'deptName = :d',
+            ExpressionAttributeValues: { ':d': userDept }
+        };
+
+        const data = await docClient.send(new QueryCommand(params));
+        
+        // Sort: Faculty first, then by Name
+        const items = data.Items || [];
+        items.sort((a, b) => {
+            if (a.roleType !== b.roleType) return a.roleType === 'faculty' ? -1 : 1;
+            return a.fullName.localeCompare(b.fullName);
+        });
+
+        res.json(items);
+
+    } catch (err) {
+        console.error("Fetch Team Error:", err);
+        res.status(500).json({ error: "Failed to fetch list" });
+    }
+});
+
+// 3. DELETE Team Member (New)
+app.delete('/api/coordinator/delete-team-member', isAuthenticated('coordinator'), async (req, res) => {
+    try {
+        const { memberId, deptName } = req.body;
+        
+        // Verify dept to prevent deleting others
+        if (deptName !== req.session.user.dept) {
+            return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const params = {
+            TableName: 'Lakshya_EventTeam',
+            Key: {
+                deptName: deptName, // Partition Key
+                memberId: memberId  // Sort Key
+            }
+        };
+
+        await docClient.send(new DeleteCommand(params));
+        res.json({ message: 'Deleted successfully' });
+
+    } catch (err) {
+        console.error("Delete Team Error:", err);
+        res.status(500).json({ error: "Failed to delete" });
+    }
+});
+
+// 4. UPDATE Team Member (New)
+app.put('/api/coordinator/update-team-member', isAuthenticated('coordinator'), upload.single('image'), async (req, res) => {
+    try {
+        const { memberId, deptName, fullName, mobile, email, type, year, eventName, position, existingImageUrl } = req.body;
+
+        if (deptName !== req.session.user.dept) {
+            return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        // Handle Image Logic
+        let imageUrl = existingImageUrl;
+        if (req.file) {
+            const fileName = `team/${deptName}/${uuidv4()}-${req.file.originalname}`;
+            const uploadParams = {
+                Bucket: 'lakshya-assets-2k26-prod-12345', 
+                Key: fileName,
+                Body: req.file.buffer,
+                ContentType: req.file.mimetype
+            };
+            await s3Client.send(new PutObjectCommand(uploadParams));
+            imageUrl = `https://lakshya-assets-2k26-prod-12345.s3.ap-south-1.amazonaws.com/${fileName}`;
+        }
+
+        const params = {
+            TableName: 'Lakshya_EventTeam',
+            Key: { deptName, memberId },
+            UpdateExpression: "set fullName=:n, mobile=:m, email=:e, roleType=:t, #yr=:y, eventName=:ev, position=:p, imageUrl=:img",
+            ExpressionAttributeValues: {
+                ':n': fullName,
+                ':m': mobile,
+                ':e': email,
+                ':t': type,
+                ':y': type === 'student' ? year : 'N/A',
+                ':ev': eventName,
+                ':p': position,
+                ':img': imageUrl
+            },
+            ExpressionAttributeNames: { "#yr": "year" } // Year is reserved
+        };
+
+        await docClient.send(new UpdateCommand(params));
+        res.json({ message: 'Updated successfully' });
+
+    } catch (err) {
+        console.error("Update Team Error:", err);
+        res.status(500).json({ error: "Failed to update" });
+    }
+});
+
+app.get('/api/admin/all-team-members', isAuthenticated('admin'), async (req, res) => {
+    try {
+        // Scans the entire table (Admin needs global view)
+        const data = await docClient.send(new ScanCommand({ 
+            TableName: 'Lakshya_EventTeam' 
+        }));
+        
+        // Sort by Department, then Role (Faculty first), then Name
+        const items = data.Items || [];
+        items.sort((a, b) => {
+            if (a.deptName !== b.deptName) return a.deptName.localeCompare(b.deptName);
+            if (a.roleType !== b.roleType) return a.roleType === 'faculty' ? -1 : 1;
+            return a.fullName.localeCompare(b.fullName);
+        });
+
+        res.json(items);
+    } catch (err) {
+        console.error("Admin Fetch Team Error:", err);
+        res.status(500).json({ error: "Failed to fetch team data" });
+    }
+});
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
     app.listen(PORT, () => { console.log(`Server running on http://localhost:${PORT}`); });
