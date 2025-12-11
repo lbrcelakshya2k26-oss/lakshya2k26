@@ -2798,12 +2798,11 @@ app.get('/api/coordinator/kit-beneficiaries', isAuthenticated('coordinator'), as
         res.status(500).json({ error: "Failed to fetch list" });
     }
 });
-
 app.post('/api/coordinator/toggle-kit-status', isAuthenticated('coordinator'), async (req, res) => {
     const { registrationId, status } = req.body;
 
     try {
-        // 1. Fetch current registration to get email & verify attendance
+        // 1. Fetch current registration
         const getRes = await docClient.send(new GetCommand({
             TableName: 'Lakshya_Registrations',
             Key: { registrationId }
@@ -2812,12 +2811,12 @@ app.post('/api/coordinator/toggle-kit-status', isAuthenticated('coordinator'), a
         const reg = getRes.Item;
         if (!reg) return res.status(404).json({ error: "Registration not found" });
 
-        // 2. Server-side Check: Cannot collect kit if Absent (Safety check)
+        // 2. Attendance Check
         if (status === true && reg.attendance !== true) {
-            return res.status(400).json({ error: "Student is marked ABSENT. Please mark Present in Attendance page first." });
+            return res.status(400).json({ error: "Student must be marked PRESENT first." });
         }
 
-        // 3. Update Status
+        // 3. Update Kit Status
         await docClient.send(new UpdateCommand({
             TableName: 'Lakshya_Registrations',
             Key: { registrationId },
@@ -2828,53 +2827,83 @@ app.post('/api/coordinator/toggle-kit-status', isAuthenticated('coordinator'), a
             }
         }));
 
-        // 4. Send Email Notification (Only when marking collected)
+        // 4. COUPON GENERATION LOGIC (NEW)
         if (status === true) {
+            // Check if coupons already exist for this registration to ensure idempotency
+            // FIX: 'source' is a reserved keyword, so we use ExpressionAttributeNames (#src)
+            const couponCheck = await docClient.send(new ScanCommand({
+                TableName: 'Lakshya_FoodCoupons',
+                FilterExpression: '#src = :src',
+                ExpressionAttributeNames: { '#src': 'source' },
+                ExpressionAttributeValues: { ':src': registrationId }
+            }));
+
+            // Fetch Student Name & Event Title for Email
+            let studentName = reg.teamName || "Student";
+            let eventTitle = "LAKSHYA 2K26 Event";
+
+            // Try to get real name from Users table
+            try {
+                const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: reg.studentEmail }}));
+                if(u.Item) studentName = u.Item.fullName;
+                
+                const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId }}));
+                if(e.Item) eventTitle = e.Item.title;
+            } catch(e){}
+
+            // Generate Coupons if they don't exist
+            if (couponCheck.Count === 0) {
+                await generateCouponsForUser(reg.studentEmail, studentName, registrationId);
+                console.log(`Coupons generated for ${registrationId}`);
+            }
+
+            // 5. SEND EMAIL NOTIFICATION
+            const emailSubject = "Kit Collected & Coupons Active! 🍔 | LAKSHYA 2K26";
             const emailHtml = `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; max-width: 600px;">
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+                
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #00d2ff, #3a7bd5); padding: 20px; text-align: center;">
+                     <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">LAKSHYA 2K26</h1>
+                     <p style="color: #eafaff; margin: 5px 0 0; font-size: 14px;">Kit Distribution Update</p>
+                </div>
 
-    <!-- Logo -->
-    <div style="text-align: center; margin-bottom: 20px;">
-        <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png"
-             alt="LAKSHYA 2K26"
-             style="max-width: 50px;">
-    </div>
+                <div style="padding: 30px;">
+                    <p style="font-size: 16px; color: #333;">Dear <strong>${studentName}</strong>,</p>
+                    
+                    <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                        This is to confirm that your event kit for <strong>${eventTitle}</strong> has been successfully collected.
+                    </p>
+                    
+                    <!-- Coupon Highlight Box -->
+                    <div style="background-color: #f0fbff; border: 1px dashed #00d2ff; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center;">
+                        <h3 style="color: #0077ff; margin: 0 0 10px 0;">🍔 Food Coupons Activated!</h3>
+                        <p style="color: #555; font-size: 14px; margin: 0;">
+                            <strong>2 Digital Food Coupons</strong> have been added to your account.
+                        </p>
+                        <div style="margin-top: 15px;">
+                            <a href="https://lakshya.lbrce.ac.in/my-coupons?id=${registrationId}" 
+                               style="background-color: #ff00cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 14px; display: inline-block;">
+                               View My QR Codes
+                            </a>
+                        </div>
+                    </div>
 
-    <h2 style="color: #00d2ff; text-align: center;">LAKSHYA 2K26 – Kit Collection Confirmation</h2>
+                    <p style="font-size: 14px; color: #666;">
+                        <strong>Note:</strong> Show the QR code from the "My Coupons" section to the stall vendor to redeem your food. Do not share screenshots with others.
+                    </p>
 
-    <p>Dear Participant,</p>
+                    <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                        <p style="color: #888; font-size: 13px; margin: 0;">Best Regards,<br>Team LAKSHYA</p>
+                    </div>
+                </div>
+            </div>`;
 
-    <p>
-        We are pleased to inform you that your event kit associated with the registration ID
-        <strong>${registrationId.substring(0,8).toUpperCase()}</strong> has been successfully
-        marked as <strong>COLLECTED</strong>.
-    </p>
-
-    <p>
-        We hope you have a wonderful experience at <strong>LAKSHYA 2K26</strong>.
-    </p>
-
-    <p style="font-size: 12px; color: #666;">
-        If you believe this update has been made in error or if you require any assistance,
-        please contact us at
-        <a href="mailto:event.support@xetasolutions.in" style="color: #00d2ff; text-decoration: none;">
-            event.support@xetasolutions.in
-        </a>.
-    </p>
-
-    <p style="font-size: 12px; color: #666;">
-        Warm regards,<br>
-        <strong>Team LAKSHYA 2K26</strong>
-    </p>
-
-</div>
-`;
-            
-            // Fire and forget email (don't await) to keep UI fast
-            sendEmail(reg.studentEmail, "Kit Collection Confirmed", emailHtml).catch(console.error);
+            // Fire and forget email
+            sendEmail(reg.studentEmail, emailSubject, emailHtml).catch(err => console.error("Kit Email Failed:", err));
         }
 
-        res.json({ message: "Updated successfully" });
+        res.json({ message: "Updated successfully & Coupons Generated" });
 
     } catch (e) {
         console.error("Toggle Kit Error:", e);
@@ -3150,6 +3179,7 @@ app.post('/api/admin/resolve-query', isAuthenticated('admin'), async (req, res) 
     }
 });
 
+// --- API: Get All Active Users (Admin Only) ---
 app.get('/api/admin/all-users', isAuthenticated('admin'), async (req, res) => {
     try {
         // 1. Parallel Fetch: Users, Registrations, and Events
@@ -3751,6 +3781,297 @@ app.get('/api/admin/all-team-members', isAuthenticated('admin'), async (req, res
         res.status(500).json({ error: "Failed to fetch team data" });
     }
 });
+
+///////////////////////////////////// FOOD COUPON
+
+app.get('/stall/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/stall/login.html'));
+});
+
+// Serve the Stall Dashboard (Protected)
+app.get('/stall/dashboard', isAuthenticated('stall'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/stall/dashboard.html'));
+});
+
+// --- COUPON PAGE ROUTE ---
+// Ensure this matches where you actually saved the file
+app.get('/my-coupons', isAuthenticated('participant'), (req, res) => {
+    // If you saved it in public/static:
+    res.sendFile(path.join(__dirname, 'public/static/my-coupons.html'));
+});
+
+// --- ADMIN STATS ROUTE ---
+app.get('/admin/coupon-stats', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/admin-coupon-stats.html'));
+});
+// ... existing code ...
+app.get('/admin/manage-stalls', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/manage-stalls.html'));
+});
+
+
+// =============================================================
+// --- FOOD COUPON SYSTEM ENDPOINTS ---
+// =============================================================
+
+// 1. STALL AUTHENTICATION
+// Simple hardcoded login for stalls (easier than managing a user DB for them)
+app.get('/api/admin/stalls', isAuthenticated('admin'), async (req, res) => {
+    try {
+        const data = await docClient.send(new ScanCommand({ TableName: 'Lakshya_StallUsers' }));
+        res.json(data.Items || []);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load stalls' });
+    }
+});
+
+// 2. CREATE STALL
+app.post('/api/admin/create-stall', isAuthenticated('admin'), async (req, res) => {
+    const { stallName, accessCode } = req.body;
+    
+    // Check if exists
+    // (Ideally use ConditionExpression, but simple check is okay here)
+    const check = await docClient.send(new GetCommand({ TableName: 'Lakshya_StallUsers', Key: { stallId: stallName } }));
+    if(check.Item) return res.status(400).json({ error: "Stall Name already exists" });
+
+    try {
+        await docClient.send(new PutCommand({
+            TableName: 'Lakshya_StallUsers',
+            Item: {
+                stallId: stallName, // PK
+                stallName: stallName,
+                accessCode: accessCode,
+                createdAt: new Date().toISOString()
+            }
+        }));
+        res.json({ message: 'Created' });
+    } catch (e) {
+        res.status(500).json({ error: 'Creation Failed' });
+    }
+});
+
+// 3. DELETE STALL
+app.post('/api/admin/delete-stall', isAuthenticated('admin'), async (req, res) => {
+    try {
+        await docClient.send(new DeleteCommand({
+            TableName: 'Lakshya_StallUsers',
+            Key: { stallId: req.body.stallId }
+        }));
+        res.json({ message: 'Deleted' });
+    } catch (e) {
+        res.status(500).json({ error: 'Deletion Failed' });
+    }
+});
+
+// ==========================================
+// --- UPDATED STALL LOGIN (DYNAMIC) ---
+// ==========================================
+// REPLACE your old 'api/auth/stall-login' with this one:
+
+app.post('/api/auth/stall-login', async (req, res) => {
+    const { username, password } = req.body;
+    
+    try {
+        const data = await docClient.send(new GetCommand({ 
+            TableName: 'Lakshya_StallUsers', 
+            Key: { stallId: username } 
+        }));
+        
+        const stall = data.Item;
+        
+        if (stall && stall.accessCode === password) {
+            req.session.user = { 
+                email: stall.stallId, 
+                role: 'stall', 
+                name: stall.stallName 
+            };
+            return res.json({ message: 'Login success' });
+        }
+        res.status(401).json({ error: 'Invalid Stall ID or Access Code' });
+    } catch(e) {
+        console.error("Stall Login Error:", e);
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
+app.get('/api/public/coupons/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const params = {
+            TableName: 'Lakshya_FoodCoupons',
+            FilterExpression: '#src = :s',
+            ExpressionAttributeNames: { '#src': 'source' },
+            ExpressionAttributeValues: { ':s': id }
+        };
+        const data = await docClient.send(new ScanCommand(params));
+        res.json(data.Items || []);
+    } catch (e) {
+        console.error("Public Coupon Fetch Error:", e);
+        res.status(500).json({ error: 'Failed to fetch coupons' });
+    }
+});
+// 2. STALL DASHBOARD STATS
+app.get('/api/stall/stats', isAuthenticated('stall'), async (req, res) => {
+    const stallId = req.session.user.name;
+    const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    try {
+        // Count total redeemed by this stall
+        // Note: For high scale, use a secondary index. For now, Scan is okay.
+        const params = {
+            TableName: 'Lakshya_FoodCoupons',
+            FilterExpression: 'redeemedBy = :stall',
+            ExpressionAttributeValues: { ':stall': stallId }
+        };
+        const data = await docClient.send(new ScanCommand(params));
+        const count = data.Count || 0;
+
+        res.json({ stallName: stallId, scannedCount: count });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+});
+
+// 3. REDEEM COUPON (The Scanner Logic)
+app.post('/api/stall/redeem', isAuthenticated('stall'), async (req, res) => {
+    const { qrCode } = req.body;
+    const stallId = req.session.user.name;
+
+    try {
+        // A. Check if Coupon Exists
+        const getRes = await docClient.send(new GetCommand({
+            TableName: 'Lakshya_FoodCoupons',
+            Key: { code: qrCode }
+        }));
+
+        const coupon = getRes.Item;
+
+        if (!coupon) {
+            return res.status(404).json({ error: 'Invalid Coupon Code' });
+        }
+
+        // B. Check if Already Used
+        if (coupon.status === 'REDEEMED') {
+            return res.status(400).json({ error: `Already used by ${coupon.holderName} at ${coupon.redeemedBy || 'another stall'}` });
+        }
+
+        // C. Atomic Update to Redeem
+        await docClient.send(new UpdateCommand({
+            TableName: 'Lakshya_FoodCoupons',
+            Key: { code: qrCode },
+            UpdateExpression: "set #s = :newStatus, redeemedBy = :stall, redeemedAt = :time",
+            ConditionExpression: "#s = :oldStatus", // Prevents double scanning race condition
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+                ":newStatus": "REDEEMED",
+                ":oldStatus": "ACTIVE",
+                ":stall": stallId,
+                ":time": new Date().toISOString()
+            }
+        }));
+
+        res.json({ message: 'Redeemed Successfully', student: coupon.holderName });
+
+    } catch (e) {
+        console.error("Redeem Error:", e);
+        if (e.name === 'ConditionalCheckFailedException') {
+            return res.status(400).json({ error: 'Coupon was just redeemed by someone else.' });
+        }
+        res.status(500).json({ error: 'Redemption Failed' });
+    }
+});
+
+// 4. FETCH MY COUPONS (For Students & Coordinators)
+app.get('/api/participant/my-coupons', isAuthenticated('participant'), async (req, res) => {
+    try {
+        const email = req.session.user.email;
+        const params = {
+            TableName: 'Lakshya_FoodCoupons',
+            FilterExpression: 'holderEmail = :e',
+            ExpressionAttributeValues: { ':e': email }
+        };
+        const data = await docClient.send(new ScanCommand(params));
+        res.json(data.Items || []);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch coupons' });
+    }
+});
+
+// 5. ADMIN ANALYTICS
+app.get('/api/admin/coupon-analytics', isAuthenticated('admin'), async (req, res) => {
+    try {
+        const data = await docClient.send(new ScanCommand({ TableName: 'Lakshya_FoodCoupons' }));
+        const coupons = data.Items || [];
+
+        const totalIssued = coupons.length;
+        const totalRedeemed = coupons.filter(c => c.status === 'REDEEMED').length;
+
+        // Group by Stall
+        const stallStats = {};
+        coupons.forEach(c => {
+            if (c.status === 'REDEEMED' && c.redeemedBy) {
+                stallStats[c.redeemedBy] = (stallStats[c.redeemedBy] || 0) + 1;
+            }
+        });
+
+        const stallsArray = Object.keys(stallStats).map(key => ({
+            id: key, name: key, count: stallStats[key], lastActive: new Date().toISOString()
+        }));
+
+        res.json({
+            totalIssued,
+            totalRedeemed,
+            stalls: stallsArray,
+            // Mock data for charts if needed
+            hourlyStats: { labels: [], values: [] }, 
+            deptStats: []
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Stats failed' });
+    }
+});
+
+// 6. ISSUE COUPONS TO STUDENT COORDINATORS (Bulk Action)
+app.post('/api/admin/issue-team-coupons', isAuthenticated('admin'), async (req, res) => {
+    try {
+        // A. Fetch all Student Team Members
+        const teamRes = await docClient.send(new ScanCommand({
+            TableName: 'Lakshya_EventTeam',
+            FilterExpression: 'roleType = :r',
+            ExpressionAttributeValues: { ':r': 'student' }
+        }));
+        
+        const students = teamRes.Items || [];
+        let count = 0;
+
+        // B. Generate Coupons for each (if they don't have them)
+        for (const s of students) {
+            // Check if coupons already exist for this email to prevent duplicates
+            const checkRes = await docClient.send(new ScanCommand({
+                TableName: 'Lakshya_FoodCoupons',
+                FilterExpression: 'holderEmail = :e',
+                ExpressionAttributeValues: { ':e': s.email }
+            }));
+
+            if (checkRes.Count === 0) {
+                // Issue 2 Coupons
+                await generateCouponsForUser(s.email, s.fullName, "TEAM_MEMBER");
+                count++;
+            }
+        }
+
+        res.json({ message: `Issued coupons to ${count} new student coordinators.` });
+
+    } catch (e) {
+        console.error("Team Issue Error:", e);
+        res.status(500).json({ error: 'Failed to issue team coupons' });
+    }
+});
+
+// HELPER: Generate 2 Coupons
+
+
+// ... existing code ...
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
     app.listen(PORT, () => { console.log(`Server running on http://localhost:${PORT}`); });
