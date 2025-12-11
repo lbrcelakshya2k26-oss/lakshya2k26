@@ -115,18 +115,6 @@
     </div>
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">DEPT COORD <i class="fa-solid fa-xmark close-sidebar-btn" onclick="toggleSidebar()"></i></div>
-        <ul class="menu">
-            <li><a href="dashboard" class="active"><i class="fa-solid fa-chart-pie"></i> Analytics</a></li>
-            <li><a href="registrations"><i class="fa-solid fa-users"></i> Registrations</a></li>
-            <li><a href="attendance"><i class="fa-solid fa-clipboard-user"></i> Attendance</a></li>
-            <li><a href="payment-status"><i class="fa-solid fa-money-bill-wave"></i> Payments</a></li>
-            <li><a href="assign-score"><i class="fa-solid fa-pen-to-square"></i> Assign Score</a></li>
-            <li><a onclick="logout()" class="logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
-        </ul>
-    </aside>
-
     <main class="main">
         <div class="header">
             <div>
@@ -184,16 +172,13 @@
             </div>
         </div>
     </div>
-
+<script src="/js/common-menu.js"></script>
     <script>
         let allRegistrations = [];
         let eventsMap = {};
         let deptName = "";
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
+      
 
         async function loadAnalytics() {
             try {

@@ -179,18 +179,7 @@
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">DEPT COORD <i class="fa-solid fa-xmark close-sidebar-btn" onclick="toggleSidebar()" style="font-size:1.2rem; cursor:pointer; display:none;"></i></div>
-        <ul class="menu">
-            <li><a href="dashboard"><i class="fa-solid fa-chart-pie"></i> Analytics</a></li>
-            <li><a href="add-team" class="active"><i class="fa-solid fa-user-plus"></i> Add Team</a></li>
-            <li><a href="registrations"><i class="fa-solid fa-users"></i> Registrations</a></li>
-            <li><a href="attendance"><i class="fa-solid fa-clipboard-user"></i> Attendance</a></li>
-            <li><a href="payment-status"><i class="fa-solid fa-money-bill-wave"></i> Payments</a></li>
-            <li><a href="assign-score"><i class="fa-solid fa-pen-to-square"></i> Assign Score</a></li>
-            <li><a onclick="logout()" class="logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
-        </ul>
-    </aside>
+   
 
     <main class="main">
         <div class="header">
@@ -314,7 +303,7 @@
             </div>
         </section>
     </main>
-
+<script src="/js/common-menu.js"></script>
     <script>
         // --- GLOBAL STATE ---
         let userDept = "";
