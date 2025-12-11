@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Broadcast Email | LAKSHYA 2K26</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&family=Fira+Code:wght@400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
@@ -71,6 +71,14 @@
         .form-control:focus { outline: none; border-color: var(--primary-color); }
         
         textarea.form-control { resize: vertical; min-height: 150px; }
+        
+        /* Code Mode Style */
+        textarea.code-mode {
+            font-family: 'Fira Code', monospace;
+            background: #0d0d15;
+            color: #a5f3fc;
+            line-height: 1.5;
+        }
 
         .file-drop-area {
             border: 2px dashed var(--border-color);
@@ -100,6 +108,26 @@
             font-size: 0.8rem; cursor: pointer; border: 1px solid transparent; 
         }
         .tag:hover { border-color: var(--primary-color); color: var(--primary-color); }
+
+        /* Toggles */
+        .toggle-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: #ccc;
+            font-size: 0.9rem;
+            user-select: none;
+        }
+        .toggle-label input {
+            accent-color: var(--primary-color);
+            transform: scale(1.2);
+        }
 
     </style>
 </head>
@@ -146,10 +174,26 @@
                     <input type="text" id="subject" class="form-control" placeholder="e.g., Important Update regarding Lakshya 2K26" required>
                 </div>
 
+                <!-- Options -->
+                <div class="form-group">
+                    <label class="form-label">Email Format Options</label>
+                    <div class="toggle-container">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="isHtml" onchange="toggleEditorMode()"> 
+                            Send as Raw HTML (Preserve Formatting)
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="skipTemplate"> 
+                            Full Custom Page (Remove Default Header/Footer)
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Message -->
                 <div class="form-group">
-                    <label class="form-label">Message Body</label>
-                    <textarea id="message" class="form-control" placeholder="Type your message here... (HTML tags supported)"></textarea>
+                    <label class="form-label">Message Body / HTML Code</label>
+                    <textarea id="message" class="form-control" placeholder="Type your message here..."></textarea>
+                    <p style="font-size: 0.8rem; color: #666; margin-top: 5px;">* If sending raw HTML, paste your code above.</p>
                 </div>
 
                 <!-- Attachments -->
@@ -174,6 +218,19 @@
     </main>
 
     <script>
+        function toggleEditorMode() {
+            const isHtml = document.getElementById('isHtml').checked;
+            const textarea = document.getElementById('message');
+            
+            if (isHtml) {
+                textarea.classList.add('code-mode');
+                textarea.placeholder = "<!-- Paste your HTML Code here -->\n<html>\n  <body>\n    ...\n  </body>\n</html>";
+            } else {
+                textarea.classList.remove('code-mode');
+                textarea.placeholder = "Type your message here...";
+            }
+        }
+
         function updateFileCount() {
             const input = document.getElementById('attachments');
             const label = document.getElementById('fileCount');
@@ -217,6 +274,8 @@
             const recipients = document.getElementById('recipients').value.trim();
             const subject = document.getElementById('subject').value.trim();
             const message = document.getElementById('message').value.trim();
+            const isHtml = document.getElementById('isHtml').checked;
+            const skipTemplate = document.getElementById('skipTemplate').checked;
             const fileInput = document.getElementById('attachments');
 
             if (!recipients) return alert("Please add at least one recipient.");
@@ -229,6 +288,10 @@
             formData.append('recipients', recipients);
             formData.append('subject', subject);
             formData.append('message', message);
+            
+            // Send new flags
+            formData.append('isHtml', isHtml);
+            formData.append('skipTemplate', skipTemplate);
 
             for (let i = 0; i < fileInput.files.length; i++) {
                 formData.append('attachments', fileInput.files[i]);
@@ -246,6 +309,7 @@
                     alert("Emails sent successfully!");
                     document.getElementById('broadcastForm').reset();
                     updateFileCount();
+                    toggleEditorMode(); // Reset view
                 } else {
                     alert("Error: " + (result.error || "Failed to send"));
                 }
