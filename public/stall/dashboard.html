@@ -4,77 +4,250 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Stall Scanner | LAKSHYA 2K26</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- QR Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
-        :root { --primary: #00ff88; --danger: #ff4444; --bg: #000000; --card: #1a1a1a; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        :root { 
+            --primary: #00ff88; 
+            --primary-glow: rgba(0, 255, 136, 0.3);
+            --danger: #ff4444; 
+            --accent: #00d2ff;
+            --bg: #0f1115; 
+            --card: #161b22; 
+            --text-main: #ffffff;
+            --text-muted: #8b949e;
+        }
         
-        body { background: var(--bg); color: white; min-height: 100vh; display: flex; flex-direction: column; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            background: radial-gradient(circle at top center, #1c2128 0%, var(--bg) 80%);
+            color: var(--text-main); 
+            min-height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+        }
 
-        /* Mobile Header */
+        /* Modern Header */
         .header {
-            padding: 15px 20px; background: #111; border-bottom: 1px solid #333;
-            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 24px; 
+            background: rgba(22, 27, 34, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
         }
-        .stall-name { font-weight: bold; font-size: 1.1rem; color: #00d2ff; }
-        .logout-btn { color: #666; font-size: 0.9rem; cursor: pointer; }
+        .stall-name { 
+            font-weight: 700; 
+            font-size: 1.25rem; 
+            background: linear-gradient(90deg, #fff, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .logout-btn { 
+            color: var(--text-muted); 
+            font-size: 0.9rem; 
+            cursor: pointer; 
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logout-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.1); }
+        .logout-btn:hover { color: var(--danger); }
 
-        /* Stats Bar */
+        /* Enhanced Stats Bar */
         .stats-bar {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px;
-            background: #0f0f0f; border-bottom: 1px solid #222;
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            padding: 20px;
+            background: transparent; 
         }
-        .stat-box { background: #1a1a1a; padding: 10px; border-radius: 8px; text-align: center; }
-        .stat-val { font-size: 1.4rem; font-weight: bold; color: white; }
-        .stat-lbl { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+        .stat-box { 
+            background: var(--card); 
+            padding: 15px; 
+            border-radius: 16px; 
+            text-align: center; 
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        /* Subtle glow effect on stats */
+        .stat-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            opacity: 0.7;
+        }
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: white; margin-bottom: 2px; }
+        .stat-lbl { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
 
         /* Scanner Area */
         .scanner-container {
-            flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 20px; position: relative;
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            padding: 20px; 
+            position: relative;
+            width: 100%;
         }
-        #reader { width: 100%; max-width: 400px; border-radius: 15px; overflow: hidden; border: 2px solid #333; }
         
-        .scan-msg { margin-top: 15px; color: #888; font-size: 0.9rem; text-align: center; }
+        .scanner-wrapper {
+            position: relative;
+            padding: 5px;
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            border-radius: 20px;
+            box-shadow: 0 0 30px var(--primary-glow);
+            width: 100%;
+            max-width: 350px;
+        }
+
+        #reader { 
+            width: 100%; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            background: #000;
+        }
+        
+        .scan-msg { 
+            margin-top: 25px; 
+            color: var(--text-muted); 
+            font-size: 0.95rem; 
+            text-align: center; 
+            max-width: 280px;
+            line-height: 1.5;
+        }
 
         /* Status Modal (Success/Fail) */
         .result-modal {
             position: fixed; bottom: 0; left: 0; width: 100%;
-            padding: 30px 20px; border-radius: 20px 20px 0 0;
-            background: #222; transform: translateY(100%); transition: 0.3s; z-index: 100;
+            padding: 30px 25px 40px; 
+            border-radius: 24px 24px 0 0;
+            background: #1a1f26; 
+            transform: translateY(110%); 
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+            z-index: 100;
             text-align: center;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
         .result-modal.active { transform: translateY(0); }
-        .result-modal.success { background: #0a2e1a; border-top: 2px solid #00ff88; }
-        .result-modal.error { background: #2e0a0a; border-top: 2px solid #ff4444; }
+        
+        .result-modal.success::before {
+            content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            width: 50px; height: 5px; background: rgba(255,255,255,0.1); border-radius: 10px;
+        }
 
-        .result-icon { font-size: 3rem; margin-bottom: 15px; }
-        .success .result-icon { color: #00ff88; }
-        .error .result-icon { color: #ff4444; }
+        .result-icon { 
+            font-size: 3.5rem; 
+            margin-bottom: 15px; 
+            display: inline-flex;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+        }
+        .success .result-icon { color: var(--primary); background: rgba(0, 255, 136, 0.1); }
+        .error .result-icon { color: var(--danger); background: rgba(255, 68, 68, 0.1); }
 
-        .result-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
-        .result-desc { color: #aaa; font-size: 0.9rem; margin-bottom: 20px; }
+        .result-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; color: white; }
+        .result-desc { color: var(--text-muted); font-size: 1rem; margin-bottom: 25px; line-height: 1.4; }
         
         .btn-next {
-            width: 100%; padding: 15px; border-radius: 50px; border: none; font-weight: bold; font-size: 1rem; cursor: pointer;
+            width: 100%; 
+            padding: 16px; 
+            border-radius: 14px; 
+            border: none; 
+            font-weight: 600; 
+            font-size: 1rem; 
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .success .btn-next { background: #00ff88; color: #000; }
-        .error .btn-next { background: #ff4444; color: white; }
+        .btn-next:active { transform: scale(0.98); }
+        .success .btn-next { 
+            background: var(--primary); 
+            color: #000; 
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+        .error .btn-next { background: var(--danger); color: white; }
 
         /* Manual Entry Toggle */
-        .manual-trigger { margin-top: 20px; color: #00d2ff; text-decoration: underline; cursor: pointer; }
+        .manual-trigger { 
+            margin-top: 15px; 
+            color: var(--accent); 
+            font-weight: 500;
+            cursor: pointer; 
+            padding: 10px 20px;
+            border-radius: 50px;
+            background: rgba(0, 210, 255, 0.1);
+            border: 1px solid rgba(0, 210, 255, 0.2);
+            transition: all 0.2s;
+        }
+        .manual-trigger:hover { background: rgba(0, 210, 255, 0.2); }
+
+        /* Footer Styles */
+        .footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            background: rgba(0,0,0,0.2);
+        }
+        .footer-text {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            line-height: 1.6;
+        }
+        .footer-brand {
+            color: var(--accent);
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .footer-sub {
+            display: block;
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        /* Overlay for modal */
+        #modalOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 90;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        #modalOverlay.active { opacity: 1; pointer-events: all; }
+
     </style>
 </head>
 <body>
 
     <div class="header">
         <div class="stall-name" id="stallNameDisplay">Loading...</div>
-        <div class="logout-btn" onclick="logout()"><i class="fa-solid fa-power-off"></i> Logout</div>
+        <div class="logout-btn" onclick="logout()">
+            <i class="fa-solid fa-power-off"></i> <span>Logout</span>
+        </div>
     </div>
 
     <div class="stats-bar">
@@ -89,12 +262,24 @@
     </div>
 
     <div class="scanner-container">
-        <div id="reader"></div>
-        <p class="scan-msg">Point camera at student QR code</p>
-        <div class="manual-trigger" onclick="manualEntry()">Enter Code Manually</div>
+        <div class="scanner-wrapper">
+            <div id="reader"></div>
+        </div>
+        <p class="scan-msg">Align student QR code within the frame to scan automatically</p>
+        <div class="manual-trigger" onclick="manualEntry()">
+            <i class="fa-regular fa-keyboard"></i> Enter Code Manually
+        </div>
     </div>
 
-    <!-- Result Modal -->
+    <div class="footer">
+        <p class="footer-text">
+            designed & developed by <a href="https://xetasolutions.in" class="footer-brand">Xeta</a>
+            <span class="footer-sub">xetasolutions.in a startup from AI&DS LBRCE</span>
+        </p>
+    </div>
+
+    <!-- Overlay & Result Modal -->
+    <div id="modalOverlay"></div>
     <div id="resultModal" class="result-modal">
         <div id="resultIcon" class="result-icon"><i class="fa-solid fa-check-circle"></i></div>
         <div id="resultTitle" class="result-title">Coupon Redeemed!</div>
@@ -175,9 +360,12 @@
 
         function showResult(type, title, desc) {
             const modal = document.getElementById('resultModal');
+            const overlay = document.getElementById('modalOverlay');
             const icon = document.getElementById('resultIcon');
             
             modal.className = `result-modal active ${type}`;
+            overlay.classList.add('active'); // Activate overlay
+            
             document.getElementById('resultTitle').innerText = title;
             document.getElementById('resultDesc').innerText = desc;
             
@@ -188,6 +376,7 @@
 
         function resetScanner() {
             document.getElementById('resultModal').classList.remove('active');
+            document.getElementById('modalOverlay').classList.remove('active');
             isScanning = true;
         }
 
