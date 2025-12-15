@@ -12,6 +12,7 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
 const chatRoute = require('./chatRoute'); 
 const router = express.Router();
+const { exec } = require("child_process");
 
 // const Razorpay = require('razorpay'); // Payment Disabled for now
 const Razorpay = require('razorpay');
@@ -4117,6 +4118,42 @@ app.post('/api/admin/issue-team-coupons', isAuthenticated('admin'), async (req, 
 
 // HELPER: Generate 2 Coupons
 
+app.post(
+  "/github-webhook",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const signature = req.headers["x-hub-signature-256"];
+    const secret = process.env.GITHUB_WEBHOOK_SECRET;
+
+    if (!signature || !secret) {
+      return res.status(401).send("Missing signature");
+    }
+
+    const hmac = crypto.createHmac("sha256", secret);
+    const digest =
+      "sha256=" + hmac.update(req.body).digest("hex");
+
+    if (signature !== digest) {
+      console.error("❌ Invalid GitHub signature");
+      return res.status(401).send("Invalid signature");
+    }
+
+    // ACKNOWLEDGE GITHUB IMMEDIATELY
+    res.status(200).send("OK");
+
+    // DEPLOY IN BACKGROUND
+    exec(
+      "cd /home/ec2-user/lakshya2k26 && git pull && pm2 restart lakshya-old",
+      (err, stdout, stderr) => {
+        if (err) {
+          console.error("❌ Deploy failed:", err);
+          return;
+        }
+        console.log("✅ GitHub deploy successful");
+      }
+    );
+  }
+);
 
 // ... existing code ...
 const PORT = process.env.PORT || 3000;
