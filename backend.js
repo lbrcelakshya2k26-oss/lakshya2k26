@@ -172,7 +172,7 @@ app.get('/get-sponsors', (req, res) => res.sendFile(path.join(__dirname, 'public
 app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, 'public/static/privacy.html')));
 app.get('/refunds', (req, res) => res.sendFile(path.join(__dirname, 'public/static/refunds.html')));
 app.get('/shipping', (req, res) => res.sendFile(path.join(__dirname, 'public/static/shipping.html')));
-
+app.get('/my-coupons', (req, res) => res.sendFile(path.join(__dirname, 'public/static/my-coupons.html')));
 
 
 // --- 5. ROUTES: PARTICIPANT (PROTECTED) ---
@@ -3843,10 +3843,10 @@ app.get('/stall/dashboard', isAuthenticated('stall'), (req, res) => {
 
 // --- COUPON PAGE ROUTE ---
 // Ensure this matches where you actually saved the file
-app.get('/my-coupons', isAuthenticated('participant'), (req, res) => {
-    // If you saved it in public/static:
-    res.sendFile(path.join(__dirname, 'public/static/my-coupons.html'));
-});
+// app.get('/my-coupons', isAuthenticated('participant'), (req, res) => {
+//     // If you saved it in public/static:
+//     res.sendFile(path.join(__dirname, 'public/static/my-coupons.html'));
+// });
 
 // --- ADMIN STATS ROUTE ---
 app.get('/admin/coupon-stats', isAuthenticated('admin'), (req, res) => {
