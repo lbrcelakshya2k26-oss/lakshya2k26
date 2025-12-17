@@ -3842,11 +3842,7 @@ app.get('/stall/dashboard', isAuthenticated('stall'), (req, res) => {
 });
 
 // --- COUPON PAGE ROUTE ---
-// Ensure this matches where you actually saved the file
-// app.get('/my-coupons', isAuthenticated('participant'), (req, res) => {
-//     // If you saved it in public/static:
-//     res.sendFile(path.join(__dirname, 'public/static/my-coupons.html'));
-// });
+
 
 // --- ADMIN STATS ROUTE ---
 app.get('/admin/coupon-stats', isAuthenticated('admin'), (req, res) => {
