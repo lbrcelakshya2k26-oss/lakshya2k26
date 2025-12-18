@@ -6,7 +6,12 @@ const multer = require('multer');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 require('dotenv').config();
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+// Explicitly allow 100MB file size
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 100 * 1024 * 1024 } 
+});
+
 const { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand, QueryCommand } = require("@aws-sdk/lib-dynamodb");
@@ -24,8 +29,9 @@ const bcrypt = require('bcryptjs');
 const app = express();
 
 // --- 1. CONFIGURATION ---
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '100mb' }));
+app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
+
 
 // --- SERVE ASSETS & SCRIPTS (SECURE) ---
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
