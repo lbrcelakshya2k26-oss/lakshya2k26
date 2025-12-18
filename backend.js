@@ -4174,13 +4174,15 @@ app.post(
 // ... existing code ...
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
-    // CHANGE THIS BLOCK
     const server = app.listen(PORT, () => { 
         console.log(`Server running on http://localhost:${PORT}`); 
     });
 
-    // CRITICAL: Set timeout to 10 minutes (600000ms) for 100MB files
+    // 1. Connection Timeout (10 Minutes) - Allows large uploads to finish
     server.setTimeout(600000);
+    server.keepAliveTimeout = 61000; // 61 seconds
+    server.headersTimeout = 65000;   // 65 seconds
 }
+
 
 module.exports = app;
