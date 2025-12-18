@@ -4,12 +4,11 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const multer = require('multer');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-require('dotenv').config();
 const storage = multer.memoryStorage();
-// Explicitly allow 100MB file size
+// UPDATED: Explicitly allow 100MB file size in Multer
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 100 * 1024 * 1024 } 
+    limits: { fileSize: 100 * 1024 * 1024 } // 100 MB
 });
 
 const { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
