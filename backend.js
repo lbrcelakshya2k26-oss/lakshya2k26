@@ -32,7 +32,21 @@ const app = express();
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 
-
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        // Specific Multer errors
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            console.error("Upload failed: File too large (>100MB)");
+            return res.status(413).json({ error: 'File is too large! Maximum limit is 100MB.' });
+        }
+        return res.status(400).json({ error: `Upload Error: ${err.message}` });
+    } else if (err) {
+        // General errors
+        console.error("Server Error:", err);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+    next();
+});
 // --- SERVE ASSETS & SCRIPTS (SECURE) ---
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 // Point to public/js instead of just js
