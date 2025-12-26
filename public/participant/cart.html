@@ -6,7 +6,6 @@
     <title>My Cart | LAKSHYA 2K26</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Razorpay Checkout JS is NOT needed for Payment Links, but leaving it doesn't hurt -->
     <link rel="icon" type="image/png" href="/assets/logo.png">
     
     <style>
@@ -139,7 +138,6 @@
             .cart-item { flex-direction: column; align-items: flex-start; gap: 15px; }
             .item-details { width: 100%; }
             .cart-summary { flex-direction: column; padding: 1.5rem; }
-            .payment-methods { flex-direction: column; }
         }
     </style>
 </head>
@@ -149,7 +147,6 @@
 
     <main class="main">
         <div class="container">
-            <!-- UPDATED PAGE HEADER WITH LOGO -->
             <div class="page-header">
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <img src="/assets/logo.png" alt="LAKSHYA Logo" style="height: 55px; width: auto; filter: drop-shadow(0 0 5px rgba(0, 210, 255, 0.5));">
@@ -205,7 +202,7 @@
         </div>
     </main>
 
-    <!-- POPUP MODAL -->
+    <!-- MODALS -->
     <div class="modal" id="customModal">
         <div class="modal-content">
             <div class="modal-icon" id="popupIcon"></div>
@@ -215,7 +212,6 @@
         </div>
     </div>
 
-    <!-- KIT INFO MODAL -->
     <div class="modal" id="kitModal">
         <div class="modal-content">
             <div class="modal-icon"><i class="fa-solid fa-box-open" style="color: #ff00cc;"></i></div>
@@ -232,7 +228,6 @@
         </div>
     </div>
 
-    <!-- T&C MODAL -->
     <div class="modal" id="tncModal">
         <div class="modal-content" style="max-width:500px;">
             <div style="text-align:center;"><i class="fa-solid fa-file-contract" style="font-size:2.5rem; color:var(--primary-color);"></i><h3>Coupon Terms</h3></div>
@@ -391,7 +386,6 @@
                 document.getElementById('discountRow').style.display = 'none';
             }
 
-            // Always add Platform Fee for Online
             const platformFee = Math.ceil(finalAmount * 0.0236);
             finalAmount += platformFee;
             document.getElementById('feeRow').style.display = 'flex';
@@ -455,15 +449,18 @@
         async function performCheckout() {
             const btn = document.querySelector('.btn-checkout');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Redirecting...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
             btn.disabled = true;
             
-            // --- NEW LOGIC: Only register if paying Cash/Later ---
-            // For Online, we skip registration creation until payment is verified.
-            const isOnline = true; // Hardcoded since we only have online now in this simplified version
-            
-            // 2. Create Payment Link and Redirect
             try {
+                // --- CRITICAL FIX: FORCE SAVE CART TO DB BEFORE LEAVING SITE ---
+                // This ensures the backend can recover the cart even if localStorage is lost.
+                await fetch('/api/cart', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ items: cartItems }) 
+                });
+
                 const couponCodeToSend = activeCoupon ? activeCoupon.code : null;
                 const orderRes = await fetch('/api/payment/create-order', { 
                     method: 'POST', 
@@ -474,13 +471,11 @@
                 const orderData = await orderRes.json();
                 if (!orderData.paymentLink) throw new Error("Link creation failed");
 
-                // IMPORTANT: Save IDs to LocalStorage to use them after redirect
-                // Since we didn't create regs yet, we save the cart items locally to ensure we have the exact snapshot
+                // Snapshot for verification page
                 localStorage.setItem('LAKSHYA_PENDING_CART', JSON.stringify(cartItems));
                 localStorage.setItem('LAKSHYA_PENDING_COUPON', couponCodeToSend || "");
                 localStorage.setItem('LAKSHYA_ITEM_AMOUNTS', JSON.stringify(orderData.itemAmounts));
 
-                // REDIRECT
                 window.location.href = orderData.paymentLink;
 
             } catch (e) { 
