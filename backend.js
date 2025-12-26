@@ -4461,7 +4461,7 @@ app.get('/api/reports/onsite-registrations', (req, res, next) => {
         console.error("Onsite Report Fetch Error:", error);
         res.status(500).json({ error: "Failed to load audit records from database" });
     }
-});const PORT = process.env.PORT || 3000;
+});
 
 // backend.js - Update On-Site Registration
 app.put('/api/coordinator/update-onsite-reg', async (req, res) => {
