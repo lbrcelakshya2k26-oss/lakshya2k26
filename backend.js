@@ -4171,6 +4171,329 @@ app.post(
   }
 );
 
+
+app.get('/coordinator/register-participant', isAuthenticated('coordinator'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/coordinator/on-site-reg.html'));
+});
+
+// 2. API: Search Participant & Calculate History-Based Discount Eligibility
+app.get('/api/coordinator/search-participant', isAuthenticated('coordinator'), async (req, res) => {
+    let { email } = req.query;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+    
+    email = email.toLowerCase().trim();
+
+    try {
+        const userRes = await docClient.send(new GetCommand({
+            TableName: 'Lakshya_Users',
+            Key: { email: email }
+        }));
+
+        if (!userRes.Item) {
+            return res.status(404).json({ error: "Student account not found. Please ask them to register on the website first." });
+        }
+
+        const student = userRes.Item;
+        delete student.password; 
+
+        // Fetch Event Map to populate missing categories in history
+        const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
+        const eventMap = {};
+        (eventData.Items || []).forEach(e => eventMap[e.eventId] = e);
+
+        const regRes = await docClient.send(new QueryCommand({
+            TableName: 'Lakshya_Registrations',
+            IndexName: 'StudentIndex',
+            KeyConditionExpression: 'studentEmail = :email',
+            ExpressionAttributeValues: { ':email': email }
+        }));
+
+        const registrations = (regRes.Items || []).map(reg => {
+            // Enrich category if missing (prevents "NA" in UI)
+            if (!reg.category && eventMap[reg.eventId]) {
+                reg.category = eventMap[reg.eventId].type;
+            }
+            return reg;
+        });
+        
+        let historyCount = 0;
+        registrations.forEach(reg => {
+            const status = (reg.paymentStatus || '').toUpperCase();
+            if (status === 'COMPLETED') {
+                const cat = (reg.category || '').toLowerCase();
+                if (cat.includes('special')) return;
+
+                const eligibleKeywords = [
+                    'major', 'mba', 'management', 
+                    'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary'
+                ];
+                
+                const isEligible = eligibleKeywords.some(k => cat.includes(k));
+                if (isEligible) historyCount++;
+            }
+        });
+
+        res.json({
+            student,
+            historyCount,
+            registrations 
+        });
+
+    } catch (error) {
+        console.error("Search Participant Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// --- API: Process Cash Registration ---
+app.post('/api/coordinator/on-site-register', isAuthenticated('coordinator'), async (req, res) => {
+    const { 
+        studentEmail, 
+        eventId, 
+        applyDiscount, 
+        historyCount,
+        teamName, 
+        teamMembers, // Now capturing team data from frontend
+        submissionTitle,
+        submissionAbstract,
+        submissionUrl
+    } = req.body;
+
+    try {
+        const eventRes = await docClient.send(new GetCommand({
+            TableName: 'Lakshya_Events',
+            Key: { eventId }
+        }));
+
+        if (!eventRes.Item) return res.status(404).json({ error: "Event not found" });
+        const event = eventRes.Item;
+        const baseFee = parseInt(event.fee);
+
+        // --- PRICING & KIT LOGIC ---
+        let finalAmount = baseFee;
+        let kitStatus = false;
+        
+        const isEligibleCategory = checkKitEligibility(event.type);
+
+        if (applyDiscount && parseInt(historyCount) >= 1) {
+            finalAmount = baseFee / 2;
+            kitStatus = false; 
+        } else {
+            finalAmount = baseFee;
+            kitStatus = isEligibleCategory; 
+        }
+
+        // Check for existing COMPLETED registration to prevent duplicates
+        const checkParams = {
+            TableName: 'Lakshya_Registrations',
+            IndexName: 'StudentIndex',
+            KeyConditionExpression: 'studentEmail = :email',
+            FilterExpression: 'eventId = :eid AND paymentStatus = :status',
+            ExpressionAttributeValues: { 
+                ':email': studentEmail.toLowerCase(), 
+                ':eid': eventId, 
+                ':status': 'COMPLETED' 
+            }
+        };
+        const existing = await docClient.send(new QueryCommand(checkParams));
+        if (existing.Items && existing.Items.length > 0) {
+            return res.status(400).json({ error: "Student is already registered and paid for this event." });
+        }
+
+        const registrationId = uuidv4();
+        const regItem = {
+            registrationId,
+            studentEmail: studentEmail.toLowerCase(),
+            eventId,
+            deptName: event.departments ? event.departments[0] : 'General',
+            category: event.type,
+            kitAllocated: kitStatus, 
+            teamName: teamName || null,
+            teamMembers: teamMembers || [],
+            paymentStatus: "COMPLETED",
+            paymentId: `CASH-${uuidv4().substring(0,8).toUpperCase()}`,
+            paymentMode: "CASH",
+            paymentDate: new Date().toISOString(),
+            amountPaid: finalAmount,
+            registeredAt: new Date().toISOString(),
+            attendance: false,
+            submissionTitle: submissionTitle || null,
+            submissionAbstract: submissionAbstract || null,
+            submissionUrl: submissionUrl || null,
+            managedBy: req.session.user.email
+        };
+
+        await docClient.send(new PutCommand({
+            TableName: 'Lakshya_Registrations',
+            Item: regItem
+        }));
+
+        const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
+        const emailHtml = `
+            <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee;">
+                <div style="background-color: #00d2ff; padding: 20px; text-align: center; color: white;">
+                    <img src="${logoUrl}" style="height: 50px; margin-bottom: 10px;">
+                    <h2 style="margin: 0;">CASH RECEIPT & REGISTRATION</h2>
+                </div>
+                <div style="padding: 30px;">
+                    <p>Dear Participant,</p>
+                    <p>Your on-site registration for <strong>${event.title}</strong> was successful.</p>
+                    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <p><strong>Registration ID:</strong> ${registrationId}</p>
+                        <p><strong>Amount Received:</strong> ₹${finalAmount}</p>
+                        <p><strong>Payment Mode:</strong> CASH</p>
+                        ${kitStatus ? `<p style="color: #ff00cc; font-weight: bold;">🎁 This registration includes a FREE KIT!</p>` : ''}
+                        <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+                    </div>
+                    <p style="font-size: 14px; color: #666;">Please show your Registration ID at the event venue for attendance.</p>
+                    <p>Best Regards,<br>Team LAKSHYA</p>
+                </div>
+            </div>
+        `;
+
+        await sendEmail(studentEmail, `Registration Confirmed: ${event.title}`, emailHtml);
+
+        res.json({ 
+            success: true, 
+            message: "Registration completed successfully.",
+            registrationId,
+            amountPaid: finalAmount
+        });
+
+    } catch (error) {
+        console.error("On-Site Reg Error:", error);
+        res.status(500).json({ error: "Failed to process registration" });
+    }
+});// ELB Health Check - Crucial for Auto Scaling
+// --- API: Get On-Site (Cash) Registrations ---
+
+// --- API: Get On-Site (Cash) Registrations for Coordinator Audit ---
+// app.get('/api/reports/onsite-registrations', isAuthenticated('coordinator'), async (req, res) => {
+//     const coordinatorEmail = req.session.user.email;
+
+//     try {
+//         // 1. Fetch all registrations handled by this coordinator
+//         // Using Scan with FilterExpression to find CASH payments managed by this user
+//         const params = {
+//             TableName: 'Lakshya_Registrations',
+//             FilterExpression: 'managedBy = :email AND paymentMode = :mode',
+//             ExpressionAttributeValues: {
+//                 ':email': coordinatorEmail,
+//                 ':mode': 'CASH'
+//             }
+//         };
+
+//         const regData = await docClient.send(new ScanCommand(params));
+//         const registrations = regData.Items || [];
+
+//         if (registrations.length === 0) return res.json([]);
+
+//         // 2. Fetch Events to map IDs to Titles for the frontend table
+//         const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
+//         const eventMap = {};
+//         (eventData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
+
+//         // 3. Enrich the registration data with event titles
+//         const enrichedReport = registrations.map(reg => ({
+//             ...reg,
+//             eventTitle: eventMap[reg.eventId] || 'Unknown Event'
+//         }));
+
+//         res.json(enrichedReport);
+
+//     } catch (error) {
+//         console.error("Onsite Report Fetch Error:", error);
+//         res.status(500).json({ error: "Failed to load audit records" });
+//     }
+// });
+app.get('/coordinator/onsite-reports', isAuthenticated('coordinator'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/coordinator/onsite-reports-coordinator.html'));
+});
+
+// 2. Route for Admin to view global audit reports
+app.get('/admin/onsite-reports', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/onsite-reports-admin.html'));
+});
+
+
+// backend.js - Consolidated Report API
+app.get('/api/reports/onsite-registrations', (req, res, next) => {
+    // Check if user is logged in AND is either an admin or coordinator
+    const user = req.session.user;
+    if (!user || (user.role !== 'admin' && user.role !== 'coordinator')) {
+        return res.status(401).json({ error: "Unauthorized: Access Denied" });
+    }
+    next();
+}, async (req, res) => {
+    const user = req.session.user;
+
+    try {
+        // Base query for CASH payments
+        let params = {
+            TableName: 'Lakshya_Registrations',
+            FilterExpression: 'paymentMode = :mode',
+            ExpressionAttributeValues: { ':mode': 'CASH' }
+        };
+
+        // ROLE LOGIC: Coordinators only see their own transactions.
+        // Admins see EVERYTHING.
+        if (user.role === 'coordinator') {
+            params.FilterExpression += ' AND managedBy = :email';
+            params.ExpressionAttributeValues[':email'] = user.email;
+        }
+
+        const regData = await docClient.send(new ScanCommand(params));
+        const registrations = regData.Items || [];
+
+        // Map Event IDs to Titles for a better UI display
+        const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
+        const eventMap = {};
+        (eventData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
+
+        const enrichedReport = registrations.map(reg => ({
+            ...reg,
+            eventTitle: eventMap[reg.eventId] || 'Unknown Event'
+        }));
+
+        res.json(enrichedReport);
+
+    } catch (error) {
+        console.error("Onsite Report Fetch Error:", error);
+        res.status(500).json({ error: "Failed to load audit records from database" });
+    }
+});const PORT = process.env.PORT || 3000;
+
+// backend.js - Update On-Site Registration
+app.put('/api/coordinator/update-onsite-reg', async (req, res) => {
+    const { registrationId, amountPaid, kitAllocated } = req.body;
+    const user = req.session.user;
+
+    if (!user || (user.role !== 'admin' && user.role !== 'coordinator')) {
+        return res.status(403).json({ error: "Forbidden" });
+    }
+
+    try {
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            Key: { registrationId },
+            UpdateExpression: "set amountPaid = :ap, kitAllocated = :ka, updatedAt = :t",
+            ExpressionAttributeValues: {
+                ":ap": parseFloat(amountPaid),
+                ":ka": kitAllocated,
+                ":t": new Date().toISOString()
+            }
+        };
+
+        await docClient.send(new UpdateCommand(params));
+        res.json({ message: "Record updated successfully" });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to update record" });
+    }
+});
+
+
+
+
 // ... existing code ...
 // ... existing code ...
 const PORT = process.env.PORT || 3000;
