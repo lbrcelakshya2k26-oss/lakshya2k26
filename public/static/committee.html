@@ -5,364 +5,608 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Committee | LAKSHYA 2K26</title>
 
-    <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="\assets\logo.png">
+    <link rel="icon" type="image/png" href="/assets/logo.png">
 
     <style>
-        /* --- GLOBAL VARIABLES --- */
+        /* --- THEME CONFIGURATION --- */
         :root {
-            --primary-color: #00d2ff;
-            --secondary-color: #3a7bd5;
-            --accent-color: #ff00cc;
-            --text-color: #ffffff;
-            --glass-bg: rgba(15, 15, 30, 0.85);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --card-hover: rgba(0, 210, 255, 0.15);
-            --dark-overlay: linear-gradient(to bottom, rgba(5, 5, 15, 0.6), rgba(5, 5, 15, 0.95));
-            --mobile-glass: rgba(5, 5, 12, 0.95);
+            --bg-dark: #030508;
+            --bg-panel: #0b101a;
+            --primary: #00f2ff;
+            --secondary: #7000ff;
+            --accent: #ff0055;
+            --text-main: #ffffff;
+            --text-muted: #8892b0;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-surface: rgba(255, 255, 255, 0.03);
+            --card-gradient: linear-gradient(145deg, rgba(11, 16, 26, 0.9) 0%, rgba(5, 8, 14, 0.95) 100%);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        /* --- RESET & BASE --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body { 
-            background-color: #0a0a0a; 
-            color: var(--text-color); 
-            overflow-x: hidden; 
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(112, 0, 255, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(0, 242, 255, 0.08) 0%, transparent 20%);
+            background-attachment: fixed;
         }
 
-        .bg-layer {
+        /* --- BACKGROUND ELEMENTS --- */
+        .grid-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: url('../assets/admin-block.jpg') no-repeat center top/cover; z-index: -2;
-            filter: brightness(0.8);
-        }
-        .overlay-layer {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--dark-overlay); z-index: -1;
+            background-image: linear-gradient(var(--glass-border) 1px, transparent 1px),
+            linear-gradient(90deg, var(--glass-border) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.15;
+            z-index: -1;
+            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
         }
 
         /* --- NAVIGATION --- */
         nav {
             position: fixed; top: 0; left: 0; width: 100%;
-            height: 80px; padding: 0 4%;
+            padding: 1rem 5%;
             display: flex; justify-content: space-between; align-items: center;
-            z-index: 1000; transition: 0.4s;
-            background: rgba(5, 5, 10, 0.6); 
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            z-index: 1000;
+            background: rgba(3, 5, 8, 0.8);
+            backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
         }
 
-        .logo { cursor: pointer; z-index: 1002; display: flex; align-items: center; gap: 12px; }
+        .logo {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 10px;
+        }
         
-        .logo-text {
-            font-family: 'Montserrat', sans-serif; font-size: 1.4rem; font-weight: 900;
-            background: linear-gradient(45deg, var(--primary-color), #ffffff);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
-        }
+        .logo span { color: var(--primary); text-shadow: 0 0 15px rgba(0, 242, 255, 0.4); }
 
-        .nav-links { display: flex; list-style: none; gap: 1.5rem; align-items: center; transition: 0.4s; }
+        .nav-links {
+            display: flex; gap: 2rem; list-style: none; align-items: center;
+        }
 
         .nav-links a {
-            text-decoration: none; color: var(--text-color); font-weight: 500;
-            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
-            transition: 0.3s; position: relative; white-space: nowrap;
+            text-decoration: none; color: var(--text-muted);
+            font-size: 0.9rem; font-weight: 500; text-transform: uppercase;
+            letter-spacing: 1px; transition: 0.3s;
+            position: relative;
         }
 
-        .nav-links a:hover, .nav-links a.active { color: var(--primary-color); text-shadow: 0 0 10px var(--primary-color); }
-        .nav-links a::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 0%; height: 2px; background: var(--primary-color); transition: 0.3s; }
-        .nav-links a:hover::after { width: 100%; }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+        .nav-links a::after {
+            content: ''; position: absolute; bottom: -4px; left: 0;
+            width: 0; height: 2px; background: var(--primary);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 8px var(--primary);
+        }
+        .nav-links a:hover::after, .nav-links a.active::after { width: 100%; }
 
-        .btn-login { padding: 0.5rem 1.2rem; border: 1px solid var(--primary-color); border-radius: 50px; color: var(--primary-color) !important; font-size: 0.8rem !important; }
-        .btn-register { padding: 0.5rem 1.2rem; background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); border-radius: 50px; color: white !important; font-size: 0.8rem !important; }
-
-        /* Mobile Menu */
-        .menu-toggle { display: none; flex-direction: column; justify-content: space-between; width: 28px; height: 20px; cursor: pointer; z-index: 1003; }
-        .bar { width: 100%; height: 3px; background-color: white; border-radius: 3px; transition: 0.4s; }
+        .btn-action {
+            padding: 0.6rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            transition: 0.3s;
+            text-decoration: none;
+        }
         
-        .menu-toggle.is-active .bar:nth-child(1) { transform: translateY(8.5px) rotate(45deg); background-color: var(--primary-color); }
-        .menu-toggle.is-active .bar:nth-child(2) { opacity: 0; }
-        .menu-toggle.is-active .bar:nth-child(3) { transform: translateY(-8.5px) rotate(-45deg); background-color: var(--primary-color); }
+        .btn-login { 
+            border: 1px solid var(--glass-border); color: var(--text-main);
+            background: rgba(255,255,255,0.05); 
+        }
+        .btn-login:hover { border-color: var(--primary); color: var(--primary); }
 
-        @media (max-width: 1100px) {
-            nav { padding: 0 2rem; }
-            .menu-toggle { display: flex; }
-            .nav-links {
-                position: fixed; top: 0; right: -100%;
-                height: 100vh; width: 70%; max-width: 300px;
-                background: var(--mobile-glass); backdrop-filter: blur(20px);
-                flex-direction: column; justify-content: flex-start;
-                align-items: center; gap: 1.8rem;
-                padding-top: 90px; padding-bottom: 50px;
-                border-left: 1px solid var(--glass-border);
-                transition: right 0.4s ease-in-out;
-                z-index: 1001; overflow-y: auto;
-                box-shadow: -5px 0 20px rgba(0,0,0,0.5);
-            }
-            .nav-links.active { right: 0; }
+        .btn-register {
+            background: var(--primary); color: #000;
+            border: 1px solid var(--primary);
+            font-weight: 700;
+        }
+        .btn-register:hover {
+            background: transparent; color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
         }
 
-        /* --- OFFER MODAL STYLES --- */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.4s; }
-        .modal-overlay.active { opacity: 1; visibility: visible; }
-        .offer-card { position: relative; background: rgba(20, 20, 35, 0.95); border: 1px solid var(--primary-color); width: 90%; max-width: 450px; padding: 30px; border-radius: 20px; text-align: center; transform: scale(0.8); transition: transform 0.4s; box-shadow: 0 0 30px rgba(0, 210, 255, 0.2); }
-        .modal-overlay.active .offer-card { transform: scale(1); }
-        
-        .close-offer-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; color: #888; cursor: pointer; transition: 0.3s; }
-        .close-offer-btn:hover { color: white; transform: rotate(90deg); }
-        .offer-icon { font-size: 2.5rem; margin-bottom: 10px; color: var(--primary-color); }
-        .offer-title { font-family: 'Montserrat'; font-size: 1.6rem; font-weight: 800; color: white; margin-bottom: 15px; }
-        .discount-box { background: rgba(255, 255, 255, 0.05); border: 1px dashed var(--primary-color); padding: 20px 15px; border-radius: 12px; margin: 15px 0 25px 0; }
-        .offer-highlight { font-size: 1.1rem; color: #fff; line-height: 1.5; font-weight: 500; }
-        .offer-highlight span { color: var(--success-color); font-weight: 700; font-size: 1.3rem; display: block; margin: 5px 0; }
-        .terms-text { font-size: 0.7rem; color: #aaa; margin-top: 10px; line-height: 1.4; }
-        .modal-register-btn { display: inline-block; width: 100%; padding: 12px 0; background: linear-gradient(90deg, var(--secondary-color), var(--primary-color)); color: white; font-weight: 700; border-radius: 50px; text-decoration: none; transition: 0.3s; }
-        .modal-register-btn:hover { box-shadow: 0 0 15px var(--primary-color); transform: translateY(-2px); }
+        /* Mobile Menu Toggle */
+        .menu-toggle { display: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; }
 
-        /* --- PAGE HEADER --- */
-        .page-header { text-align: center; padding-top: 130px; padding-bottom: 30px; animation: fadeDown 1s ease-out; }
-        .section-title { font-family: 'Montserrat', sans-serif; font-size: 3rem; font-weight: 800; background: linear-gradient(to right, #fff, var(--primary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .section-subtitle { font-size: 0.9rem; color: var(--primary-color); letter-spacing: 3px; text-transform: uppercase; margin-top: 10px; }
-        
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px 80px 20px; flex: 1; }
+        /* --- HERO HEADER --- */
+        .page-header {
+            padding: 160px 20px 60px;
+            text-align: center;
+            position: relative;
+        }
 
-        /* --- COMMITTEE ACCORDION & CARDS --- */
+        .page-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 4rem;
+            font-weight: 700;
+            line-height: 1;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, #fff 0%, #8892b0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            letter-spacing: 4px;
+        }
+
+        .page-subtitle {
+            color: var(--primary);
+            font-size: 1rem;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-bottom: 2rem;
+            position: relative;
+            display: inline-block;
+        }
+        
+        .page-subtitle::before, .page-subtitle::after {
+            content: ''; position: absolute; top: 50%; width: 40px; height: 1px;
+            background: var(--primary); opacity: 0.5;
+        }
+        .page-subtitle::before { left: -60px; }
+        .page-subtitle::after { right: -60px; }
+
+        /* --- COMMITTEE CONTENT --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px 100px;
+            width: 100%;
+            flex: 1;
+        }
+
+        /* Accordion Style */
         .accordion-item {
-            background: var(--glass-bg); backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border); border-radius: 15px;
-            margin-bottom: 25px; overflow: hidden; transition: 0.3s;
-            animation: fadeUp 0.8s ease-out forwards;
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            background: rgba(11, 16, 26, 0.4);
+            transition: all 0.3s ease;
         }
-        
-        .accordion-header {
-            padding: 1.5rem 2rem; cursor: pointer; display: flex;
-            justify-content: space-between; align-items: center;
-            background: rgba(255, 255, 255, 0.02); transition: 0.3s;
-        }
-        .accordion-header:hover { background: var(--card-hover); border-left: 4px solid var(--primary-color); }
-        
-        .accordion-header h3 {
-            font-family: 'Montserrat', sans-serif; margin: 0;
-            font-size: 1.3rem; font-weight: 700; color: white;
-            letter-spacing: 1px; text-transform: uppercase;
-        }
-        .accordion-header i { transition: 0.4s; color: var(--primary-color); font-size: 1.2rem; }
-        
-        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.5s cubic-bezier(0, 1, 0, 1); background: rgba(0,0,0,0.2); }
-        .accordion-content.open { max-height: 6000px; transition: max-height 1s ease-in-out; }
 
+        .accordion-item:hover {
+            border-color: rgba(0, 242, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .accordion-header {
+            padding: 1.5rem 2rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            transition: background 0.3s;
+        }
+
+        .accordion-header:hover {
+            background: rgba(0, 242, 255, 0.05);
+        }
+
+        .accordion-header h3 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.5rem;
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .accordion-header h3::before {
+            content: ''; display: block; width: 6px; height: 6px; background: var(--primary);
+            box-shadow: 0 0 8px var(--primary); transform: rotate(45deg);
+        }
+
+        .accordion-header i {
+            color: var(--text-muted);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .accordion-content.open { max-height: 5000px; }
+
+        /* Members Grid */
         .members-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 2rem; padding: 2.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 2rem;
+            padding: 2.5rem;
         }
 
+        /* Member Card */
         .member-card {
-            background: transparent; padding: 0;
+            position: relative;
+            height: 360px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bg-panel);
             border: 1px solid var(--glass-border);
-            border-radius: 15px; transition: 0.4s;
-            overflow: hidden; position: relative;
-            height: 350px; /* Fixed Height for consistency */
+            transition: 0.4s ease;
+        }
+
+        .member-card::before {
+            content: ''; position: absolute; inset: 0;
+            border-radius: 12px; padding: 1px;
+            background: linear-gradient(180deg, transparent, var(--primary));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0; transition: 0.4s; pointer-events: none; z-index: 2;
         }
 
         .member-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 10px 30px rgba(0, 210, 255, 0.2);
-            border-color: var(--primary-color);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+        
+        .member-card:hover::before { opacity: 1; }
+
+        .member-img-wrapper {
+            width: 100%; height: 100%;
+            position: relative;
+            overflow: hidden;
         }
 
         .member-img {
-            width: 100%; height: 100%; object-fit: cover;
-            transition: 0.4s;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+            filter: grayscale(20%) contrast(1.1);
         }
-        .member-card:hover .member-img { transform: scale(1.05); }
 
-        /* Member Info Overlay */
+        .member-card:hover .member-img {
+            transform: scale(1.08);
+            filter: grayscale(0%) contrast(1.1);
+        }
+
+        /* Card Overlay */
         .member-info {
             position: absolute; bottom: 0; left: 0; width: 100%;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0));
-            padding: 20px; text-align: left;
-            transform: translateY(10px); transition: 0.3s;
+            padding: 80px 20px 20px;
+            background: linear-gradient(to top, rgba(3,5,8,0.95) 10%, rgba(3,5,8,0.8) 40%, transparent 100%);
+            z-index: 1;
+            transform: translateY(10px);
+            transition: 0.4s;
         }
+
         .member-card:hover .member-info { transform: translateY(0); }
 
-        .member-name {
-            font-family: 'Montserrat', sans-serif; font-size: 1.1rem;
-            font-weight: 700; color: white; margin-bottom: 4px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        .member-role-badge {
+            display: inline-block;
+            font-size: 0.7rem; font-weight: 700;
+            color: #000; background: var(--primary);
+            padding: 4px 10px; border-radius: 20px;
+            text-transform: uppercase; margin-bottom: 8px;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
         }
-        .member-role {
-            font-size: 0.85rem; color: var(--primary-color);
-            text-transform: uppercase; letter-spacing: 0.5px;
-            font-weight: 600;
+
+        .member-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.4rem; font-weight: 700;
+            color: #fff; line-height: 1.2;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .member-designation {
+            font-size: 0.9rem; color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        /* --- LOADING STATE --- */
+        .loader-container {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 300px; color: var(--primary); gap: 1rem;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 3px solid rgba(0, 242, 255, 0.3);
+            border-top: 3px solid var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* --- OFFER MODAL --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .offer-card {
+            background: rgba(11, 16, 26, 0.95);
+            border: 1px solid var(--primary);
+            width: 90%; max-width: 400px;
+            padding: 30px; border-radius: 16px;
+            text-align: center; position: relative;
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.15);
+            transform: scale(0.9); transition: 0.3s;
+        }
+        
+        .modal-overlay.active .offer-card { transform: scale(1); }
+
+        .close-offer-btn {
+            position: absolute; top: 15px; right: 15px;
+            color: var(--text-muted); cursor: pointer;
+            transition: 0.3s; width: 30px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; border: 1px solid transparent;
+        }
+        
+        .close-offer-btn:hover {
+            color: var(--primary); border-color: var(--primary);
+            transform: rotate(90deg);
+        }
+
+        .offer-badge {
+            display: inline-block; padding: 6px 12px;
+            background: rgba(0, 242, 255, 0.1); border: 1px solid var(--primary);
+            color: var(--primary); font-size: 0.8rem; font-weight: 700;
+            border-radius: 30px; margin-bottom: 1rem;
+        }
+
+        .offer-title {
+            font-family: 'Rajdhani', sans-serif; font-size: 2rem;
+            color: white; margin-bottom: 1rem; line-height: 1.1;
+        }
+
+        .offer-details {
+            background: rgba(255,255,255,0.03); border-radius: 8px;
+            padding: 1.5rem; margin-bottom: 1.5rem;
+            border: 1px dashed var(--glass-border);
+        }
+        
+        .highlight-text {
+            color: #fff; font-size: 1.1rem; line-height: 1.6;
+        }
+        
+        .highlight-text span {
+            color: var(--primary); font-size: 1.4rem; font-weight: 800;
+            display: block; margin: 5px 0; text-shadow: 0 0 10px rgba(0, 242, 255, 0.4);
+        }
+        
+        .offer-btn {
+            display: block; width: 100%; padding: 14px;
+            background: var(--primary); color: #000;
+            text-decoration: none; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 1px;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            transition: 0.3s;
+        }
+        
+        .offer-btn:hover {
+            background: #fff; box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
         }
 
         /* --- FOOTER --- */
         footer {
-            width: 100%; padding: 8px 4%;
-            background: rgba(5, 5, 10, 0.85); backdrop-filter: blur(8px);
-            z-index: 999; border-top: 1px solid var(--glass-border);
+            margin-top: auto;
+            border-top: 1px solid var(--glass-border);
+            background: rgba(3, 5, 8, 0.9);
+            padding: 1.5rem 5%;
+        }
+
+        .footer-content {
             display: flex; justify-content: space-between; align-items: center;
-            font-size: 0.75rem; margin-top: auto; 
+            font-size: 0.85rem; color: var(--text-muted);
         }
-        .footer-left { text-align: left; }
-        .footer-right { text-align: right; display: flex; flex-direction: column; gap: 2px; }
-        footer a { color: var(--primary-color); text-decoration: none; transition: color 0.3s; }
-        footer a:hover { color: var(--accent-color); }
-        .footer-text { margin: 0; color: rgba(255, 255, 255, 0.8); line-height: 1.4; }
-        .sub-text { font-size: 0.7rem; opacity: 0.6; }
 
-        @keyframes fadeDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .footer-content a { color: var(--primary); text-decoration: none; }
+        .footer-content a:hover { text-decoration: underline; }
 
-        @media (max-width: 768px) {
-            .members-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); padding: 1.5rem; gap: 1.5rem; }
-            .member-card { height: 300px; }
-            footer { flex-direction: column; text-align: center; gap: 8px; padding: 10px; padding-bottom: 15px; }
-            .footer-left, .footer-right { text-align: center; align-items: center; }
-            .page-header { padding-top: 100px; }
+        /* --- RESPONSIVE --- */
+        @media (max-width: 900px) {
+            .page-title { font-size: 3rem; }
+            .nav-links {
+                position: fixed; top: 0; right: -100%;
+                width: 75%; height: 100vh;
+                flex-direction: column; background: #05080f;
+                padding-top: 100px; transition: 0.4s;
+                border-left: 1px solid var(--glass-border);
+            }
+            .nav-links.active { right: 0; }
+            .menu-toggle { display: block; z-index: 1001; }
+            .container { padding: 0 15px 80px; }
         }
+
+        @media (max-width: 600px) {
+            .page-title { font-size: 2.5rem; }
+            .footer-content { flex-direction: column; gap: 1rem; text-align: center; }
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div class="bg-layer"></div>
-    <div class="overlay-layer"></div>
+    <div class="grid-bg"></div>
 
-    <!-- NAVIGATION -->
+    <!-- NAVBAR -->
     <nav>
         <div class="logo" onclick="window.location.href='home'">
-            <span class="logo-text">LAKSHYA 2K26</span>
+            LAKSHYA <span>2K26</span>
         </div>
         
-        <ul class="nav-links" id="navLinks">
-            <li><a href="home" onclick="closeMenu()">Home</a></li>
-            <li><a href="about" onclick="closeMenu()">About Us</a></li>
-            <li><a href="brochure" onclick="closeMenu()">Brochure</a></li>
-            <li><a href="events" onclick="closeMenu()">Events</a></li>
-            <li><a href="culturals" onclick="closeMenu()">Rangamarthanda</a></li>
-            <li><a href="committee" class="active" onclick="closeMenu()">Committee</a></li>
-            <li><a href="contact" onclick="closeMenu()">Contact</a></li>
-            <li><a href="register" class="btn-register" onclick="closeMenu()">Register</a></li>
-            <li><a href="login" class="btn-login" onclick="closeMenu()">Login</a></li>
-        </ul>
-
-        <div class="menu-toggle" id="mobile-menu" onclick="toggleMenu()">
-            <span class="bar"></span>
-            <span class="bar"></span>
-            <span class="bar"></span>
+        <div class="menu-toggle" id="mobileMenuBtn">
+            <i class="fa-solid fa-bars-staggered"></i>
         </div>
+
+        <ul class="nav-links" id="navLinks">
+            <li><a href="home">Home</a></li>
+            <li><a href="about">About</a></li>
+            <li><a href="events">Events</a></li>
+            <li><a href="culturals">Rangamarthanda</a></li>
+            <li><a href="committee" class="active">Committee</a></li>
+            <li><a href="contact">Contact</a></li>
+            <li><a href="register" class="btn-action btn-register">Register</a></li>
+            <li><a href="login" class="btn-action btn-login">Login</a></li>
+        </ul>
     </nav>
 
-    <!-- OFFER POPUP -->
+    <!-- OFFER MODAL -->
     <div class="modal-overlay" id="offerModal">
         <div class="offer-card">
             <div class="close-offer-btn" onclick="closeOfferModal()"><i class="fa-solid fa-xmark"></i></div>
-            <div class="offer-icon"><i class="fa-solid fa-tags"></i></div>
-            <h2 class="offer-title">EXCLUSIVE OFFER!</h2>
             
-            <div class="discount-box">
-                <p class="offer-highlight">
-                    First Registration: No Discount<br>
+            <div class="offer-badge">LAKSHYA SPECIAL</div>
+            <h2 class="offer-title">EVENT PASS</h2>
+            
+            <div class="offer-details">
+                <p class="highlight-text">
+                    Register for one event & get<br>
                     <span>50% OFF</span>
-                    On 2nd Event Onwards!
+                    on all subsequent events!
                 </p>
-                <p class="terms-text">
-                    (Applicable only for Major, MBA & Cultural Events)<br>
-                    *Terms & Conditions Apply
-                </p>
+                <div style="font-size: 0.75rem; color: #666; margin-top: 10px;">
+                    *Valid for Major, MBA & Cultural Events
+                </div>
             </div>
             
-            <a href="register" class="modal-register-btn">Register Now & Save</a>
+            <a href="register" class="offer-btn">Claim Offer Now</a>
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
-    <div class="page-header">
-        <h1 class="section-title">ORGANIZING COMMITTEE</h1>
-        <p class="section-subtitle">The Team Behind The Magic</p>
-    </div>
+    <!-- HEADER -->
+    <header class="page-header">
+        <h1 class="page-title">Organizing Committee</h1>
+        <div class="page-subtitle">The Architects of Innovation</div>
+    </header>
 
-    <div class="container">
+    <!-- COMMITTEE CONTAINER -->
+    <main class="container">
         <div id="committeeContainer">
-            <div style="grid-column: 1/-1; text-align: center; color: #aaa;">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i><br><br>
-                Loading Committee Members...
+            <div class="loader-container">
+                <div class="spinner"></div>
+                <p>Accessing Database...</p>
             </div>
         </div>
-    </div>
+    </main>
 
     <!-- FOOTER -->
     <footer>
-        <div class="footer-left">
-            <p class="footer-text">&copy; Designed & Developed by <a href="https://xetasolutions.in" target="_blank">Xeta</a></p>
-            <p class="footer-text sub-text">A start up from AI&DS, LBRCE</p>
-        </div>
-        <div class="footer-right">
-            <p class="footer-text">Support: <a href="mailto:lakshya@lbrce.ac.in">lakshya@lbrce.ac.in</a></p>
-            <p class="footer-text"><a href="privacy">Privacy Policy</a></p>
+        <div class="footer-content">
+            <div class="left">
+                &copy; 2026 LAKSHYA. Designed by <a href="https://xetasolutions.in" target="_blank">Xeta Solutions</a>.
+            </div>
+            <div class="right">
+                <a href="mailto:lakshya@lbrce.ac.in">Support</a> &nbsp;|&nbsp; <a href="privacy">Privacy</a>
+            </div>
         </div>
     </footer>
 
+    <!-- SCRIPTS -->
     <script src="/js/chatbot.js"></script>
     <script>
-        // --- NAVIGATION LOGIC ---
+        // --- NAVIGATION INTERACTION ---
         const nav = document.getElementById('navLinks');
-        const menuToggle = document.getElementById('mobile-menu');
-
-        function toggleMenu() {
+        const menuBtn = document.getElementById('mobileMenuBtn');
+        
+        menuBtn.addEventListener('click', () => {
             nav.classList.toggle('active');
-            menuToggle.classList.toggle('is-active');
-        }
-
-        function closeMenu() {
-            nav.classList.remove('active');
-            menuToggle.classList.remove('is-active');
-        }
-
-        document.addEventListener('click', (e) => {
-            if (!nav.contains(e.target) && !menuToggle.contains(e.target) && nav.classList.contains('active')) {
-                closeMenu();
+            const icon = menuBtn.querySelector('i');
+            if(nav.classList.contains('active')) {
+                icon.classList.remove('fa-bars-staggered');
+                icon.classList.add('fa-xmark');
+            } else {
+                icon.classList.add('fa-bars-staggered');
+                icon.classList.remove('fa-xmark');
             }
+        });
+
+        // Close menu when clicking links
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                nav.classList.remove('active');
+                menuBtn.querySelector('i').className = 'fa-solid fa-bars-staggered';
+            });
         });
 
         // --- OFFER MODAL LOGIC ---
         const offerModal = document.getElementById('offerModal');
-        // Auto show offer after 1.5s
-        window.onload = function() { 
-            setTimeout(() => { offerModal.classList.add('active'); }, 1500);
-            loadCommittee(); 
+        
+        // Auto-show modal after delay
+        window.onload = function() {
+            setTimeout(() => {
+                offerModal.classList.add('active');
+            }, 2000);
+            
+            // Initiate data fetch
+            loadCommittee();
         };
-        function closeOfferModal() { offerModal.classList.remove('active'); }
 
-        // --- COMMITTEE LOGIC ---
+        function closeOfferModal() {
+            offerModal.classList.remove('active');
+        }
+
+        window.onclick = function(event) {
+            if (event.target == offerModal) closeOfferModal();
+        }
+
+        // --- BACKEND INTEGRATION (Preserved Logic) ---
         const priorityCategories = ["Chief Patrons", "Patrons", "Conveners", "Co-Conveners"];
 
         async function loadCommittee() {
             const container = document.getElementById('committeeContainer');
+            
             try {
+                // Preserved API endpoint
                 const res = await fetch('/api/committee'); 
                 const members = await res.json();
 
                 if(members.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:#888;">No committee data found.</p>';
+                    container.innerHTML = `
+                        <div style="text-align:center; color: var(--text-muted); padding: 40px;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
+                            No committee members found in database.
+                        </div>`;
                     return;
                 }
                 
-                // Group By Category
+                // Group By Category logic
                 const grouped = {};
                 members.forEach(m => {
                     if (!m.category || m.category === 'undefined' || m.category === 'null') return;
-                    // Ensure imageUrl exists (fallback handled in HTML onError, but good to check)
                     if(!grouped[m.category]) grouped[m.category] = [];
                     grouped[m.category].push(m);
                 });
 
-                // Sort Categories
+                // Sorting Categories logic
                 let categories = Object.keys(grouped);
                 categories.sort((a, b) => {
                     const idxA = priorityCategories.indexOf(a);
@@ -373,28 +617,38 @@
                     return a.localeCompare(b);
                 });
 
+                // Generate HTML
                 container.innerHTML = '';
+                
                 categories.forEach((cat, index) => {
                     const sectionMembers = grouped[cat];
-                    // Open first accordion by default
+                    // Default open first category
                     const isOpen = index === 0 ? 'open' : ''; 
                     const rotate = index === 0 ? 'style="transform: rotate(180deg)"' : '';
+                    const colorClass = index % 2 === 0 ? 'text-primary' : 'text-accent';
                     
                     let cardsHtml = '';
                     sectionMembers.forEach(m => {
+                        // Fallback image handling
                         const imgUrl = m.imageUrl || 'assets/default-user.png';
+                        const role = m.role || 'Committee Member';
+                        
                         cardsHtml += `
-                            <div class="member-card">
-                                <img src="${imgUrl}" class="member-img" alt="${m.name}" onerror="this.src='assets/default-user.png'">
+                            <div class="member-card" style="animation: fadeIn 0.6s ease forwards; animation-delay: ${Math.random() * 0.5}s">
+                                <div class="member-img-wrapper">
+                                    <img src="${imgUrl}" class="member-img" alt="${m.name}" onerror="this.src='assets/default-user.png'">
+                                </div>
                                 <div class="member-info">
+                                    <span class="member-role-badge">${cat}</span>
                                     <h4 class="member-name">${m.name}</h4>
-                                    <p class="member-role">${m.role}</p>
+                                    <p class="member-designation">${role}</p>
                                 </div>
                             </div>`;
                     });
 
+                    // Updated Accordion HTML Structure
                     const sectionHtml = `
-                        <div class="accordion-item" style="animation-delay: ${index * 0.1}s">
+                        <div class="accordion-item">
                             <div class="accordion-header" onclick="toggleAccordion(this)">
                                 <h3>${cat}</h3>
                                 <i class="fa-solid fa-chevron-down" ${rotate}></i>
@@ -409,24 +663,30 @@
             } catch(e) {
                 console.error("Error loading committee:", e);
                 container.innerHTML = `
-                    <div style="text-align:center; color: #ff4444;">
-                         <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem;"></i><br><br>
-                         Failed to load committee members.
+                    <div style="text-align:center; color: var(--accent); padding: 50px; border: 1px dashed var(--accent); border-radius: 12px; background: rgba(255, 0, 85, 0.05);">
+                         <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; margin-bottom: 1rem;"></i><br>
+                         <h3 style="margin-bottom: 0.5rem">System Error</h3>
+                         <p style="font-size: 0.9rem; opacity: 0.8">Failed to retrieve committee data from server.</p>
                     </div>`; 
             }
         }
 
+        // Accordion Toggle Logic
         function toggleAccordion(header) {
             const content = header.nextElementSibling;
             const icon = header.querySelector('i');
+            
+            // Close others (Optional: Remove if you want multiple open)
+            /* document.querySelectorAll('.accordion-content').forEach(c => {
+                if(c !== content) {
+                    c.classList.remove('open');
+                    c.previousElementSibling.querySelector('i').style.transform = 'rotate(0deg)';
+                }
+            });
+            */
+
             content.classList.toggle('open');
             icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
-        }
-        
-        window.onclick = function(event) {
-            if (event.target == offerModal) {
-                closeOfferModal();
-            }
         }
     </script>
 </body>
