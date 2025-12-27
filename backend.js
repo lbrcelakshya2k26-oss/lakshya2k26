@@ -4253,11 +4253,14 @@ app.post('/api/coordinator/on-site-register', isAuthenticated('coordinator'), as
         applyDiscount, 
         historyCount,
         teamName, 
-        teamMembers, // Now capturing team data from frontend
+        teamMembers,
         submissionTitle,
         submissionAbstract,
         submissionUrl
     } = req.body;
+
+    // CRITICAL: Get coordinator data from the session to ensure correct attribution
+    const coordinator = req.session.user;
 
     try {
         const eventRes = await docClient.send(new GetCommand({
@@ -4273,39 +4276,26 @@ app.post('/api/coordinator/on-site-register', isAuthenticated('coordinator'), as
         let finalAmount = baseFee;
         let kitStatus = false;
         
+        // Use existing helper to check category eligibility
         const isEligibleCategory = checkKitEligibility(event.type);
 
+        // Apply 50% combo discount if requested and eligible
         if (applyDiscount && parseInt(historyCount) >= 1) {
             finalAmount = baseFee / 2;
-            kitStatus = false; 
+            kitStatus = false; // Combo offers are ineligible for kits
         } else {
             finalAmount = baseFee;
             kitStatus = isEligibleCategory; 
         }
 
-        // Check for existing COMPLETED registration to prevent duplicates
-        const checkParams = {
-            TableName: 'Lakshya_Registrations',
-            IndexName: 'StudentIndex',
-            KeyConditionExpression: 'studentEmail = :email',
-            FilterExpression: 'eventId = :eid AND paymentStatus = :status',
-            ExpressionAttributeValues: { 
-                ':email': studentEmail.toLowerCase(), 
-                ':eid': eventId, 
-                ':status': 'COMPLETED' 
-            }
-        };
-        const existing = await docClient.send(new QueryCommand(checkParams));
-        if (existing.Items && existing.Items.length > 0) {
-            return res.status(400).json({ error: "Student is already registered and paid for this event." });
-        }
-
         const registrationId = uuidv4();
         const regItem = {
             registrationId,
-            studentEmail: studentEmail.toLowerCase(),
+            studentEmail: studentEmail.toLowerCase().trim(),
             eventId,
-            deptName: event.departments ? event.departments[0] : 'General',
+            // FIX: Instead of event.departments[0], we use the Coordinator's session dept
+            // This ensures ECE registrations go to ECE and AI&DS go to AI&DS correctly
+            deptName: coordinator.dept || 'General', 
             category: event.type,
             kitAllocated: kitStatus, 
             teamName: teamName || null,
@@ -4320,7 +4310,8 @@ app.post('/api/coordinator/on-site-register', isAuthenticated('coordinator'), as
             submissionTitle: submissionTitle || null,
             submissionAbstract: submissionAbstract || null,
             submissionUrl: submissionUrl || null,
-            managedBy: req.session.user.email
+            // Track exactly who processed this registration for audit reports
+            managedBy: coordinator.email 
         };
 
         await docClient.send(new PutCommand({
@@ -4328,34 +4319,45 @@ app.post('/api/coordinator/on-site-register', isAuthenticated('coordinator'), as
             Item: regItem
         }));
 
+        // --- EMAIL TEMPLATE FOR ON-SITE REGISTRATION ---
         const logoUrl = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
         const emailHtml = `
-            <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee;">
-                <div style="background-color: #00d2ff; padding: 20px; text-align: center; color: white;">
-                    <img src="${logoUrl}" style="height: 50px; margin-bottom: 10px;">
-                    <h2 style="margin: 0;">CASH RECEIPT & REGISTRATION</h2>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+            <div style="background-color: #00d2ff; padding: 30px; text-align: center;">
+                <img src="${logoUrl}" alt="Lakshya Logo" style="height: 60px; margin-bottom: 10px;">
+                <h2 style="color: #ffffff; margin: 0; font-size: 24px; text-transform: uppercase;">Registration Confirmed</h2>
+                <p style="color: #ffffff; margin: 5px 0 0; opacity: 0.9;">LAKSHYA 2K26 - Techno-Cultural Fest</p>
+            </div>
+            <div style="padding: 30px; background-color: #ffffff; color: #333;">
+                <p style="font-size: 16px;">Dear Participant,</p>
+                <p style="font-size: 15px; color: #555;">Your on-site registration has been successfully processed. Below are your event and payment details:</p>
+                
+                <div style="background-color: #f9f9f9; padding: 20px; border-left: 4px solid #00d2ff; margin: 25px 0; border-radius: 4px;">
+                    <p style="margin: 8px 0;"><strong>Registration ID:</strong> ${registrationId}</p>
+                    <p style="margin: 8px 0;"><strong>Event:</strong> ${event.title}</p>
+                    <p style="margin: 8px 0;"><strong>Category:</strong> ${event.type}</p>
+                    <p style="margin: 8px 0;"><strong>Registered by:</strong> ${coordinator.dept} Department</p>
+                    <p style="margin: 8px 0;"><strong>Amount Paid:</strong> ₹${finalAmount} (CASH)</p>
+                    <p style="margin: 8px 0;"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+                    ${kitStatus ? `<p style="color: #ff00cc; font-weight: bold; margin-top: 10px;">🎁 Eligible for Welcome Kit</p>` : ''}
                 </div>
-                <div style="padding: 30px;">
-                    <p>Dear Participant,</p>
-                    <p>Your on-site registration for <strong>${event.title}</strong> was successful.</p>
-                    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <p><strong>Registration ID:</strong> ${registrationId}</p>
-                        <p><strong>Amount Received:</strong> ₹${finalAmount}</p>
-                        <p><strong>Payment Mode:</strong> CASH</p>
-                        ${kitStatus ? `<p style="color: #ff00cc; font-weight: bold;">🎁 This registration includes a FREE KIT!</p>` : ''}
-                        <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-                    </div>
-                    <p style="font-size: 14px; color: #666;">Please show your Registration ID at the event venue for attendance.</p>
-                    <p>Best Regards,<br>Team LAKSHYA</p>
+
+                <p style="font-size: 14px; color: #666; font-style: italic;">
+                    Please present your Registration ID at the event venue for attendance verification.
+                </p>
+
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                    <p style="color: #888; font-size: 13px;">Best Regards,<br><strong>Team LAKSHYA</strong></p>
                 </div>
             </div>
-        `;
+        </div>`;
 
-        await sendEmail(studentEmail, `Registration Confirmed: ${event.title}`, emailHtml);
+        // Fire and forget email sending
+        sendEmail(studentEmail, `Registration Confirmed: ${event.title}`, emailHtml)
+            .catch(err => console.error("On-site Email Error:", err));
 
         res.json({ 
             success: true, 
-            message: "Registration completed successfully.",
             registrationId,
             amountPaid: finalAmount
         });
@@ -4364,7 +4366,8 @@ app.post('/api/coordinator/on-site-register', isAuthenticated('coordinator'), as
         console.error("On-Site Reg Error:", error);
         res.status(500).json({ error: "Failed to process registration" });
     }
-});// ELB Health Check - Crucial for Auto Scaling
+});
+// ELB Health Check - Crucial for Auto Scaling
 // --- API: Get On-Site (Cash) Registrations ---
 
 // --- API: Get On-Site (Cash) Registrations for Coordinator Audit ---
@@ -4417,35 +4420,30 @@ app.get('/admin/onsite-reports', isAuthenticated('admin'), (req, res) => {
 
 
 // backend.js - Consolidated Report API
-app.get('/api/reports/onsite-registrations', (req, res, next) => {
-    // Check if user is logged in AND is either an admin or coordinator
+app.get('/api/reports/onsite-registrations', async (req, res) => {
     const user = req.session.user;
     if (!user || (user.role !== 'admin' && user.role !== 'coordinator')) {
-        return res.status(401).json({ error: "Unauthorized: Access Denied" });
+        return res.status(401).json({ error: "Unauthorized access" });
     }
-    next();
-}, async (req, res) => {
-    const user = req.session.user;
 
     try {
-        // Base query for CASH payments
         let params = {
             TableName: 'Lakshya_Registrations',
             FilterExpression: 'paymentMode = :mode',
             ExpressionAttributeValues: { ':mode': 'CASH' }
         };
 
-        // ROLE LOGIC: Coordinators only see their own transactions.
-        // Admins see EVERYTHING.
+        // COORDINATORS: Only see what THEY registered for THEIR department
         if (user.role === 'coordinator') {
-            params.FilterExpression += ' AND managedBy = :email';
+            params.FilterExpression += ' AND managedBy = :email AND deptName = :dept';
             params.ExpressionAttributeValues[':email'] = user.email;
+            params.ExpressionAttributeValues[':dept'] = user.dept;
         }
 
         const regData = await docClient.send(new ScanCommand(params));
         const registrations = regData.Items || [];
 
-        // Map Event IDs to Titles for a better UI display
+        // Enrich with Event Titles
         const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
         const eventMap = {};
         (eventData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
@@ -4458,11 +4456,10 @@ app.get('/api/reports/onsite-registrations', (req, res, next) => {
         res.json(enrichedReport);
 
     } catch (error) {
-        console.error("Onsite Report Fetch Error:", error);
-        res.status(500).json({ error: "Failed to load audit records from database" });
+        console.error("Report Fetch Error:", error);
+        res.status(500).json({ error: "Failed to load audit records" });
     }
 });
-
 // backend.js - Update On-Site Registration
 app.put('/api/coordinator/update-onsite-reg', async (req, res) => {
     const { registrationId, amountPaid, kitAllocated } = req.body;
