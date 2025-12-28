@@ -1243,7 +1243,7 @@ app.get('/api/coordinator/my-events', isAuthenticated('coordinator'), async (req
             const title = (e.title || '').toLowerCase();
             
             // Only hide these specific cultural categories
-            const culturalKeywords = ['cultural', 'music', 'dance', 'drama', 'fashion', 'singing', 'art', 'literary'];
+            const culturalKeywords = ['cultural', 'music', 'dance', 'drama', 'fashion', 'singing', 'literary'];
             
             if (userDept !== 'CULTURAL') {
                 if (culturalKeywords.some(k => type.includes(k) || title.includes(k))) {
