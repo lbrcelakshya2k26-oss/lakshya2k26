@@ -7,8 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/png" href="/assets/logo.png">
-    
-    <script src="/js/common.js"></script>
+   
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
@@ -26,7 +25,7 @@
             background-color: #0a0a0a; 
             color: var(--text-color); 
             min-height: 100vh; 
-            background-image: url('../assets/admin-block.jpg'); /* Reuse existing asset */
+            background-image: url('../assets/admin-block.jpg'); 
             background-size: cover;
             background-attachment: fixed;
             background-position: center;
@@ -122,6 +121,24 @@
         .stat-val { font-size: 2rem; font-weight: bold; margin-bottom: 5px; }
         .stat-label { font-size: 0.9rem; color: #aaa; text-transform: uppercase; }
 
+        /* Summary Section */
+        .summary-section {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+        }
+        .summary-title {
+            color: var(--primary-color);
+            font-family: 'Montserrat', sans-serif;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         /* Table */
         .table-container {
             background: var(--glass-bg);
@@ -182,7 +199,6 @@
             <div class="controls-group">
                 <select id="deptSelect" class="dept-select" onchange="fetchKitData()">
                     <option value="All">All Departments</option>
-                    <!-- Depts will be populated here -->
                 </select>
                 <button class="btn-export" onclick="exportToExcel()">
                     <i class="fa-solid fa-file-excel"></i> Export Report
@@ -190,7 +206,7 @@
             </div>
         </div>
 
-        <!-- Stats -->
+        <!-- Stats Cards -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-val" id="totalEligible">0</div>
@@ -206,7 +222,27 @@
             </div>
         </div>
 
-        <!-- Table -->
+        <!-- Department wise Summary -->
+        <div class="summary-section">
+            <div class="summary-title">
+                <i class="fa-solid fa-chart-pie"></i> Department-wise Breakdown
+            </div>
+            <table id="summaryTable">
+                <thead>
+                    <tr>
+                        <th style="padding: 10px 15px;">Department</th>
+                        <th style="padding: 10px 15px;">Eligible</th>
+                        <th style="padding: 10px 15px;">Collected</th>
+                        <th style="padding: 10px 15px;">Pending</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryBody">
+                    <tr><td colspan="4" style="text-align:center; padding: 20px; color: #666;">Loading breakdown...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Detailed Table -->
         <div class="table-container">
             <input type="text" id="searchInput" class="search-bar" placeholder="Search by Name, Reg ID, or Department..." onkeyup="filterTable()">
             <table>
@@ -231,20 +267,18 @@
 
         // 1. Initial Load: Get Departments & Data
         async function init() {
-            // Load Departments Dropdown
             try {
                 const res = await fetch('/api/admin/departments');
                 const depts = await res.json();
                 const select = document.getElementById('deptSelect');
                 depts.forEach(d => {
                     const opt = document.createElement('option');
-                    opt.value = d.name; // Assuming backend returns { name: "CSE" }
+                    opt.value = d.name;
                     opt.innerText = d.name;
                     select.appendChild(opt);
                 });
             } catch (e) { console.error("Dept load failed", e); }
 
-            // Fetch Data (Default: All)
             fetchKitData();
         }
 
@@ -256,7 +290,6 @@
             tbody.innerHTML = `<tr><td colspan="5" class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Fetching Data...</td></tr>`;
 
             try {
-                // Call the new backend endpoint
                 const res = await fetch(`/api/admin/kit-stats?dept=${encodeURIComponent(dept)}`);
                 allData = await res.json();
                 
@@ -305,7 +338,7 @@
             });
         }
 
-        // 4. Update Stats Cards
+        // 4. Update Stats & Summary
         function updateStats(data) {
             const total = data.length;
             const collected = data.filter(d => d.kitCollected === true).length;
@@ -313,6 +346,39 @@
             document.getElementById('totalEligible').innerText = total;
             document.getElementById('totalCollected').innerText = collected;
             document.getElementById('totalPending').innerText = total - collected;
+
+            // Generate Dept Summary
+            const deptSummary = {};
+            data.forEach(item => {
+                const d = item.dept || 'Unknown';
+                if (!deptSummary[d]) {
+                    deptSummary[d] = { eligible: 0, collected: 0 };
+                }
+                deptSummary[d].eligible++;
+                if (item.kitCollected) deptSummary[d].collected++;
+            });
+
+            const summaryBody = document.getElementById('summaryBody');
+            summaryBody.innerHTML = '';
+
+            const sortedDepts = Object.keys(deptSummary).sort();
+            
+            if (sortedDepts.length === 0) {
+                summaryBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#666;">No department data available.</td></tr>`;
+                return;
+            }
+
+            sortedDepts.forEach(dept => {
+                const { eligible, collected } = deptSummary[dept];
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding: 10px 15px; font-weight:600;">${dept}</td>
+                    <td style="padding: 10px 15px;">${eligible}</td>
+                    <td style="padding: 10px 15px; color: var(--success-color); font-weight:600;">${collected}</td>
+                    <td style="padding: 10px 15px; color: #ffc107;">${eligible - collected}</td>
+                `;
+                summaryBody.appendChild(tr);
+            });
         }
 
         // 5. Filter / Search
@@ -324,6 +390,8 @@
                 (item.dept && item.dept.toLowerCase().includes(query))
             );
             renderTable(filtered);
+            // Optional: Comment out next line if you want the summary to stay fixed on the global view
+            // updateStats(filtered); 
         }
 
         // 6. Excel Export
