@@ -177,7 +177,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/static/inde
 app.get('/home', (req, res) => res.sendFile(path.join(__dirname, 'public/static/home.html')));
 app.get('/launch', (req, res) => res.sendFile(path.join(__dirname, 'public/static/launch.html')));
 app.get('/intro', (req, res) => res.sendFile(path.join(__dirname, 'public/static/index.html')));
-
+app.get('/sponsors', (req, res) => res.sendFile(path.join(__dirname, 'public/static/sponsors.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public/static/login.html')));
 app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public/static/register.html')));
 app.get('/events', (req, res) => res.sendFile(path.join(__dirname, 'public/static/events.html')));
