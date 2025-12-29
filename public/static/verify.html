@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verified Ticket | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Space+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #00f2ff;
+            --primary-glow: rgba(0, 242, 255, 0.4);
+            --secondary: #7000ff; 
+            --bg-color: #030306;
+            --card-bg: rgba(20, 20, 30, 0.7);
+            --text-white: #ffffff;
+            --text-muted: #94a3b8;
+            --success: #00ffa3;
+            --danger: #ff2e63;
+            --gold: #ffcc00;
+        }
+        
+        * { box-sizing: border-box; }
+
+        body { 
+            background-color: var(--bg-color);
+            color: var(--text-white); 
+            font-family: 'Rajdhani', sans-serif; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        /* Animated Mesh Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(0, 242, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(112, 0, 255, 0.08) 0%, transparent 40%);
+            z-index: -1;
+            animation: meshMove 15s ease-in-out infinite alternate;
+        }
+
+        @keyframes meshMove {
+            from { transform: scale(1) translate(0, 0); }
+            to { transform: scale(1.1) translate(20px, 20px); }
+        }
+
+        .pass-container {
+            width: 100%;
+            max-width: 900px;
+            perspective: 1000px;
+        }
+
+        .ticket-visual {
+            display: flex;
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                        0 0 20px rgba(0, 242, 255, 0.05);
+            animation: ticketEntry 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+        }
+
+        /* Scanline Overlay */
+        .ticket-visual::after {
+            content: " ";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        /* --- LEFT SECTION --- */
+        .main-section {
+            flex: 1;
+            padding: 40px;
+            position: relative;
+            border-right: 2px dashed rgba(255,255,255,0.1);
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .brand { display: flex; align-items: center; gap: 15px; }
+        .clg-logo { height: 38px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.5)); }
+        .event-logo { height: 45px; filter: drop-shadow(0 0 8px var(--primary-glow)); }
+
+        .badges-container { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+
+        .pass-badge {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 800;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kit-badge {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: #000;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 800;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 900;
+            background: linear-gradient(to bottom, #fff 40%, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .event-name {
+            font-size: 1rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 3px;
+            margin-bottom: 35px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .event-name::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--primary), transparent); }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            background: rgba(255,255,255,0.03);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .info-item { display: flex; flex-direction: column; }
+        .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 5px; font-family: 'Space Mono', monospace; }
+        .value { font-size: 1.05rem; color: #f8fafc; font-weight: 700; font-family: 'Rajdhani', sans-serif; }
+
+        /* --- STUB SECTION --- */
+        .stub-section {
+            width: 280px;
+            background: linear-gradient(135deg, rgba(10, 10, 20, 0.8) 0%, rgba(30, 20, 50, 0.8) 100%);
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .status-icon-box {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            margin-bottom: 25px;
+            background: rgba(255,255,255,0.03);
+            border: 2px solid currentColor;
+            box-shadow: 0 0 30px -5px currentColor;
+        }
+
+        .verification-text {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1.4rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .timestamp {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            opacity: 0.8;
+        }
+
+        .barcode-visual {
+            margin-top: 30px;
+            opacity: 0.4;
+            width: 100%;
+            height: 40px;
+            background-image: repeating-linear-gradient(90deg, #fff, #fff 1px, transparent 1px, transparent 4px, #fff 4px, #fff 5px);
+        }
+
+        /* --- DECORATIVE ELEMENTS --- */
+        .notch {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: var(--bg-color);
+            border-radius: 50%;
+            z-index: 5;
+            left: calc(100% - 280px - 15px);
+        }
+        .notch-top { top: -15px; box-shadow: inset 0 -5px 10px rgba(0,0,0,0.5); }
+        .notch-bottom { bottom: -15px; box-shadow: inset 0 5px 10px rgba(0,0,0,0.5); }
+
+        /* STATE STYLES */
+        .state-success { color: var(--success); }
+        .state-error { color: var(--danger); }
+
+        /* Loading Animation */
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 100px 0;
+        }
+        .scanner-line {
+            width: 200px;
+            height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 15px var(--primary);
+            position: relative;
+            animation: scan 2s linear infinite;
+        }
+        @keyframes scan {
+            0%, 100% { top: 0; opacity: 0; }
+            50% { top: 40px; opacity: 1; }
+        }
+
+        @keyframes ticketEntry {
+            from { opacity: 0; transform: translateY(40px) rotateX(-10deg); }
+            to { opacity: 1; transform: translateY(0) rotateX(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .ticket-visual { flex-direction: column; }
+            .main-section { border-right: none; border-bottom: 2px dashed rgba(255,255,255,0.1); padding: 30px 25px; }
+            .stub-section { width: 100%; padding: 40px; }
+            .notch { display: none; }
+            .user-name { font-size: 1.8rem; }
+            .header-row { flex-direction: column; align-items: flex-start; gap: 15px; }
+            .badges-container { width: 100%; justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="verifyContainer" class="pass-container">
+        <div class="loading-screen">
+            <div class="scanner-line"></div>
+            <i class="fa-solid fa-microchip fa-spin" style="font-size:3rem; color:var(--primary); margin-top:20px;"></i>
+            <p style="margin-top:20px; font-family:'Orbitron'; letter-spacing:2px; color:var(--primary);">DECRYPTING DATA...</p>
+        </div>
+    </div>
+
+    <script>
+        const LOGO_EVENT = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png";
+        const LOGO_CLG = "https://res.cloudinary.com/dpz44zf0z/image/upload/v1764610592/1000150316_94d436c3b0efe15eb7fb1d332f32709f-10_6_2025_7_05_27_AM_wt8kgm.png";
+
+        async function verify() {
+            const params = new URLSearchParams(window.location.search);
+            const regId = params.get('id');
+            const container = document.getElementById('verifyContainer');
+
+            // Simulate loading for effect
+            await new Promise(r => setTimeout(r, 1000));
+
+            if (!regId) {
+                renderState("error", "ACCESS DENIED", "MISSING_IDENTITY_TOKEN", {});
+                return;
+            }
+
+            try {
+                // Adjusting the fetch URL as per your previous setup
+                const res = await fetch(`/api/public/receipt-details/${regId}`);
+                if (!res.ok) throw new Error("Not Found");
+                
+                const data = await res.json();
+                const { reg, event, user, systemInfo } = data;
+
+                if (reg.paymentStatus !== 'COMPLETED') {
+                    renderState("error", "PENDING", "PAYMENT_NOT_VERIFIED", { reg, event, user, systemInfo });
+                    return;
+                }
+
+                const kitKeywords = ['major', 'mba', 'management', 'cultural', 'music', 'dance', 'singing', 'drama', 'art', 'fashion', 'literary'];
+                let hasKit = event.kit || kitKeywords.some(k => (event.type||'').toLowerCase().includes(k));
+                if (parseFloat(reg.amountPaid) < (parseFloat(event.fee) - 1)) hasKit = false;
+
+                renderState("success", "VERIFIED", "ACCESS_GRANTED_SECURITY_LEVEL_1", { reg, event, user, hasKit, systemInfo });
+
+            } catch (err) {
+                console.error(err);
+                renderState("error", "INVALID", "TOKEN_REJECTED_BY_DATABASE", {});
+            }
+        }
+
+        function renderState(type, statusText, subMsg, data) {
+            const container = document.getElementById('verifyContainer');
+            const { reg, event, user, hasKit, systemInfo } = data;
+            
+            // --- DATA PREPARATION ---
+            // 1. Identify Context
+            const isTeam = reg?.teamName ? true : false;
+            
+            // 2. Main Title (Big Display)
+            const mainTitle = isTeam ? reg.teamName : (user?.fullName || "UNKNOWN_SUBJECT");
+            
+            // 3. Lead Name (User Name)
+            const leadName = user?.fullName || "N/A";
+            
+            // 4. Other Details
+            const eventTitle = event?.title || "UNSPECIFIED_EVENT";
+            const dept = reg?.deptName || "N/A";
+            const roll = user?.rollNo || "N/A";
+            
+            // 5. System ID
+            let displayId = reg?.registrationId ? reg.registrationId.substring(0,8).toUpperCase() : "NO_ID";
+            if (systemInfo && systemInfo.serialStart > 0) {
+                // For verify page, we display the Base System ID (Lead's ID)
+                // Format: DeptCode (2) + '00' + Serial (3)
+                const paddedSerial = systemInfo.serialStart.toString().padStart(3, '0');
+                displayId = `${systemInfo.code}00${paddedSerial}`;
+            }
+
+            const icon = type === 'success' ? 'fa-shield-check' : 'fa-shield-xmark';
+            const stateClass = type === 'success' ? 'state-success' : 'state-error';
+            const passText = type === 'success' ? 'Official Entry Pass' : 'Unauthorized Access';
+            
+            // 6. Build Members List
+            let teamHtml = '';
+            if(reg?.teamMembers && reg.teamMembers.length > 0) {
+                const names = reg.teamMembers.map(m => m.name).join(' • ');
+                teamHtml = `
+                    <div class="info-item" style="grid-column: span 2; margin-top: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1);">
+                        <span class="label" style="color:var(--gold);">Other Members (${reg.teamMembers.length})</span>
+                        <span class="value" style="font-size:0.95rem; color:var(--text-muted); line-height:1.5;">${names}</span>
+                    </div>`;
+            }
+
+            // 7. Grid Logic
+            // If it's a team, we need to show Lead Name explicitly in the grid
+            let leadHtml = '';
+            if (isTeam) {
+                leadHtml = `
+                    <div class="info-item">
+                        <span class="label">Team Lead</span>
+                        <span class="value" style="color:var(--primary);">${leadName}</span>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="ticket-visual">
+                    <div class="notch notch-top"></div>
+                    <div class="notch notch-bottom"></div>
+
+                    <div class="main-section">
+                        <div class="header-row">
+                            <div class="brand">
+                                <img src="${LOGO_CLG}" class="clg-logo" alt="Col">
+                                <img src="${LOGO_EVENT}" class="event-logo" alt="Lak">
+                            </div>
+                            <div class="badges-container">
+                                ${hasKit ? `<div class="kit-badge"><i class="fa-solid fa-cube"></i> KIT INCL.</div>` : ''}
+                                <div class="pass-badge" style="${type === 'error' ? 'background:var(--danger)' : ''}">${passText}</div>
+                            </div>
+                        </div>
+
+                        <div class="user-name">${mainTitle}</div>
+                        <div class="event-name">${eventTitle}</div>
+
+                        <div class="info-grid">
+                            ${leadHtml}
+                            <div class="info-item">
+                                <span class="label">Sector/Dept</span>
+                                <span class="value">${dept}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Identification</span>
+                                <span class="value">${roll}</span>
+                            </div>
+                             <div class="info-item">
+                                <span class="label">System Ref ID</span>
+                                <span class="value" style="font-family:'Space Mono'; color:var(--primary);">${displayId}</span>
+                            </div>
+                            ${teamHtml}
+                        </div>
+                    </div>
+
+                    <div class="stub-section">
+                        <div class="status-icon-box ${stateClass}">
+                            <i class="fa-solid ${type === 'success' ? 'fa-check-double' : 'fa-triangle-exclamation'}"></i>
+                        </div>
+                        <div class="verification-text ${stateClass}">${statusText}</div>
+                        <div class="timestamp">${subMsg}</div>
+                        <div class="timestamp" style="margin-top:10px; font-size:0.6rem;">${new Date().toISOString().replace('T', ' ').substring(0,19)}</div>
+                        <div class="barcode-visual"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        verify();
+    </script>
+</body>
+</html>
