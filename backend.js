@@ -4705,6 +4705,291 @@ app.get('/api/admin/analytics-all-registrations', isAuthenticated('admin'), asyn
     }
 });
 
+app.get('/volunteer-coupons', (req, res) => {
+    // FIX: Use process.cwd() to find 'public' from the project root
+    const filePath = path.join(process.cwd(), 'public', 'static', 'volunteer-coupons.html');
+    res.sendFile(filePath);
+});
+
+app.get('/api/volunteer/my-coupons', async (req, res) => {
+    try {
+        // 1. Get the Identity from the URL Query (e.g., ?id=student@gmail.com)
+        // We do NOT check req.session because volunteers don't have accounts.
+        const identifier = req.query.id; 
+        
+        if (!identifier) {
+             // If no ID provided, return empty or error so frontend can ask for email
+             return res.status(400).json({ error: "Missing Volunteer Email ID" });
+        }
+
+        // 2. Fetch coupons for this specific email
+        const command = new ScanCommand({
+            TableName: 'Lakshya_FoodCoupons',
+            FilterExpression: "holderEmail = :email AND attribute_exists(validStallId)",
+            ExpressionAttributeValues: { ":email": identifier }
+        });
+        const response = await docClient.send(command);
+        res.json(response.Items || []);
+    } catch (error) {
+        console.error("Volunteer Fetch Error:", error);
+        res.status(500).json({ error: "Failed to fetch volunteer coupons" });
+    }
+});
+
+
+
+app.post('/api/admin/issue-restricted-coupons', isAuthenticated('admin'), async (req, res) => {
+    const { recipients, stallId, quantity } = req.body;
+
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+        return res.status(400).json({ error: "No recipients provided" });
+    }
+    if (!stallId || !quantity) {
+        return res.status(400).json({ error: "Stall and Quantity are required" });
+    }
+
+    try {
+        let count = 0;
+        const qty = parseInt(quantity);
+        const generatedIds = []; // We will store the IDs here to show you
+
+        // 1. Loop through each email
+        for (const email of recipients) {
+            const cleanEmail = email.trim();
+            if (!cleanEmail) continue;
+
+            // 2. Fetch User Name (for the coupon record)
+            let holderName = "Volunteer";
+            try {
+                const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: cleanEmail } }));
+                if (u.Item) holderName = u.Item.fullName;
+            } catch (e) {}
+
+            // 3. Generate 'N' coupons for this user
+            for (let i = 0; i < qty; i++) {
+                // Ensure uuidv4 is defined or use a fallback
+                const uniquePart = (typeof uuidv4 === 'function') ? uuidv4() : require('uuid').v4();
+                
+                // --- THIS IS THE ID (Coupon Code) ---
+                const couponCode = `VOL-${stallId.substring(0,3)}-${uniquePart.substring(0,6).toUpperCase()}`;
+                
+                generatedIds.push(couponCode); // Add to list to return in response
+
+                await docClient.send(new PutCommand({
+                    TableName: 'Lakshya_FoodCoupons',
+                    Item: {
+                        code: couponCode, // Primary Key ID
+                        holderEmail: cleanEmail,
+                        holderName: holderName,
+                        status: 'ACTIVE',
+                        issuedAt: new Date().toISOString(),
+                        source: 'ADMIN_ISSUE',
+                        // CRITICAL: This locks the coupon to a specific stall
+                        validStallId: stallId 
+                    }
+                }));
+            }
+            count += qty;
+
+            // 4. Send Email Notification
+            const emailSubject = "You received Food Coupons! 🍔";
+            const emailHtml = `
+           <div style="font-family: 'Segoe UI', Arial, sans-serif; padding: 25px; background-color: #f6f8fb; max-width: 650px; margin: auto; border-radius: 8px; border: 1px solid #e0e0e0;">
+
+<!-- Logo -->
+<div style="text-align: center; margin-bottom: 10px;">
+    <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png"
+         alt="Lakshya Logo"
+         style="height: 45px; object-fit: contain;" />
+</div>
+
+<div style="text-align: center; padding-bottom: 10px;">
+    <h2 style="color: #00b4db; margin-bottom: 5px;">🎟️ Food Coupons Issued</h2>
+    <p style="color: #555; margin-top: 0;">Lakshya 2K26 – Volunteer Coordination</p>
+</div>
+
+<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 15px 0;">
+
+<p style="font-size: 15px; color: #333;">Hello <strong>${holderName}</strong>,</p>
+
+<p style="font-size: 15px; color: #333;">
+    You have been successfully issued <strong>${qty} Food Coupons</strong> as part of your coordination duties for <strong>Lakshya 2K26</strong>.
+</p>
+
+<div style="background: #fff3cd; padding: 15px; border-radius: 6px; border: 1px solid #ffeeba; color: #856404; margin: 20px 0;">
+    <strong>⚠️ Restricted Usage Notice</strong><br><br>
+    These coupons are valid <u>ONLY</u> at the following stall:<br>
+    <strong>${stallId}</strong>
+</div>
+
+<p style="font-size: 15px; color: #333;">
+    Please present your QR code at the respective stall to redeem your food coupon.
+</p>
+
+<div style="text-align: center; margin: 25px 0;">
+    <a href="http://localhost:3000/volunteer-coupons?id=${cleanEmail}"
+       style="display:inline-block; padding:12px 26px; background:#00b4db; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:600;">
+        View Your Coupons
+    </a>
+</div>
+
+<p style="font-size: 14px; color: #555;">
+    Thank you for your dedication and support in making <strong>Lakshya 2K26</strong> a grand success.  
+    Your efforts truly matter to us! 🌟
+</p>
+
+<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+
+<p style="font-size: 13px; color: #777; text-align: center;">
+    Powered by <strong>Xeta</strong><br>
+    <span style="font-size: 12px;">© 2025 Xeta Solutions. All rights reserved.</span>
+</p>
+
+
+</div>
+`;
+            
+            // Fire and forget email
+            sendEmail(cleanEmail, emailSubject, emailHtml).catch(console.error);
+        }
+
+        // Return the IDs in the response so you can see them
+        res.json({ 
+            success: true, 
+            message: `Successfully issued ${count} coupons locked to ${stallId}.`,
+            couponIds: generatedIds 
+        });
+
+    } catch (e) {
+        console.error("Restricted Issue Error:", e);
+        res.status(500).json({ error: "Failed to issue coupons" });
+    }
+});
+
+
+// =============================================================
+// REPLACE YOUR EXISTING '/api/stall/redeem' ROUTE WITH THIS ONE
+// (This version adds the logic to check for Stall Restrictions)
+// =============================================================
+
+app.post('/api/stall/redeem', isAuthenticated('stall'), async (req, res) => {
+    const { qrCode } = req.body;
+    // In your stall-login logic, req.session.user.name holds the Stall ID (e.g., "BIRYANI_POINT")
+    const currentStallId = req.session.user.name; 
+
+    try {
+        // A. Check if Coupon Exists
+        const getRes = await docClient.send(new GetCommand({
+            TableName: 'Lakshya_FoodCoupons',
+            Key: { code: qrCode }
+        }));
+
+        const coupon = getRes.Item;
+
+        if (!coupon) {
+            return res.status(404).json({ error: 'Invalid Coupon Code' });
+        }
+
+        // B. Check if Already Used
+        if (coupon.status === 'REDEEMED') {
+            return res.status(400).json({ error: `Already used by ${coupon.holderName} at ${coupon.redeemedBy || 'another stall'}` });
+        }
+
+        // --- NEW LOGIC START: Check Restriction ---
+        // If the coupon has a 'validStallId' set, it MUST match the current stall
+        if (coupon.validStallId && coupon.validStallId !== currentStallId) {
+            return res.status(403).json({ 
+                error: `RESTRICTED COUPON. This is only valid at: ${coupon.validStallId}` 
+            });
+        }
+        // --- NEW LOGIC END ---
+
+        // C. Atomic Update to Redeem
+        await docClient.send(new UpdateCommand({
+            TableName: 'Lakshya_FoodCoupons',
+            Key: { code: qrCode },
+            UpdateExpression: "set #s = :newStatus, redeemedBy = :stall, redeemedAt = :time",
+            ConditionExpression: "#s = :oldStatus",
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+                ":newStatus": "REDEEMED",
+                ":oldStatus": "ACTIVE",
+                ":stall": currentStallId,
+                ":time": new Date().toISOString()
+            }
+        }));
+
+        res.json({ message: 'Redeemed Successfully', student: coupon.holderName });
+
+    } catch (e) {
+        console.error("Redeem Error:", e);
+        if (e.name === 'ConditionalCheckFailedException') {
+            return res.status(400).json({ error: 'Coupon was just redeemed by someone else.' });
+        }
+        res.status(500).json({ error: 'Redemption Failed' });
+    }
+});
+
+app.get('/admin/manage-volunteer-coupons', isAuthenticated('admin'), (req, res) => {
+    // Make sure you create this file at public/admin/manage-volunteer-coupons.html
+    const filePath = path.join(process.cwd(), 'public', 'admin', 'manage-volunteer-coupons.html');
+    res.sendFile(filePath);
+});
+
+// 5. API: SEARCH VOLUNTEER COUPONS
+app.get('/api/admin/search-volunteer-coupons', isAuthenticated('admin'), async (req, res) => {
+    const { email } = req.query;
+    if(!email) return res.json([]);
+
+    try {
+        const command = new ScanCommand({
+            TableName: 'Lakshya_FoodCoupons',
+            FilterExpression: "holderEmail = :email", // Broad search for admin
+            ExpressionAttributeValues: { ":email": email.trim() }
+        });
+        const response = await docClient.send(command);
+        res.json(response.Items || []);
+    } catch (e) {
+        console.error("Admin Search Error:", e);
+        res.status(500).json({ error: "Search failed" });
+    }
+});
+
+// 6. API: DEACTIVATE OR DELETE COUPON
+app.post('/api/admin/manage-coupon-action', isAuthenticated('admin'), async (req, res) => {
+    const { code, action } = req.body; // action: 'DELETE' or 'DEACTIVATE'
+    
+    if(!code || !action) return res.status(400).json({ error: "Missing code or action" });
+
+    try {
+        if (action === 'DELETE') {
+            await docClient.send(new DeleteCommand({
+                TableName: 'Lakshya_FoodCoupons',
+                Key: { code }
+            }));
+            return res.json({ message: "Coupon Deleted Successfully" });
+        }
+        
+        if (action === 'DEACTIVATE') {
+            await docClient.send(new UpdateCommand({
+                TableName: 'Lakshya_FoodCoupons',
+                Key: { code },
+                UpdateExpression: "set #s = :s",
+                ExpressionAttributeNames: { "#s": "status" },
+                ExpressionAttributeValues: { ":s": "INACTIVE" }
+            }));
+            return res.json({ message: "Coupon Deactivated" });
+        }
+
+        res.status(400).json({ error: "Invalid Action" });
+
+    } catch (e) {
+        console.error("Manage Action Error:", e);
+        res.status(500).json({ error: "Action failed" });
+    }
+});
+
+
 // ... existing code ...
 // ... existing code ...
 const PORT = process.env.PORT || 3000;
