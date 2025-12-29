@@ -307,7 +307,9 @@ app.get('/admin/send-mails', isAuthenticated('admin'), (req, res) => {
 app.get('/admin/view-teams', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/view-team.html'));
 });
-
+app.get('/admin/participant-qr', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/participant-qr.html'));
+});
 
 
 const getEmailTemplate = (type, data) => {
