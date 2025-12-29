@@ -5013,15 +5013,15 @@ app.post('/api/admin/manage-coupon-action', isAuthenticated('admin'), async (req
 // ... existing code ...
 // ... existing code ...
 const PORT = process.env.PORT || 3000;
+
 if (require.main === module) {
-    const server = app.listen(PORT, () => { 
-        console.log(`Server running on http://localhost:${PORT}`); 
+    const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on http://0.0.0.0:${PORT}`);
     });
 
-    // 1. Connection Timeout (10 Minutes) - Allows large uploads to finish
     server.setTimeout(600000);
-    server.keepAliveTimeout = 61000; // 61 seconds
-    server.headersTimeout = 65000;   // 65 seconds
+    server.keepAliveTimeout = 61000;
+    server.headersTimeout = 65000;
 }
 
 
