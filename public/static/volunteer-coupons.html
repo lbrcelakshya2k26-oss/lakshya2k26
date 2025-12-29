@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Food Coupons | LAKSHYA 2K26</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #0f172a; 
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.8) 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .gold-gradient {
+            background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%);
+        }
+        .text-gold-gradient {
+            background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .coupon-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 215, 0, 0.15);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .coupon-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: rgba(255, 215, 0, 0.5);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+        }
+        .glass-footer {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="items-center">
+
+    <div class="flex-grow w-full max-w-4xl flex flex-col items-center p-6">
+        <!-- Header -->
+        <header class="w-full text-center mb-8 mt-4">
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-3 drop-shadow-lg">
+                Volunteer <span class="text-gold-gradient">Coupons</span>
+            </h1>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700/50">
+                <span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                <p class="text-slate-400 text-xs font-medium tracking-wide">RESTRICTED ACCESS • STALL SPECIFIC</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="w-full">
+
+            <!-- FALLBACK: Input for manual email entry -->
+            <div id="email-entry" class="hidden max-w-md mx-auto bg-slate-800/80 backdrop-blur-md p-8 rounded-2xl border border-slate-700/80 text-center shadow-2xl relative overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <h3 class="text-xl font-bold mb-2 text-white relative z-10">Access Your Coupons</h3>
+                <p class="text-slate-400 text-sm mb-6 relative z-10">Please enter your registered email address to view your assigned coupons.</p>
+                
+                <div class="relative z-10 space-y-4">
+                    <input type="email" id="manual-email" placeholder="student@example.com" 
+                        class="w-full bg-slate-900/80 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 transition-all">
+                    <button onclick="loadCouponsManual()" 
+                            class="w-full gold-gradient text-slate-900 font-bold py-3 rounded-xl hover:shadow-[0_0_20px_rgba(253,185,49,0.4)] transition-all duration-300 transform active:scale-95">
+                        View Coupons
+                    </button>
+                </div>
+            </div>
+            
+            <div id="loading" class="text-center py-24 hidden">
+                <div class="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-yellow-400 mb-4"></div>
+                <p class="text-yellow-400/80 text-sm tracking-wider animate-pulse">VERIFYING ACCESS...</p>
+            </div>
+
+            <div id="coupons-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden pb-10">
+                <!-- Injected Here -->
+            </div>
+
+            <div id="no-coupons" class="hidden text-center py-20 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 mx-auto max-w-lg">
+                <div class="text-5xl mb-6 opacity-80">🔒</div>
+                <h3 class="text-xl font-bold text-white mb-2">No Volunteer Coupons Found</h3>
+                <p class="text-slate-400 text-sm mb-6 px-6">We couldn't find any active coupons linked to this email address.</p>
+                <button onclick="location.href='/volunteer-coupons'" class="text-yellow-400 hover:text-yellow-300 text-sm font-medium hover:underline transition-colors">Try Different Email</button>
+            </div>
+
+            <div id="error-msg" class="hidden text-center py-10 bg-red-900/20 border border-red-500/30 rounded-xl mt-4 backdrop-blur-sm">
+                 <p class="text-red-400 text-sm font-medium" id="error-text">Failed to load data.</p>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Enhanced Footer -->
+    <footer class="w-full glass-footer mt-auto">
+        <div class="max-w-4xl mx-auto px-6 py-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                
+                <!-- Brand / Powered By -->
+                <div class="flex flex-col items-center md:items-start text-center md:text-left space-y-1">
+                    <p class="text-slate-500 text-xs uppercase tracking-widest font-semibold">Powered By</p>
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg font-bold text-white tracking-tight">XETA</span>
+                        <span class="text-lg font-light text-slate-400">SOLUTIONS</span>
+                    </div>
+                </div>
+
+                <!-- Logos Container -->
+                <div class="flex items-center gap-6 grayscale hover:grayscale-0 transition-all duration-500 opacity-80 hover:opacity-100">
+                    <!-- Logo 1 (Event/College) -->
+                    <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png" 
+                         alt="Event Logo" 
+                         class="h-12 w-auto object-contain hover:scale-110 transition-transform duration-300"
+                         onerror="this.style.display='none'">
+                    
+                    <div class="h-8 w-px bg-slate-700"></div>
+
+                    <!-- Logo 2 (Xeta Solutions) -->
+                    <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1760704788/XETA_SOLUTIONS_LOGO_bcsbwh.png" 
+                         alt="Xeta Solutions" 
+                         class="h-10 w-auto object-contain hover:scale-110 transition-transform duration-300"
+                         onerror="this.style.display='none'">
+                </div>
+
+                <!-- Copyright / Minor Link -->
+                <div class="text-xs text-slate-600 font-medium">
+                    &copy; 2026 Lakshya
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Extract ID (email) from URL ?id=...
+        const urlParams = new URLSearchParams(window.location.search);
+        let userEmail = urlParams.get('id');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (userEmail) {
+                fetchCoupons(userEmail);
+            } else {
+                document.getElementById('email-entry').classList.remove('hidden');
+            }
+        });
+
+        function loadCouponsManual() {
+            const input = document.getElementById('manual-email').value.trim();
+            if (input) {
+                userEmail = input;
+                // Update URL for nicer UX (optional)
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?id=' + input;
+                window.history.pushState({path:newUrl},'',newUrl);
+                
+                document.getElementById('email-entry').classList.add('hidden');
+                fetchCoupons(input);
+            }
+        }
+
+        async function fetchCoupons(email) {
+            const container = document.getElementById('coupons-container');
+            const loading = document.getElementById('loading');
+            const noCoupons = document.getElementById('no-coupons');
+            const errorMsg = document.getElementById('error-msg');
+
+            loading.classList.remove('hidden');
+            noCoupons.classList.add('hidden');
+            container.classList.add('hidden');
+            errorMsg.classList.add('hidden');
+
+            try {
+                // Pass the email as 'id' query parameter
+                const response = await fetch(`/api/volunteer/my-coupons?id=${encodeURIComponent(email)}`);
+                
+                if (!response.ok) {
+                    throw new Error('Could not fetch data');
+                }
+                
+                const restrictedCoupons = await response.json();
+
+                loading.classList.add('hidden');
+
+                if (!Array.isArray(restrictedCoupons) || restrictedCoupons.length === 0) {
+                    noCoupons.classList.remove('hidden');
+                    return;
+                }
+
+                container.classList.remove('hidden');
+                container.innerHTML = ''; // Clear previous
+
+                restrictedCoupons.forEach((coupon, index) => {
+                    const isRedeemed = coupon.status === 'REDEEMED';
+                    const stallName = coupon.validStallId ? coupon.validStallId.replace(/_/g, ' ') : 'Restricted Stall';
+
+                    const card = document.createElement('div');
+                    card.className = `coupon-card rounded-2xl overflow-hidden relative group ${isRedeemed ? 'opacity-60 grayscale' : ''}`;
+                    
+                    card.innerHTML = `
+                        <!-- Gold Header -->
+                        <div class="h-1.5 w-full gold-gradient"></div>
+                        
+                        <div class="p-6">
+                            <!-- Status & Index -->
+                            <div class="flex justify-between items-center mb-5">
+                                <span class="text-xs font-mono text-slate-500 font-bold tracking-wider">#${String(index + 1).padStart(2,'0')}</span>
+                                <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${isRedeemed ? 'bg-slate-700/50 text-slate-400 border border-slate-600' : 'bg-yellow-900/30 text-yellow-400 border border-yellow-600/50 shadow-[0_0_10px_rgba(250,204,21,0.2)]'}">
+                                    ${coupon.status}
+                                </span>
+                            </div>
+
+                            <!-- Stall Name -->
+                            <div class="text-center mb-6 relative">
+                                <p class="text-[10px] text-slate-500 uppercase tracking-[0.2em] mb-2 font-semibold">Valid Only At</p>
+                                <h3 class="text-xl font-bold text-white truncate px-2 leading-tight group-hover:text-yellow-400 transition-colors" title="${stallName}">${stallName}</h3>
+                            </div>
+
+                            <!-- QR Code -->
+                            <div class="bg-white p-4 rounded-xl mx-auto w-fit mb-6 shadow-xl relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-tr from-gray-100 to-white opacity-50"></div>
+                                <div id="qr-${index}" class="relative z-10 mix-blend-multiply"></div>
+                            </div>
+
+                            <!-- Code -->
+                            <div class="text-center">
+                                <div class="bg-slate-950/60 p-3 rounded-xl mb-2 font-mono text-lg text-yellow-400 tracking-[0.15em] border border-slate-700 border-dashed select-all hover:bg-slate-900 hover:border-yellow-500/50 transition-colors cursor-pointer" onclick="document.execCommand('copy')">
+                                    ${coupon.code}
+                                </div>
+                                <p class="text-[10px] font-medium ${isRedeemed ? 'text-slate-500' : 'text-slate-400'}">
+                                    ${isRedeemed ? 'Redeemed on ' + new Date(coupon.redeemedAt).toLocaleDateString() : 'Volunteer Food Coupon'}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(card);
+
+                    new QRCode(document.getElementById(`qr-${index}`), {
+                        text: coupon.code,
+                        width: 120,
+                        height: 120,
+                        colorDark : "#0f172a",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                });
+
+            } catch (e) {
+                console.error("Error loading coupons:", e);
+                loading.classList.add('hidden');
+                errorMsg.classList.remove('hidden');
+                document.getElementById('error-text').innerText = e.message;
+            }
+        }
+    </script>
+</body>
+</html>
