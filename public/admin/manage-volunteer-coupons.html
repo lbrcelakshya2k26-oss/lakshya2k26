@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Restricted Coupons | Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen p-6">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-white">Manage Volunteer Coupons</h1>
+                <p class="text-slate-400 text-sm">Search, Deactivate or Delete issued coupons</p>
+            </div>
+            <a href="/admin/dashboard" class="text-slate-400 hover:text-white text-sm">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Search Box -->
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg mb-8">
+            <label class="block text-sm font-medium text-slate-400 mb-2">Search by Volunteer Email</label>
+            <div class="flex gap-4">
+                <input type="email" id="searchEmail" placeholder="e.g. volunteer@example.com" 
+                    class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                <button onclick="searchCoupons()" 
+                    class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-lg transition-colors flex items-center gap-2">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Area -->
+        <div id="loading" class="hidden text-center py-10">
+            <i class="fas fa-spinner fa-spin text-3xl text-blue-500"></i>
+            <p class="text-slate-400 mt-2">Fetching coupons...</p>
+        </div>
+
+        <div id="resultsArea" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Results <span id="resultCount" class="text-sm bg-slate-700 px-2 py-1 rounded ml-2 text-slate-300">0</span></h2>
+            </div>
+            
+            <div id="cardsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Cards injected via JS -->
+            </div>
+        </div>
+
+        <div id="emptyState" class="hidden text-center py-20 bg-slate-800/50 rounded-xl border border-dashed border-slate-700">
+            <i class="fas fa-ticket-alt text-4xl text-slate-600 mb-4"></i>
+            <p class="text-slate-400">No coupons found for this email.</p>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        async function searchCoupons() {
+            const email = document.getElementById('searchEmail').value.trim();
+            if (!email) return alert("Please enter an email");
+
+            // UI Reset
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('resultsArea').classList.add('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+
+            try {
+                const res = await fetch(`/api/admin/search-volunteer-coupons?email=${encodeURIComponent(email)}`);
+                const data = await res.json();
+                
+                document.getElementById('loading').classList.add('hidden');
+
+                if (data.length === 0) {
+                    document.getElementById('emptyState').classList.remove('hidden');
+                    return;
+                }
+
+                renderCards(data);
+
+            } catch (e) {
+                console.error(e);
+                alert("Search failed. See console.");
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function renderCards(coupons) {
+            const grid = document.getElementById('cardsGrid');
+            grid.innerHTML = ''; // Clear
+
+            coupons.forEach(c => {
+                const isActive = c.status === 'ACTIVE';
+                const isRedeemed = c.status === 'REDEEMED';
+                const isInactive = c.status === 'INACTIVE';
+
+                let statusColor = 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+                if (isRedeemed) statusColor = 'bg-green-500/10 text-green-500 border-green-500/20';
+                if (isInactive) statusColor = 'bg-red-500/10 text-red-500 border-red-500/20';
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-800 p-5 rounded-lg border border-slate-700 relative group transition-all hover:border-slate-500";
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="px-2 py-1 rounded text-xs font-bold border ${statusColor}">
+                            ${c.status}
+                        </span>
+                        <span class="text-xs text-slate-500 font-mono">${c.code}</span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-xs text-slate-400 uppercase">Valid At</p>
+                        <p class="font-bold text-white truncate">${c.validStallId || 'Any Stall'}</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mt-4">
+                        ${isActive ? `
+                            <button onclick="updateStatus('${c.code}', 'DEACTIVATE')" 
+                                class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-500 py-2 rounded text-xs font-bold transition-colors border border-amber-600/50">
+                                <i class="fas fa-ban mr-1"></i> Deactivate
+                            </button>
+                        ` : `
+                            <button disabled class="bg-slate-700 text-slate-500 py-2 rounded text-xs font-bold cursor-not-allowed">
+                                ${c.status === 'REDEEMED' ? 'Redeemed' : 'Deactivated'}
+                            </button>
+                        `}
+                        
+                        <button onclick="updateStatus('${c.code}', 'DELETE')" 
+                            class="bg-red-600/20 hover:bg-red-600/30 text-red-500 py-2 rounded text-xs font-bold transition-colors border border-red-600/50">
+                            <i class="fas fa-trash mr-1"></i> Delete
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            document.getElementById('resultCount').innerText = coupons.length;
+            document.getElementById('resultsArea').classList.remove('hidden');
+        }
+
+        async function updateStatus(code, action) {
+            if (!confirm(`Are you sure you want to ${action} this coupon?`)) return;
+
+            try {
+                const res = await fetch('/api/admin/manage-coupon-action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, action })
+                });
+
+                const resp = await res.json();
+                if (res.ok) {
+                    // Refresh search to show new status
+                    searchCoupons();
+                } else {
+                    alert("Error: " + resp.error);
+                }
+            } catch (e) {
+                alert("Action failed.");
+            }
+        }
+    </script>
+</body>
+</html>

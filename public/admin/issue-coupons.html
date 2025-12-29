@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue Volunteer Coupons | LAKSHYA Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { --primary: #00d2ff; --accent: #ff00cc; --bg: #050510; --card: #151520; --border: rgba(255,255,255,0.1); }
+        * { box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background: var(--bg); color: white; margin: 0; padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+        .container { max-width: 600px; width: 100%; }
+        
+        .card {
+            background: var(--card); border: 1px solid var(--border); 
+            padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h2 { font-family: 'Montserrat'; color: var(--primary); margin: 0 0 5px 0; }
+        .header p { color: #888; font-size: 0.9rem; margin: 0; }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; color: #aaa; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600; }
+        
+        select, input, textarea {
+            width: 100%; padding: 12px 15px; background: #0a0a12; border: 1px solid #444; 
+            border-radius: 8px; color: white; font-family: 'Poppins'; outline: none;
+            transition: 0.3s;
+        }
+        select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+
+        textarea { height: 120px; resize: vertical; }
+
+        .btn { 
+            width: 100%; padding: 15px; background: linear-gradient(135deg, var(--primary), #3a7bd5); 
+            color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem;
+            cursor: pointer; transition: 0.3s; margin-top: 10px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 210, 255, 0.3); }
+        .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .back-link { display: block; text-align: center; margin-top: 20px; color: #666; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { color: white; }
+
+        /* Loader */
+        .loader { display: none; margin-left: 10px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .info-box {
+            background: rgba(255, 193, 7, 0.1); border: 1px dashed #ffc107; color: #ffc107;
+            padding: 15px; border-radius: 8px; margin-bottom: 25px; font-size: 0.85rem; line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h2>Issue Stall Coupons</h2>
+                <p>Grant restricted food access to volunteers</p>
+            </div>
+
+            <div class="info-box">
+                <i class="fa-solid fa-circle-info"></i> 
+                Coupons issued here will be <strong>LOCKED</strong> to the selected stall. 
+                They cannot be redeemed anywhere else.
+            </div>
+
+            <form id="issueForm" onsubmit="issueCoupons(event)">
+                
+                <div class="form-group">
+                    <label>Select Target Stall</label>
+                    <select id="stallSelect" required>
+                        <option value="">-- Loading Stalls --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Recipient Emails (Comma separated or New Line)</label>
+                    <textarea id="emailList" placeholder="volunteer1@example.com&#10;volunteer2@example.com" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Coupons Per Person</label>
+                    <input type="number" id="qty" min="1" max="10" value="1" required>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    Issue Coupons <i class="fa-solid fa-spinner loader" id="btnLoader"></i>
+                </button>
+            </form>
+
+            <a href="/admin/dashboard" class="back-link">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        // 1. Fetch Stalls on Load
+        async function loadStalls() {
+            const select = document.getElementById('stallSelect');
+            try {
+                const res = await fetch('/api/admin/stalls');
+                const stalls = await res.json();
+                
+                select.innerHTML = '<option value="">-- Select a Stall --</option>';
+                stalls.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.stallId;
+                    opt.innerText = s.stallName;
+                    select.appendChild(opt);
+                });
+            } catch(e) {
+                select.innerHTML = '<option value="">Error loading stalls</option>';
+            }
+        }
+        loadStalls();
+
+        // 2. Handle Submit
+        async function issueCoupons(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const loader = document.getElementById('btnLoader');
+            const stallId = document.getElementById('stallSelect').value;
+            const rawEmails = document.getElementById('emailList').value;
+            const quantity = document.getElementById('qty').value;
+
+            if(!stallId) return alert("Please select a stall");
+            
+            // Process emails (split by comma or newline)
+            const recipients = rawEmails.split(/[\n,]+/).map(e => e.trim()).filter(e => e);
+            
+            if(recipients.length === 0) return alert("Please enter at least one email");
+
+            // UI State
+            btn.disabled = true;
+            loader.style.display = 'inline-block';
+            btn.innerHTML = `Issuing... <i class="fa-solid fa-spinner loader" style="display:inline-block"></i>`;
+
+            try {
+                const res = await fetch('/api/admin/issue-restricted-coupons', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        recipients,
+                        stallId,
+                        quantity
+                    })
+                });
+
+                const data = await res.json();
+
+                if(res.ok) {
+                    alert(data.message);
+                    document.getElementById('issueForm').reset();
+                    loadStalls(); // Reset dropdown
+                } else {
+                    alert(data.error || "Failed to issue coupons");
+                }
+
+            } catch(err) {
+                console.error(err);
+                alert("Server Error. Check console.");
+            } finally {
+                btn.disabled = false;
+                loader.style.display = 'none';
+                btn.innerText = "Issue Coupons";
+            }
+        }
+    </script>
+</body>
+</html>
