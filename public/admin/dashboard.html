@@ -304,7 +304,10 @@
                     select.appendChild(opt);
                 });
 
-                const regRes = await fetch('/api/admin/all-registrations');
+                // --- FIX: USE NEW ANALYTICS ENDPOINT ---
+                // This endpoint now returns a plain Array (not an object) 
+                // and loops through all data so stats are accurate.
+                const regRes = await fetch('/api/admin/analytics-all-registrations');
                 allRegistrations = await regRes.json();
 
                 updateDashboardFilter();
@@ -327,12 +330,9 @@
             const paidRegs = filteredRegs.filter(r => r.paymentStatus === 'COMPLETED').length;
             const pendingRegs = totalReg - paidRegs;
             
-            // --- ACTUAL REVENUE CALCULATION FIX ---
-            // Replaces the old "paidRegs * 200" logic
             const revenue = filteredRegs.reduce((sum, r) => {
                 if (r.paymentStatus === 'COMPLETED') {
                     const amt = parseFloat(r.amountPaid);
-                    // Use actual amount, or 200 if missing (legacy)
                     return sum + (isNaN(amt) ? 200 : amt); 
                 }
                 return sum;
@@ -348,7 +348,6 @@
             document.getElementById('totalReg').innerText = totalReg;
             document.getElementById('regSub').innerText = filterLabel;
             
-            // Format Revenue with Commas
             document.getElementById('totalRev').innerText = '₹' + revenue.toLocaleString('en-IN');
             
             document.getElementById('paidCount').innerText = paidRegs;
@@ -471,16 +470,12 @@
             });
 
             const sortedDepts = Array.from(depts).sort();
-            // Map Event IDs to Titles
             const sortedEventTitles = Array.from(eventIds).map(id => eventsMap[id] || id).sort();
 
-            // 2. Initialize Matrices
-            // Structure: matrix[deptName][eventName] = count
             const matrixTotal = {};
             const matrixPaid = {};
             const matrixUnpaid = {};
             
-            // Initialize with 0s
             sortedDepts.forEach(d => {
                 matrixTotal[d] = {};
                 matrixPaid[d] = {};
@@ -492,7 +487,6 @@
                 });
             });
 
-            // 3. Fill Data
             allRegistrations.forEach(r => {
                 const d = r.deptName || r.dept || 'Other';
                 const e = eventsMap[r.eventId] || r.eventId;
@@ -505,10 +499,8 @@
                 }
             });
 
-            // 4. Helper to convert Matrix Object to Array of Arrays (Rows) with Row Totals
             const generateRows = (matrixObj) => {
                 const rows = [];
-                // Column Totals Tracker
                 const colTotals = new Array(sortedEventTitles.length).fill(0);
                 let grandTotal = 0;
 
@@ -521,12 +513,11 @@
                         rowTotal += val;
                         colTotals[idx] += val;
                     });
-                    rowData.push(rowTotal); // Row Total Column
+                    rowData.push(rowTotal); 
                     grandTotal += rowTotal;
                     rows.push(rowData);
                 });
 
-                // Total Row
                 const totalRow = ["TOTAL", ...colTotals, grandTotal];
                 rows.push(totalRow);
                 return rows;
@@ -545,23 +536,19 @@
             const matrix = prepareMatrixData();
             const { headers, rowsTotal, rowsPaid, rowsUnpaid, eventTitles } = matrix;
 
-            // Global Summary Table (Last section of image)
-            // Transpose the Column Totals from the main matrices to create this small summary
             const globalSummary = [];
-            const totalRowTotal = rowsTotal[rowsTotal.length - 1]; // Last row is TOTAL row
+            const totalRowTotal = rowsTotal[rowsTotal.length - 1]; 
             const totalRowPaid = rowsPaid[rowsPaid.length - 1];
             const totalRowUnpaid = rowsUnpaid[rowsUnpaid.length - 1];
 
-            // Start from index 1 to exclude "TOTAL" label, end before last index
             for(let i=0; i < eventTitles.length; i++) {
                 globalSummary.push([
-                    eventTitles[i], // Event Name
-                    totalRowTotal[i+1], // Total
-                    totalRowPaid[i+1], // Paid
-                    totalRowUnpaid[i+1] // Unpaid
+                    eventTitles[i], 
+                    totalRowTotal[i+1], 
+                    totalRowPaid[i+1], 
+                    totalRowUnpaid[i+1] 
                 ]);
             }
-            // Add Total Row for Summary
             globalSummary.push([
                 "TOTAL",
                 totalRowTotal[totalRowTotal.length-1],
@@ -577,19 +564,19 @@
                 // 1. TOTAL TABLE
                 wsData.push(headers);
                 wsData.push(...rowsTotal);
-                wsData.push([]); // Spacer
+                wsData.push([]); 
 
                 // 2. PAID TABLE
                 wsData.push(["PAID REGISTRATIONS"]);
                 wsData.push(headers);
                 wsData.push(...rowsPaid);
-                wsData.push([]); // Spacer
+                wsData.push([]); 
 
                 // 3. UNPAID TABLE
                 wsData.push(["UNPAID REGISTRATIONS"]);
                 wsData.push(headers);
                 wsData.push(...rowsUnpaid);
-                wsData.push([]); // Spacer
+                wsData.push([]); 
 
                 // 4. GLOBAL SUMMARY
                 wsData.push(["GLOBAL REGISTRATIONS COUNT"]);
@@ -603,7 +590,7 @@
             } else {
                 // PDF Generation
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('l', 'mm', 'a3'); // Landscape A3 for width
+                const doc = new jsPDF('l', 'mm', 'a3'); 
 
                 doc.setFontSize(16);
                 doc.text("LAKSHYA 2K26 - Matrix Report", 14, 15);
@@ -627,7 +614,6 @@
 
                 addTable("ALL REGISTRATIONS (Department vs Event)", headers, rowsTotal);
                 
-                // Check space
                 if (currentY > 200) { doc.addPage(); currentY = 20; }
                 addTable("PAID REGISTRATIONS", headers, rowsPaid);
 
