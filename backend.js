@@ -54,10 +54,29 @@ app.use('/js', express.static(path.join(__dirname, 'public/js')));
 app.use('/static', express.static(path.join(__dirname, 'public/static')));
 
 app.use(session({
+    store: new DynamoDBStore({
+        table: 'Lakshya_Sessions',
+        region: 'ap-south-1',
+        // Pass credentials directly if AWSConfigJSON is failing
+        accessKeyId: 'AKIAWJL64KMIFX67RTPV', 
+        secretAccessKey: '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',
+        AWSConfigJSON: {
+            region: 'ap-south-1',
+            credentials: {
+                accessKeyId: 'AKIAWJL64KMIFX67RTPV',
+                secretAccessKey: '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'
+            }
+        },
+        flushInterval: 60000 // Removes expired sessions from memory every minute
+    }),
     secret: process.env.SESSION_SECRET || 'lakshya_secret_key',
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+    saveUninitialized: false,
+    rolling: true, 
+    cookie: { 
+        secure: false, 
+        maxAge: 24 * 60 * 60 * 1000 // 24 Hours
+    }
 }));
 
 // --- RAZORPAY SETUP ---
