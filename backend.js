@@ -4676,7 +4676,31 @@ app.get('/api/admin/search-user', isAuthenticated('admin'), async (req, res) => 
     }
 });
 
+app.get('/api/admin/analytics-all-registrations', isAuthenticated('admin'), async (req, res) => {
+    try {
+        let allItems = [];
+        let lastKey;
+        
+        // Loop through DynamoDB pages to get EVERYTHING
+        do {
+            const params = {
+                TableName: 'Lakshya_Registrations',
+                ExclusiveStartKey: lastKey
+            };
+            const data = await docClient.send(new ScanCommand(params));
+            if (data.Items) {
+                allItems.push(...data.Items);
+            }
+            lastKey = data.LastEvaluatedKey;
+        } while (lastKey);
 
+        // Return a clean Array (fixes the "filter is not a function" error)
+        res.json(allItems); 
+    } catch (err) {
+        console.error("Analytics Dump Error:", err);
+        res.status(500).json({ error: 'Failed to fetch analytics data' });
+    }
+});
 
 // ... existing code ...
 // ... existing code ...
