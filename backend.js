@@ -5010,19 +5010,15 @@ app.post('/api/admin/manage-coupon-action', isAuthenticated('admin'), async (req
 });
 
 
-// ... existing code ...
-// ... existing code ...
 const PORT = process.env.PORT || 3000;
 
-if (require.main === module) {
-    const server = app.listen(PORT, '0.0.0.0', () => {
-        console.log(`Server running on http://0.0.0.0:${PORT}`);
-    });
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+});
 
-    server.setTimeout(600000);
-    server.keepAliveTimeout = 61000;
-    server.headersTimeout = 65000;
-}
-
+server.setTimeout(600000);
+server.keepAliveTimeout = 61000;
+server.headersTimeout = 65000;
 
 module.exports = app;
+
