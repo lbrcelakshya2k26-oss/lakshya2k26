@@ -1669,10 +1669,96 @@ app.get('/api/admin/student-details', isAuthenticated('admin'), async (req, res)
 
 app.get('/api/admin/all-registrations', isAuthenticated('admin'), async (req, res) => {
     try {
-        const data = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Registrations' }));
-        res.json(data.Items || []);
-    } catch (err) { res.status(500).json({ error: 'Failed' }); }
+        const { limit, lastKey } = req.query;
+
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            Limit: parseInt(limit) || 50 // Fetch 50 at a time
+        };
+
+        // Handle Pagination Key
+        if (lastKey && lastKey !== 'null' && lastKey !== 'undefined') {
+            try {
+                params.ExclusiveStartKey = JSON.parse(decodeURIComponent(lastKey));
+            } catch (e) {
+                console.warn("Invalid lastKey ignored");
+            }
+        }
+
+        const data = await docClient.send(new ScanCommand(params));
+        
+        // We return the raw items. The frontend will fetch user details 
+        // for this batch using the existing '/api/admin/export-data' endpoint.
+        res.json({
+            items: data.Items || [],
+            lastEvaluatedKey: data.LastEvaluatedKey 
+                ? encodeURIComponent(JSON.stringify(data.LastEvaluatedKey)) 
+                : null
+        });
+
+    } catch (err) {
+        console.error("Fetch Registrations Error:", err);
+        res.status(500).json({ error: 'Failed to fetch registrations' });
+    }
 });
+
+
+// ============================================================================
+// 2. ADD THIS NEW ENDPOINT FOR SEARCHING REGISTRATIONS
+// ============================================================================
+
+app.get('/api/admin/search-registrations', isAuthenticated('admin'), async (req, res) => {
+    const { query } = req.query;
+    if (!query) return res.json([]);
+
+    const term = query.trim();
+    const termLower = term.toLowerCase();
+
+    try {
+        let foundItems = [];
+
+        // STRATEGY 1: Exact Registration ID Match (Fastest)
+        // Check if it looks like a UUID
+        if (term.includes('-') && term.length > 20) {
+            const getRes = await docClient.send(new GetCommand({
+                TableName: 'Lakshya_Registrations',
+                Key: { registrationId: term }
+            }));
+            if (getRes.Item) {
+                return res.json([getRes.Item]);
+            }
+        }
+
+        // STRATEGY 2: Search by Student Email (Secondary Index)
+        if (term.includes('@')) {
+            const queryRes = await docClient.send(new QueryCommand({
+                TableName: 'Lakshya_Registrations',
+                IndexName: 'StudentIndex',
+                KeyConditionExpression: 'studentEmail = :email',
+                ExpressionAttributeValues: { ':email': termLower }
+            }));
+            foundItems = queryRes.Items || [];
+        }
+        
+        // STRATEGY 3: Fallback Scan for Team Name or Transaction ID
+        // (Only run if no results yet, as Scan is expensive)
+        if (foundItems.length === 0) {
+            const scanRes = await docClient.send(new ScanCommand({
+                TableName: 'Lakshya_Registrations',
+                FilterExpression: 'contains(teamName, :q) OR contains(paymentId, :q)',
+                ExpressionAttributeValues: { ':q': term } // Case sensitive usually, but depends on data
+            }));
+            foundItems = scanRes.Items || [];
+        }
+
+        res.json(foundItems);
+
+    } catch (err) {
+        console.error("Search Reg Error:", err);
+        res.status(500).json({ error: 'Search failed' });
+    }
+});
+
 
 app.post('/api/admin/create-user', isAuthenticated('admin'), async (req, res) => {
     const { email, password, role, fullName, dept } = req.body;
@@ -3250,48 +3336,70 @@ app.post('/api/admin/resolve-query', isAuthenticated('admin'), async (req, res) 
 // --- API: Get All Active Users (Admin Only) ---
 app.get('/api/admin/all-users', isAuthenticated('admin'), async (req, res) => {
     try {
-        // 1. Parallel Fetch: Users, Registrations, and Events
-        const [usersData, regsData, eventsData] = await Promise.all([
-            docClient.send(new ScanCommand({ TableName: 'Lakshya_Users' })),
-            docClient.send(new ScanCommand({ TableName: 'Lakshya_Registrations' })),
-            docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }))
-        ]);
-        
-        const users = usersData.Items || [];
-        const regs = regsData.Items || [];
-        const events = eventsData.Items || [];
+        const { limit, lastKey } = req.query;
 
-        // 2. Create Event ID -> Title Map
+        // A. Fetch Event Map (Lightweight) to resolve IDs to Names
+        // We scan events first so we can map event IDs to real titles later
+        const eventsData = await docClient.send(new ScanCommand({ 
+            TableName: 'Lakshya_Events',
+            ProjectionExpression: 'eventId, title' 
+        }));
         const eventMap = {};
-        events.forEach(e => eventMap[e.eventId] = e.title);
+        (eventsData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
 
-        // 3. Map Registrations by User Email
-        const regLookup = {};
-        regs.forEach(r => {
-            const email = r.studentEmail;
-            if (!regLookup[email]) regLookup[email] = [];
-            
-            // Resolve Event Name (use ID if Name not found)
-            const eventName = eventMap[r.eventId] || r.eventId;
-            regLookup[email].push(eventName);
-        });
+        // B. Scan Users with Limit (Pagination)
+        const userParams = {
+            TableName: 'Lakshya_Users',
+            Limit: parseInt(limit) || 50 // Fetch 50 at a time
+        };
 
-        // 4. Enrich User Objects
-        const enrichedUsers = users.map(user => {
+        // If we have a key from the previous page, start scanning from there
+        if (lastKey && lastKey !== 'null' && lastKey !== 'undefined') {
+            try {
+                userParams.ExclusiveStartKey = JSON.parse(decodeURIComponent(lastKey));
+            } catch (e) {
+                console.warn("Invalid lastKey ignored");
+            }
+        }
+
+        const usersData = await docClient.send(new ScanCommand(userParams));
+        const users = usersData.Items || [];
+
+        // C. Fetch Details ONLY for these 50 users (Parallel Efficient Query)
+        // This avoids scanning the massive Registrations table repeatedly
+        const enrichedUsers = await Promise.all(users.map(async (user) => {
             const { password, ...safeData } = user;
-            const userRegs = regLookup[user.email] || [];
-            
-            return {
-                ...safeData,
-                regCount: userRegs.length,
-                regEvents: userRegs // Array of Event Names
-            };
+            try {
+                // Query only this student's registrations using the Secondary Index
+                const regRes = await docClient.send(new QueryCommand({
+                    TableName: 'Lakshya_Registrations',
+                    IndexName: 'StudentIndex', // Ensure this GSI exists in DynamoDB
+                    KeyConditionExpression: 'studentEmail = :email',
+                    ExpressionAttributeValues: { ':email': user.email },
+                    ProjectionExpression: 'eventId' // We only need IDs to count
+                }));
+
+                const userRegs = regRes.Items || [];
+                const regEventNames = userRegs.map(r => eventMap[r.eventId] || r.eventId);
+
+                return {
+                    ...safeData,
+                    regCount: userRegs.length,
+                    regEvents: regEventNames
+                };
+            } catch (err) {
+                // If query fails (e.g., user has no regs or index issue), return 0 count
+                return { ...safeData, regCount: 0, regEvents: [] };
+            }
+        }));
+
+        // D. Return Data + Key for next page
+        res.json({
+            items: enrichedUsers,
+            lastEvaluatedKey: usersData.LastEvaluatedKey 
+                ? encodeURIComponent(JSON.stringify(usersData.LastEvaluatedKey)) 
+                : null
         });
-
-        // 5. Sort by Join Date
-        enrichedUsers.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-
-        res.json(enrichedUsers);
 
     } catch (err) {
         console.error("Fetch Users Error:", err);
@@ -4488,6 +4596,85 @@ app.put('/api/coordinator/update-onsite-reg', async (req, res) => {
     }
 });
 
+app.get('/api/admin/qr-registry', isAuthenticated('admin'), async (req, res) => {
+    try {
+        // Fetch only COMPLETED (Paid) registrations
+        const params = {
+            TableName: 'Lakshya_Registrations',
+            FilterExpression: 'paymentStatus = :status',
+            ExpressionAttributeValues: {
+                ':status': 'COMPLETED'
+            }
+        };
+
+        const data = await docClient.send(new ScanCommand(params));
+        
+        // Return list to frontend
+        res.json(data.Items || []);
+    } catch (err) {
+        console.error("QR Registry Error:", err);
+        res.status(500).json({ error: "Failed to fetch QR registry" });
+    }
+});
+
+app.get('/api/admin/search-user', isAuthenticated('admin'), async (req, res) => {
+    const { query } = req.query;
+    if (!query) return res.json([]);
+    
+    const term = query.toLowerCase().trim();
+
+    try {
+        // A. Fetch Event Map
+        const eventsData = await docClient.send(new ScanCommand({ 
+            TableName: 'Lakshya_Events', ProjectionExpression: 'eventId, title' 
+        }));
+        const eventMap = {};
+        (eventsData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
+
+        let foundUsers = [];
+
+        // STRATEGY 1: Check if it's an Email (Direct Key Lookup - Fastest)
+        if (term.includes('@')) {
+            const getRes = await docClient.send(new GetCommand({
+                TableName: 'Lakshya_Users', Key: { email: term }
+            }));
+            if (getRes.Item) foundUsers.push(getRes.Item);
+        } 
+        // STRATEGY 2: If not email, Scan by RollNo or Name
+        else {
+            const scanRes = await docClient.send(new ScanCommand({
+                TableName: 'Lakshya_Users',
+                FilterExpression: 'contains(rollNo, :q) OR contains(fullName, :q)',
+                ExpressionAttributeValues: { ':q': term.toUpperCase() } // RollNos are usually uppercase
+            }));
+            foundUsers = scanRes.Items || [];
+        }
+
+        // Enrich the found users
+        const enrichedResults = await Promise.all(foundUsers.map(async (user) => {
+            const { password, ...safeData } = user;
+            const regRes = await docClient.send(new QueryCommand({
+                TableName: 'Lakshya_Registrations',
+                IndexName: 'StudentIndex',
+                KeyConditionExpression: 'studentEmail = :email',
+                ExpressionAttributeValues: { ':email': user.email },
+                ProjectionExpression: 'eventId'
+            }));
+            const userRegs = regRes.Items || [];
+            return {
+                ...safeData,
+                regCount: userRegs.length,
+                regEvents: userRegs.map(r => eventMap[r.eventId] || r.eventId)
+            };
+        }));
+
+        res.json(enrichedResults);
+
+    } catch (err) {
+        console.error("Search Error:", err);
+        res.status(500).json({ error: 'Search failed' });
+    }
+});
 
 
 
