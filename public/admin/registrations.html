@@ -31,10 +31,8 @@
             color: var(--text-color); 
             display: flex; min-height: 100vh; 
             overflow-x: hidden; 
-            -webkit-font-smoothing: antialiased; 
         }
 
-        /* Background Layers */
         .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center/cover; z-index: -2; opacity: 0.4; }
         .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,15,0.9); z-index: -1; }
 
@@ -88,11 +86,11 @@
             font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; 
             transition: 0.3s; font-size: 0.9rem;
         }
+        .btn-action { background: #333; border: 1px solid #444; }
+        .btn-action:hover { background: #444; }
+        
         .btn-excel { background: rgba(31, 111, 74, 0.6); border: 1px solid #2e8b57; color: white; } 
         .btn-excel:hover { background: #2e8b57; transform: translateY(-2px); }
-        
-        .btn-pdf { background: rgba(211, 47, 47, 0.6); border: 1px solid #b71c1c; color: white; } 
-        .btn-pdf:hover { background: #b71c1c; transform: translateY(-2px); }
 
         /* --- TABLE --- */
         .table-wrapper { 
@@ -108,12 +106,26 @@
         td { color: #ddd; font-size: 0.95rem; }
         tbody tr:hover { background: rgba(255,255,255,0.02); }
 
+        /* Footer Row */
+        tfoot tr { background: rgba(0, 210, 255, 0.05); border-top: 2px solid var(--border-color); }
+        tfoot td { font-size: 1rem; }
+
         .click-link { color: var(--primary-color); cursor: pointer; text-decoration: underline; font-weight: 500; transition: 0.2s; }
         .click-link:hover { color: white; text-shadow: 0 0 10px var(--primary-color); }
         
         .badge { padding: 5px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
         .badge-paid { background: rgba(76, 175, 80, 0.15); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); }
         .badge-pending { background: rgba(255, 193, 7, 0.15); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3); }
+
+        /* --- LOAD MORE --- */
+        .load-more-container { text-align: center; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .btn-load-more { 
+            background: var(--secondary-color); color: white; padding: 12px 30px; 
+            border: none; border-radius: 30px; cursor: pointer; font-weight: bold; 
+            display: none; transition: 0.3s;
+        }
+        .btn-load-more:hover { filter: brightness(1.1); transform: scale(1.02); }
+        .loading-spinner { display: none; color: var(--primary-color); margin: 10px; }
 
         /* --- MODAL --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
@@ -173,25 +185,29 @@
     <main class="main">
         <div class="header">
             <h2>All Registrations</h2>
-            <div class="user-info">Admin Panel <i class="fa-solid fa-circle-user"></i></div>
+            <div class="user-info">
+                <span id="regCountLabel" style="color: var(--primary-color); font-weight: bold; margin-right: 15px;">0 Loaded</span>
+                Admin Panel <i class="fa-solid fa-circle-user" style="margin-left: 5px;"></i>
+            </div>
         </div>
 
         <div class="controls-bar">
-            <select id="deptSelect" onchange="filterData()">
+            <!-- Filter by Dept (Client side for current batch) -->
+            <select id="deptSelect" onchange="applyClientFilters()">
                 <option value="all">All Departments</option>
-                <!-- JS will populate -->
             </select>
 
-            <select id="eventSelect" onchange="filterData()">
+            <select id="eventSelect" onchange="applyClientFilters()">
                 <option value="all">All Events</option>
-                <!-- JS will populate -->
             </select>
             
-            <input type="text" id="searchInput" placeholder="Search Team, Name, Roll No, Email..." onkeyup="filterData()">
+            <div style="flex-grow:1; display:flex; gap:10px;">
+                <input type="text" id="searchInput" placeholder="Search Reg ID, Email, Team Name (Enter)..." onkeydown="handleSearch(event)">
+            </div>
             
             <div style="display:flex; gap:10px;">
-                <button class="btn btn-excel" onclick="exportExcel()"><i class="fa-solid fa-file-excel"></i> Excel</button>
-                <button class="btn btn-pdf" onclick="exportPDF()"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                <button class="btn btn-action" onclick="resetView()"><i class="fa-solid fa-rotate-right"></i> Reset</button>
+                <button class="btn btn-excel" onclick="exportExcel()"><i class="fa-solid fa-file-excel"></i> Export Loaded</button>
             </div>
         </div>
 
@@ -200,18 +216,30 @@
                 <table id="regTable">
                     <thead>
                         <tr>
+                            <th style="width: 50px;">S.No</th>
                             <th>Team / Participant</th>
                             <th>Roll No</th>
                             <th>Department</th>
                             <th>Event</th>
+                            <th>Amount</th>
                             <th>Status</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <tr><td colspan="6" style="text-align:center; padding:30px;">Loading...</td></tr>
+                        <!-- Rows injected here -->
                     </tbody>
+                    <tfoot id="tableFooter">
+                        <!-- Total row injected here -->
+                    </tfoot>
                 </table>
+            </div>
+            
+            <!-- Load More Controls -->
+            <div class="load-more-container">
+                <div id="loading" class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>
+                <button id="loadMoreBtn" class="btn-load-more" onclick="fetchRegistrations()">Load More Records</button>
+                <div id="emptyState" style="display:none; color:#666;">No registrations found.</div>
             </div>
         </div>
     </main>
@@ -226,19 +254,26 @@
     </div>
 
     <script>
-        let allRegistrations = [];
-        let filteredData = [];
+        // --- PAGINATION STATE ---
+        let loadedRegistrations = []; // Master list of what we've fetched so far
+        let lastEvaluatedKey = null; // Key for next page
+        let isLoading = false;
+        let isSearchMode = false;
+        
+        // Lookup Maps
         let eventsMap = {};
-        let userDetailsMap = {};
+        let userDetailsMap = {}; // Stores user details for emails we've seen
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
             document.getElementById('sidebarOverlay').classList.toggle('active');
         }
 
+        document.addEventListener('DOMContentLoaded', init);
+
         async function init() {
             try {
-                // 1. Fetch Events
+                // 1. Fetch Events (for titles)
                 const eventsRes = await fetch('/api/events');
                 const eventsData = await eventsRes.json();
                 const eventSelect = document.getElementById('eventSelect');
@@ -262,105 +297,282 @@
                     deptSelect.appendChild(opt);
                 });
 
-                // 3. Fetch All Registrations
-                const res = await fetch('/api/admin/all-registrations');
-                allRegistrations = await res.json();
-                
-                // 4. Bulk Fetch User Details
-                await bulkFetchUserDetails(allRegistrations);
-
-                filteredData = allRegistrations;
-                renderTable(filteredData);
+                // 3. Initial Load of Registrations
+                fetchRegistrations(true);
 
             } catch (e) { console.error(e); }
         }
 
-        // --- BULK FETCH (ADMIN) ---
-        async function bulkFetchUserDetails(registrations) {
-            let emails = [];
-            registrations.forEach(r => {
-                if(r.studentEmail) emails.push(r.studentEmail);
-                if(r.teamMembers) r.teamMembers.forEach(m => { if(m.email) emails.push(m.email); });
-            });
-            
-            const unique = [...new Set(emails)];
-            if(unique.length === 0) return;
+        // --- FETCH REGISTRATIONS (PAGINATED) ---
+        async function fetchRegistrations(isReset = false) {
+            if (isLoading) return;
+            isLoading = true;
+            toggleLoading(true);
+
+            if (isReset) {
+                loadedRegistrations = [];
+                lastEvaluatedKey = null;
+                isSearchMode = false;
+                document.getElementById('tableBody').innerHTML = '';
+            }
 
             try {
+                let url = `/api/admin/all-registrations?limit=50`;
+                if (lastEvaluatedKey && !isReset) {
+                    url += `&lastKey=${lastEvaluatedKey}`;
+                }
+
+                const res = await fetch(url);
+                if (res.redirected) { window.location.href = '../login'; return; }
+                if (!res.ok) throw new Error("Failed to fetch");
+
+                const data = await res.json();
+                
+                // FIXED: Handle both Array (Old Backend) and Object (New Backend) responses
+                // This ensures data shows up even if the backend update isn't active yet.
+                let newItems = [];
+                if (Array.isArray(data)) {
+                    // Old Backend response (just an array of items)
+                    newItems = data;
+                    lastEvaluatedKey = null; 
+                } else {
+                    // New Backend response (object with items and pagination key)
+                    newItems = data.items || [];
+                    lastEvaluatedKey = data.lastEvaluatedKey;
+                }
+
+                // 4. Batch Fetch User Details for NEW items only
+                await bulkFetchUserDetails(newItems);
+
+                loadedRegistrations = [...loadedRegistrations, ...newItems];
+
+                // Render only the new items if not reset, else full render
+                if(isReset) renderTable(loadedRegistrations);
+                else renderTable(newItems, true); // true = append
+                
+                updateUIState();
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#ff4444;">Error loading data. Please check console logs.</td></tr>`;
+            } finally {
+                isLoading = false;
+                toggleLoading(false);
+            }
+        }
+
+        // --- SEARCH (SERVER-SIDE) ---
+        async function handleSearch(event) {
+            if (event.key === 'Enter') {
+                const query = document.getElementById('searchInput').value.trim();
+                
+                if (!query) return resetView();
+
+                isLoading = true;
+                toggleLoading(true);
+                isSearchMode = true;
+                
+                document.getElementById('tableBody').innerHTML = '';
+                loadedRegistrations = [];
+
+                try {
+                    const res = await fetch(`/api/admin/search-registrations?query=${encodeURIComponent(query)}`);
+                    const results = await res.json();
+                    
+                    // Fetch details for results
+                    await bulkFetchUserDetails(results);
+                    
+                    loadedRegistrations = results;
+                    renderTable(results);
+                    
+                    updateUIState();
+                    
+                    if(results.length === 0) {
+                        document.getElementById('emptyState').style.display = 'block';
+                    } else {
+                        document.getElementById('emptyState').style.display = 'none';
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Search failed.");
+                } finally {
+                    isLoading = false;
+                    toggleLoading(false);
+                }
+            }
+        }
+
+        function resetView() {
+            document.getElementById('searchInput').value = '';
+            fetchRegistrations(true);
+        }
+
+        // --- BULK FETCH USER DETAILS ---
+        // Fetches details from Users table for a batch of registrations
+        async function bulkFetchUserDetails(registrations) {
+            if(registrations.length === 0) return;
+
+            // Collect unique emails that we haven't fetched yet
+            let emailsToFetch = new Set();
+            
+            registrations.forEach(r => {
+                if(r.studentEmail && !userDetailsMap[r.studentEmail]) {
+                    emailsToFetch.add(r.studentEmail);
+                }
+                if(r.teamMembers) {
+                    r.teamMembers.forEach(m => { 
+                        if(m.email && !userDetailsMap[m.email]) emailsToFetch.add(m.email); 
+                    });
+                }
+            });
+
+            if(emailsToFetch.size === 0) return;
+
+            try {
+                // Use existing bulk export endpoint
                 const res = await fetch('/api/admin/export-data', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ emails: unique })
+                    body: JSON.stringify({ emails: Array.from(emailsToFetch) })
                 });
-                userDetailsMap = await res.json();
+                const newDetails = await res.json();
+                
+                // Merge into master map
+                userDetailsMap = { ...userDetailsMap, ...newDetails };
             } catch(e) { console.error("Details Fetch Error:", e); }
         }
 
-        // --- RENDER TABLE ---
-        function renderTable(data) {
+        // --- RENDER ---
+        // isAppend: if true, adds rows to existing table. If false, clears table first.
+        function renderTable(data, isAppend = false) {
             const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-            if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px;">No records found.</td></tr>'; return; }
+            
+            if(!isAppend) {
+                tbody.innerHTML = '';
+            }
 
-            data.forEach(reg => {
+            data.forEach((reg, index) => {
+                // Global Index Logic: if appending, start from existing count + 1
+                const displayIndex = isAppend ? (document.querySelectorAll('#tableBody tr').length + 1) : (index + 1);
+
                 const eventName = eventsMap[reg.eventId] || reg.eventId;
                 const user = userDetailsMap[reg.studentEmail] || {};
                 const badgeClass = reg.paymentStatus === 'COMPLETED' ? 'badge-paid' : 'badge-pending';
                 
+                // Smart Name Display
                 let displayName = reg.teamName ? reg.teamName : (user.fullName || reg.studentEmail);
                 let subText = reg.teamName ? "Team Lead: " + (user.fullName || "N/A") : "Individual";
                 let icon = reg.teamName ? '<i class="fa-solid fa-users"></i>' : '<i class="fa-solid fa-user"></i>';
                 let displayColor = reg.teamName ? 'var(--accent-color)' : 'white';
 
-                tbody.innerHTML += `
-                    <tr>
+                const amt = parseFloat(reg.amountPaid) || 0;
+                const amountStr = amt ? `₹${amt}` : '₹0';
+
+                // NOTE: 'deptName' on reg object is preferred (snapshot at time of reg), fallback to user profile dept
+                const deptDisplay = reg.deptName || user.dept || '-';
+
+                // Hidden data attributes for client-side filtering of the CURRENT batch
+                const row = `
+                    <tr class="reg-row" data-dept="${deptDisplay}" data-event="${reg.eventId}">
+                        <td>${displayIndex}</td>
                         <td>
                             <span style="color:${displayColor}; font-weight:600;">${icon} &nbsp; ${displayName}</span><br>
                             <small style="color:#888; margin-left:25px;">${subText}</small>
                         </td>
                         <td>${user.rollNo || '-'}</td>
-                        <td>${reg.deptName || user.dept || '-'}</td>
+                        <td>${deptDisplay}</td>
                         <td>${eventName}</td>
+                        <td style="color: #4caf50; font-weight: bold;">${amountStr}</td>
                         <td><span class="badge ${badgeClass}">${reg.paymentStatus}</span></td>
                         <td><span class="click-link" onclick="viewDetails('${reg.registrationId}')">View Details</span></td>
                     </tr>
                 `;
+                tbody.insertAdjacentHTML('beforeend', row);
             });
+            
+            updateTotal();
         }
 
-        // --- FILTERING ---
-        function filterData() {
+        // --- CLIENT SIDE FILTERING (For Loaded Data) ---
+        function applyClientFilters() {
             const dept = document.getElementById('deptSelect').value;
             const event = document.getElementById('eventSelect').value;
-            const term = document.getElementById('searchInput').value.toLowerCase();
-
-            filteredData = allRegistrations.filter(reg => {
-                const user = userDetailsMap[reg.studentEmail] || {};
-                const regDept = reg.deptName || user.dept || 'General';
-
-                const matchDept = (dept === 'all') || (regDept === dept);
-                const matchEvent = (event === 'all') || (reg.eventId === event);
+            
+            const rows = document.querySelectorAll('.reg-row');
+            rows.forEach(row => {
+                const rDept = row.getAttribute('data-dept');
+                const rEvent = row.getAttribute('data-event');
                 
-                const eventName = (eventsMap[reg.eventId] || '').toLowerCase();
-                const team = (reg.teamName || '').toLowerCase();
-                const pName = (user.fullName || '').toLowerCase();
-                const rollNo = (user.rollNo || '').toLowerCase();
+                const matchDept = (dept === 'all') || (rDept === dept);
+                const matchEvent = (event === 'all') || (rEvent === event);
+                
+                if (matchDept && matchEvent) row.style.display = '';
+                else row.style.display = 'none';
+            });
+            updateTotal();
+        }
 
-                const matchSearch = reg.studentEmail.toLowerCase().includes(term) || 
-                                    team.includes(term) || 
-                                    eventName.includes(term) || 
-                                    pName.includes(term) || 
-                                    rollNo.includes(term);
+        function updateTotal() {
+            let total = 0;
+            // Iterate visible rows only? Or all loaded?
+            // Usually totals reflect what is on screen or loaded. Let's do all visible.
+            // But 'amount' isn't stored in DOM easily. Let's calc from loadedRegistrations + Filter check
+            
+            const dept = document.getElementById('deptSelect').value;
+            const event = document.getElementById('eventSelect').value;
 
-                return matchDept && matchEvent && matchSearch;
+            // Recalculate based on loaded data + filters
+            const visible = loadedRegistrations.filter(r => {
+                const user = userDetailsMap[r.studentEmail] || {};
+                const rDept = r.deptName || user.dept || '-';
+                return (dept === 'all' || rDept === dept) && (event === 'all' || r.eventId === event);
             });
 
-            renderTable(filteredData);
+            visible.forEach(r => total += (parseFloat(r.amountPaid) || 0));
+
+            const tfoot = document.getElementById('tableFooter');
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align:right; color:var(--primary-color); font-weight:700; padding-right:20px;">
+                        TOTAL REVENUE (Loaded):
+                    </td>
+                    <td style="color:#4caf50; font-weight:700; font-size:1.1rem;">
+                        ₹${total.toLocaleString('en-IN')}
+                    </td>
+                    <td colspan="2"></td>
+                </tr>
+            `;
+        }
+
+        // --- UI HELPERS ---
+        function updateUIState() {
+            const btn = document.getElementById('loadMoreBtn');
+            const empty = document.getElementById('emptyState');
+            const label = document.getElementById('regCountLabel');
+
+            label.innerText = `${loadedRegistrations.length} Loaded`;
+
+            if (loadedRegistrations.length === 0) {
+                empty.style.display = 'block';
+                btn.style.display = 'none';
+            } else {
+                empty.style.display = 'none';
+                if (lastEvaluatedKey && !isSearchMode) {
+                    btn.style.display = 'inline-block';
+                } else {
+                    btn.style.display = 'none';
+                }
+            }
+        }
+
+        function toggleLoading(show) {
+            document.getElementById('loading').style.display = show ? 'inline-block' : 'none';
         }
 
         // --- DETAILS MODAL ---
         async function viewDetails(regId) {
-            const reg = allRegistrations.find(r => r.registrationId === regId);
+            const reg = loadedRegistrations.find(r => r.registrationId === regId);
             if(!reg) return;
 
             const user = userDetailsMap[reg.studentEmail] || {};
@@ -372,11 +584,18 @@
             
             let mainTitle = reg.teamName ? `Team: ${reg.teamName}` : `Participant: ${user.fullName}`;
             title.innerText = mainTitle;
+            
+            const amount = reg.amountPaid ? `₹${reg.amountPaid}` : '₹0';
 
             let html = `
                 <div style="display:flex; justify-content:space-between; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px; margin-bottom:15px;">
                     <span>Event: <strong style="color:var(--primary-color)">${eventsMap[reg.eventId]}</strong></span>
                     <span>Status: <strong>${reg.paymentStatus}</strong></span>
+                </div>
+                
+                 <div style="display:flex; justify-content:space-between; padding:10px; background:rgba(76, 175, 80, 0.1); border-left: 4px solid #4caf50; border-radius:4px; margin-bottom:15px;">
+                    <span>Amount Paid:</span>
+                    <strong style="color:#4caf50; font-size:1.1rem;">${amount}</strong>
                 </div>
 
                 <h4 class="detail-section-title">1. Team Lead Details</h4>
@@ -427,28 +646,33 @@
 
         function closeModal() { document.getElementById('detailModal').style.display = 'none'; }
 
-        // --- EXPORTS ---
+        // --- EXPORT (Exports currently loaded data) ---
         async function exportExcel() {
-            if(filteredData.length === 0) return alert("No data");
+            if(loadedRegistrations.length === 0) return alert("No data to export");
             
-            const data = filteredData.map(reg => {
+            let grandTotal = 0;
+
+            const data = loadedRegistrations.map((reg, index) => {
                 const user = userDetailsMap[reg.studentEmail] || {};
                 const finalTeamName = reg.teamName ? reg.teamName : (user.fullName || "Individual");
+                
+                const amt = parseFloat(reg.amountPaid) || 0;
+                grandTotal += amt;
 
-                let membersStr = "";
+                let membersStr = "None";
                 if (reg.teamMembers && reg.teamMembers.length > 0) {
                     membersStr = reg.teamMembers.map(m => {
                         const mDetails = userDetailsMap[m.email] || {};
                         const mRoll = mDetails.rollNo || m.rollNo || '-';
                         return `Name: ${m.name}, Mob: ${m.mobile}, Email: ${m.email}, Roll: ${mRoll}`;
                     }).join("\n");
-                } else {
-                    membersStr = "None";
                 }
 
                 return {
+                    "S.No": index + 1,
                     "Team / Participant Name": finalTeamName,
                     "Event Name": eventsMap[reg.eventId] || reg.eventId,
+                    "Amount Paid": amt,
                     "Lead Name": user.fullName || "N/A",
                     "Lead Email": reg.studentEmail,
                     "Lead Mobile": user.mobile || "N/A",
@@ -459,63 +683,26 @@
                     "Status": reg.paymentStatus
                 };
             });
+            
+            // Total Row
+            data.push({
+                "S.No": "TOTAL",
+                "Team / Participant Name": "TOTAL REVENUE",
+                "Event Name": "",
+                "Amount Paid": grandTotal,
+                "Lead Name": "", "Lead Email": "", "Lead Mobile": "", "Lead Roll No": "", "Team Members Details": "", "Department": "", "College": "", "Status": ""
+            });
 
             const ws = XLSX.utils.json_to_sheet(data);
             if(!ws['!cols']) ws['!cols'] = [];
-            ws['!cols'][6] = { wch: 60 }; 
+            ws['!cols'][8] = { wch: 60 }; 
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Admin_Data");
             XLSX.writeFile(wb, `Admin_Registrations.xlsx`);
         }
 
-        async function exportPDF() {
-            if(filteredData.length === 0) return alert("No data");
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('l', 'mm', 'a3'); // Landscape A3
-
-            doc.setFontSize(16);
-            doc.text(`Admin Registration List`, 14, 20);
-            
-            const tableData = filteredData.map(reg => {
-                const user = userDetailsMap[reg.studentEmail] || {};
-                const finalTeamName = reg.teamName ? reg.teamName : (user.fullName || "Individual");
-
-                let membersStr = "";
-                if (reg.teamMembers && reg.teamMembers.length > 0) {
-                    membersStr = reg.teamMembers.map(m => {
-                        const mDetails = userDetailsMap[m.email] || {};
-                        const mRoll = mDetails.rollNo || m.rollNo || '-';
-                        return `${m.name} (${mRoll})`;
-                    }).join(", ");
-                }
-
-                return [
-                    finalTeamName,
-                    eventsMap[reg.eventId] || reg.eventId,
-                    user.fullName || "-",
-                    reg.studentEmail,
-                    user.mobile || "-",
-                    user.rollNo || "-",
-                    membersStr,
-                    user.dept || "-",
-                    user.college || "-"
-                ];
-            });
-
-            doc.autoTable({
-                head: [['Team/Name', 'Event', 'Lead Name', 'Lead Email', 'Mobile', 'Roll', 'Members (Roll)', 'Dept', 'College']],
-                body: tableData,
-                startY: 30,
-                styles: { fontSize: 9, overflow: 'linebreak' },
-                columnStyles: { 6: { cellWidth: 80 } }
-            });
-
-            doc.save(`Admin_Registrations.pdf`);
-        }
-
         function logout() { localStorage.clear(); window.location.href = '../login'; }
-        init();
     </script>
 </body>
 </html>
