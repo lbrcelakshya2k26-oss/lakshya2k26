@@ -116,7 +116,7 @@ const s3Client = new S3Client({
 
 // SES Setup
 const sesClient = new SESv2Client({
-    region: process.env.AWS_REGION || 'ap-south-1',
+    region: 'ap-south-1',
     credentials: {
         accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID || 'AKIAS2VS4CZ2Q4RQV4WX',
         secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY || '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'
