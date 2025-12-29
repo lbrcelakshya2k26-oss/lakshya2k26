@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wristband QR Generator | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        :root { --primary: #00d2ff; --bg: #050510; --card: #151520; --text: #ffffff; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+
+        .no-print h1 { font-family: 'Montserrat'; font-weight: 900; color: var(--primary); margin: 0 0 20px 0; }
+        .controls { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 30px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; border: 1px solid rgba(255,255,255,0.1); }
+        select { padding: 12px; border-radius: 6px; background: #222; color: white; border: 1px solid #444; cursor: pointer; min-width: 200px; }
+        .btn-download { background: var(--primary); color: #000; font-weight: bold; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-download:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 210, 255, 0.4); }
+
+        /* Layout */
+        .dept-section { margin-bottom: 60px; page-break-after: always; }
+        .dept-header { background: #eee; color: #000; padding: 10px 20px; font-family: 'Montserrat'; font-weight: 900; font-size: 1.5rem; border-left: 10px solid var(--primary); margin-bottom: 20px; text-transform: uppercase; }
+        .event-section { margin-bottom: 30px; padding-left: 10px; }
+        .event-title { font-size: 1.1rem; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; font-weight: bold; }
+        
+        /* Compact Grid */
+        .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+
+        .qr-card {
+            background: white; color: black; padding: 8px; border-radius: 6px;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            border: 1px solid #eee; position: relative;
+            page-break-inside: avoid; break-inside: avoid;
+        }
+        
+        .serial-badge {
+            font-size: 0.8rem; font-weight: 900; letter-spacing: 1px;
+            background: #000; color: #fff; padding: 3px 8px; border-radius: 4px;
+            margin-bottom: 3px; font-family: 'Montserrat', sans-serif;
+        }
+
+        .role-badge {
+            font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+            color: #555; background: #f0f0f0; padding: 2px 6px; border-radius: 10px;
+            margin-bottom: 4px; letter-spacing: 0.5px;
+        }
+        
+        .qr-code-img { margin: 4px 0; }
+        .qr-code-img img { display: block; }
+        .participant-name { font-weight: 700; font-size: 0.75rem; line-height: 1.1; margin-bottom: 2px; }
+        .event-label { font-size: 0.55rem; color: #444; margin-top: 4px; border-top: 1px solid #eee; width: 100%; padding-top: 2px; }
+
+        /* PDF Styles */
+        .pdf-mode { background-color: white !important; color: black !important; padding: 20px !important; }
+        .pdf-mode .dept-header { background: #f0f0f0 !important; color: black !important; border-left-color: #00d2ff !important; }
+        .pdf-mode .qr-card { border: 1px solid #ddd !important; background: white !important; color: black !important; box-shadow: none !important; }
+        .pdf-mode .serial-badge { color: white !important; background: black !important; }
+    </style>
+</head>
+<body>
+
+    <div class="no-print">
+        <h1><i class="fa-solid fa-qrcode"></i> Wristband QR Generator</h1>
+        <div class="controls">
+            <div>
+                <label style="display:block; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Filter Department</label>
+                <select id="deptFilter" onchange="renderQRData()">
+                    <option value="all">All Departments</option>
+                </select>
+            </div>
+            
+            <button class="btn-download" onclick="downloadPDF()">
+                <i class="fa-solid fa-file-pdf"></i> Download PDF
+            </button>
+            
+            <div style="margin-left:auto; text-align:right;">
+                <div id="totalCount" style="font-size:1.2rem; font-weight:bold; color:var(--primary);">0</div>
+                <div style="font-size:0.8rem; color:#aaa;">Wristbands to Generate</div>
+            </div>
+        </div>
+        <p id="loading">Loading registration data...</p>
+    </div>
+
+    <div id="qrContainer"></div>
+
+    <script>
+        let allRegistrations = [];
+        let eventsMap = {};
+        let userMap = {};
+
+        // --- UPDATED DEPARTMENT LOGIC ---
+        // Priority List: Checks specific matches (CSM/AI&DS) before general matches (CSE)
+        const DEPT_PRIORITY_LIST = [
+            { keys: ["CSM", "MACHINE LEARNING", "42"], code: "42" },
+            { keys: ["AI&DS", "ARTIFICIAL INTELLIGENCE", "54"], code: "54" },
+            { keys: ["ASE", "AEROSPACE", "56"], code: "56" },
+            { keys: ["CSE", "COMPUTER SCIENCE", "05"], code: "05" },
+            { keys: ["ECE", "ELECTRONICS AND COMMUNICATION", "50"], code: "50" },
+            { keys: ["EEE", "ELECTRICAL AND ELECTRONICS", "02"], code: "02" },
+            { keys: ["CE", "CIVIL", "01"], code: "01" },
+            { keys: ["IT", "INFORMATION TECHNOLOGY", "12"], code: "12" },
+            { keys: ["ME", "MECHANICAL", "03"], code: "03" },
+            { keys: ["MBA", "BUSINESS", "00"], code: "00" }
+        ];
+
+        function getDeptCode(deptName) {
+            if(!deptName) return "99";
+            const upper = deptName.toUpperCase().trim();
+
+            // 1. Check for Short Code in Parentheses first (e.g. "Computer Science (CSE)")
+            const parenMatch = upper.match(/\(([A-Z&]+)\)/);
+            if (parenMatch && parenMatch[1]) {
+                const shortCode = parenMatch[1];
+                for (const item of DEPT_PRIORITY_LIST) {
+                    if (item.keys.includes(shortCode)) return item.code;
+                }
+            }
+
+            // 2. Iterate Priority List
+            for (const item of DEPT_PRIORITY_LIST) {
+                // Check if any key is contained in the string
+                for (const key of item.keys) {
+                    if (upper.includes(key)) return item.code;
+                }
+            }
+            
+            return "99"; // Default / Other
+        }
+
+        async function init() {
+            try {
+                const [evRes, deptRes, regRes] = await Promise.all([
+                    fetch('/api/events'),
+                    fetch('/api/admin/departments'),
+                    fetch('/api/admin/qr-registry')
+                ]);
+
+                const events = await evRes.json();
+                events.forEach(e => eventsMap[e.eventId] = e.title);
+
+                const depts = await deptRes.json();
+                const filter = document.getElementById('deptFilter');
+                depts.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.name; opt.innerText = d.name;
+                    filter.appendChild(opt);
+                });
+
+                allRegistrations = await regRes.json();
+                await fetchUserNames();
+                document.getElementById('loading').style.display = 'none';
+                renderQRData();
+
+            } catch (e) { console.error(e); }
+        }
+
+        async function fetchUserNames() {
+            const emails = new Set();
+            allRegistrations.forEach(r => {
+                if(r.studentEmail) emails.add(r.studentEmail);
+                if(r.teamMembers) r.teamMembers.forEach(m => { if(m.email) emails.add(m.email); });
+            });
+            if(emails.size === 0) return;
+            const res = await fetch('/api/admin/export-data', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emails: [...emails] })
+            });
+            userMap = await res.json();
+        }
+
+        function renderQRData() {
+            const container = document.getElementById('qrContainer');
+            const selectedDept = document.getElementById('deptFilter').value;
+            container.innerHTML = '';
+
+            const grouped = {};
+            const deptCounters = {}; 
+            
+            // Sort by Date to ensure ID is deterministic
+            allRegistrations.sort((a,b) => new Date(a.registeredAt) - new Date(b.registeredAt));
+
+            let totalQRs = 0;
+            // Base URL for the scanner to open
+            const baseUrl = window.location.origin + '/verify-ticket?id=';
+
+            allRegistrations.forEach(reg => {
+                const dept = reg.deptName || "General";
+                if(selectedDept !== 'all' && dept !== selectedDept) return;
+                
+                const eventName = eventsMap[reg.eventId] || reg.eventId;
+                const deptCode = getDeptCode(dept);
+                
+                if(!deptCounters[deptCode]) deptCounters[deptCode] = 0;
+                if(!grouped[dept]) grouped[dept] = {};
+                if(!grouped[dept][eventName]) grouped[dept][eventName] = [];
+
+                let leadName = userMap[reg.studentEmail]?.fullName || reg.studentEmail;
+                
+                // LEAD
+                deptCounters[deptCode]++;
+                const leadSerial = `${deptCode}00${deptCounters[deptCode].toString().padStart(3, '0')}`;
+                
+                grouped[dept][eventName].push({
+                    name: leadName,
+                    serial: leadSerial,
+                    qrData: baseUrl + reg.registrationId,
+                    role: "Lead"
+                });
+                totalQRs++;
+
+                // MEMBERS
+                if(reg.teamMembers && Array.isArray(reg.teamMembers)) {
+                    reg.teamMembers.forEach(m => {
+                        let mName = m.name || (m.email && userMap[m.email]?.fullName) || "Member";
+                        deptCounters[deptCode]++;
+                        const mSerial = `${deptCode}00${deptCounters[deptCode].toString().padStart(3, '0')}`;
+                        
+                        grouped[dept][eventName].push({
+                            name: mName,
+                            serial: mSerial,
+                            qrData: baseUrl + reg.registrationId,
+                            role: "Member"
+                        });
+                        totalQRs++;
+                    });
+                }
+            });
+
+            document.getElementById('totalCount').innerText = totalQRs;
+
+            Object.keys(grouped).sort().forEach(dept => {
+                const deptDiv = document.createElement('div');
+                deptDiv.className = 'dept-section';
+                const dCode = getDeptCode(dept);
+                deptDiv.innerHTML = `<div class="dept-header">${dept} <span style="float:right; opacity:0.6;">Code: ${dCode}</span></div>`;
+
+                Object.keys(grouped[dept]).forEach(evt => {
+                    const eventDiv = document.createElement('div');
+                    eventDiv.className = 'event-section';
+                    eventDiv.innerHTML = `<div class="event-title">${evt} (${grouped[dept][evt].length})</div>`;
+                    
+                    const grid = document.createElement('div');
+                    grid.className = 'qr-grid';
+
+                    grouped[dept][evt].forEach(p => {
+                        const card = document.createElement('div');
+                        card.className = 'qr-card';
+                        const qrDivId = 'qr-' + Math.random().toString(36).substr(2, 9);
+                        
+                        card.innerHTML = `
+                            <div class="serial-badge">${p.serial}</div>
+                            <div class="role-badge">${p.role}</div>
+                            <div id="${qrDivId}" class="qr-code-img"></div>
+                            <div class="participant-name">${p.name}</div>
+                            <div class="event-label">${evt}</div>
+                        `;
+                        grid.appendChild(card);
+
+                        setTimeout(() => {
+                            new QRCode(document.getElementById(qrDivId), {
+                                text: p.qrData, 
+                                width: 60, height: 60,
+                                colorDark : "#000000", colorLight : "#ffffff",
+                                correctLevel : QRCode.CorrectLevel.L
+                            });
+                        }, 0);
+                    });
+                    eventDiv.appendChild(grid);
+                    deptDiv.appendChild(eventDiv);
+                });
+                container.appendChild(deptDiv);
+            });
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('qrContainer');
+            element.classList.add('pdf-mode');
+            const btn = document.querySelector('.btn-download');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating PDF...';
+            
+            const opt = {
+                margin: [10, 10, 10, 10], 
+                filename: `LAKSHYA_Wristbands_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.classList.remove('pdf-mode');
+                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Download PDF';
+            });
+        }
+        init();
+    </script>
+</body>
+</html>
