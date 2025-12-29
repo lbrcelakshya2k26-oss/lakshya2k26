@@ -66,9 +66,8 @@
         }
         .search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #666; }
 
-        .filter-select {
-            padding: 12px; background: #151520; border: 1px solid #444; color: white; border-radius: 6px; cursor: pointer; min-width: 140px;
-        }
+        .btn-action { background: #333; color: white; padding: 10px 15px; border: 1px solid #444; border-radius: 6px; cursor: pointer; font-size: 0.9rem; margin-left: 10px;}
+        .btn-action:hover { background: #444; }
 
         .btn-export {
             background: #4caf50; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; margin-left: auto;
@@ -102,12 +101,21 @@
         .reg-list-tooltip {
             visibility: hidden; position: absolute; background: #000; color: #fff;
             padding: 10px; border-radius: 6px; border: 1px solid var(--primary-color);
-            width: 200px; z-index: 10; font-size: 0.8rem; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            width: 250px; z-index: 10; font-size: 0.8rem; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            bottom: 100%; left: 50%; transform: translateX(-50%);
         }
         .reg-cell:hover .reg-list-tooltip { visibility: visible; }
 
         /* Loading & Empty States */
-        .loading-state { padding: 40px; text-align: center; color: #aaa; }
+        .load-more-container { text-align: center; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .btn-load-more { 
+            background: var(--secondary-color); color: white; padding: 12px 30px; 
+            border: none; border-radius: 30px; cursor: pointer; font-weight: bold; 
+            display: none; transition: 0.3s;
+        }
+        .btn-load-more:hover { filter: brightness(1.1); transform: scale(1.02); }
+        
+        .loading-spinner { display: none; color: var(--primary-color); margin: 10px; }
         .empty-state { padding: 40px; text-align: center; color: #666; display: none; }
 
         /* --- RESPONSIVE --- */
@@ -138,7 +146,7 @@
         <div class="header">
             <h2>Active Users Directory</h2>
             <div class="header-actions">
-                <span id="userCount" style="color: var(--primary-color); font-weight: bold;">0 Users Found</span>
+                <span id="userCount" style="color: var(--primary-color); font-weight: bold;">Loading...</span>
             </div>
         </div>
 
@@ -146,30 +154,13 @@
         <div class="toolbar">
             <div class="search-box">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="searchInput" placeholder="Search by Name, Email, or Roll No..." onkeyup="filterUsers()">
+                <input type="text" id="searchInput" placeholder="Search Email, Name or Roll No (Enter to search)..." onkeydown="handleSearch(event)">
             </div>
             
-            <!-- Filters -->
-            <select id="roleFilter" class="filter-select" onchange="filterUsers()">
-                <option value="all">All Roles</option>
-                <option value="participant">Participant</option>
-                <option value="coordinator">Coordinator</option>
-                <option value="admin">Admin</option>
-            </select>
-
-            <select id="regStatusFilter" class="filter-select" onchange="filterUsers()">
-                <option value="all">Any Status</option>
-                <option value="registered">Registered (Has Events)</option>
-                <option value="not_registered">Not Registered (0 Events)</option>
-            </select>
-
-            <select id="collegeFilter" class="filter-select" onchange="filterUsers()">
-                <option value="all">All Colleges</option>
-                <!-- Dynamically populated -->
-            </select>
+            <button class="btn-action" onclick="resetView()"><i class="fa-solid fa-rotate-right"></i> Reset</button>
 
             <button class="btn-export" onclick="exportToExcel()">
-                <i class="fa-solid fa-file-excel"></i> Export Filtered
+                <i class="fa-solid fa-file-excel"></i> Export Current List
             </button>
         </div>
 
@@ -191,94 +182,137 @@
                 </tbody>
             </table>
             
-            <div id="loading" class="loading-state">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Loading users...
-            </div>
-            <div id="emptyState" class="empty-state">
-                <i class="fa-solid fa-user-slash" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
-                No users matching your criteria.
+            <div class="load-more-container">
+                <div id="loading" class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>
+                <button id="loadMoreBtn" class="btn-load-more" onclick="fetchUsers()">Load More Users</button>
+                <div id="emptyState" class="empty-state">
+                    <i class="fa-solid fa-user-slash" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
+                    No users found matching your criteria.
+                </div>
             </div>
         </div>
 
     </main>
 
     <script>
-        // Global variables to hold data
-        let allUsers = [];
-        let currentFilteredUsers = []; // Stores the currently visible dataset for export
+        // --- PAGINATION & STATE ---
+        let loadedUsers = []; // Stores the users currently displayed in the table
+        let lastEvaluatedKey = null; // Token for the next page from DynamoDB
+        let isLoading = false;
+        let isSearchMode = false; // Flag to disable load more during search
 
-        async function fetchUsers() {
+        // 1. Initial Load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchUsers(true);
+        });
+
+        // 2. Fetch Users (Paginated)
+        async function fetchUsers(isReset = false) {
+            if (isLoading) return;
+            isLoading = true;
+            toggleLoading(true);
+
+            if (isReset) {
+                loadedUsers = [];
+                lastEvaluatedKey = null;
+                document.getElementById('usersBody').innerHTML = '';
+                isSearchMode = false;
+                document.getElementById('emptyState').style.display = 'none';
+            }
+
             try {
-                // Fetch from Real Backend
-                const res = await fetch('/api/admin/all-users');
-                
-                // Handle Redirects (e.g. if session expired)
-                if (res.redirected) { 
-                    window.location.href = '../login'; 
-                    return; 
+                // Construct URL with pagination key
+                let url = `/api/admin/all-users?limit=50`;
+                if (lastEvaluatedKey && !isReset) {
+                    url += `&lastKey=${lastEvaluatedKey}`;
                 }
-                
+
+                const res = await fetch(url);
+                if (res.redirected) { window.location.href = '../login'; return; }
                 if (!res.ok) throw new Error("Failed to fetch");
 
-                allUsers = await res.json();
+                const data = await res.json();
                 
-                // Initialize filtered users with all users initially
-                currentFilteredUsers = [...allUsers];
+                // Add new items to our list
+                loadedUsers = [...loadedUsers, ...data.items];
+                lastEvaluatedKey = data.lastEvaluatedKey; // Save key for next batch
 
-                populateCollegeDropdown();
-                renderUsers(currentFilteredUsers);
-                
-                document.getElementById('loading').style.display = 'none';
+                renderTable(data.items);
+                updateUIState();
 
             } catch (error) {
                 console.error(error);
-                document.getElementById('loading').innerHTML = `<span style="color: #ff4444;">Error loading data. Please try again.</span>`;
+                alert("Error loading data. Please check console.");
+            } finally {
+                isLoading = false;
+                toggleLoading(false);
             }
         }
 
-        // --- NEW: Populate College Dropdown Dynamically ---
-        function populateCollegeDropdown() {
-            const collegeSelect = document.getElementById('collegeFilter');
-            
-            // Get unique colleges, filter out nulls/undefined, and sort
-            const uniqueColleges = [...new Set(allUsers.map(u => u.college).filter(c => c))].sort();
+        // 3. Search Users (Server-Side)
+        async function handleSearch(event) {
+            if (event.key === 'Enter') {
+                const query = document.getElementById('searchInput').value.trim();
+                
+                if (!query) return resetView();
 
-            uniqueColleges.forEach(college => {
-                const option = document.createElement('option');
-                option.value = college;
-                option.textContent = college;
-                collegeSelect.appendChild(option);
-            });
+                isLoading = true;
+                toggleLoading(true);
+                isSearchMode = true; // Disable normal pagination
+                
+                // Clear UI for results
+                document.getElementById('usersBody').innerHTML = '';
+                loadedUsers = []; // Reset list for export to only show search results
+
+                try {
+                    const res = await fetch(`/api/admin/search-user?query=${encodeURIComponent(query)}`);
+                    const results = await res.json();
+                    
+                    loadedUsers = results;
+                    renderTable(results);
+                    
+                    // Update Counts
+                    document.getElementById('userCount').innerText = `${results.length} Search Results`;
+                    
+                    // Hide Load More (Search doesn't paginate usually)
+                    document.getElementById('loadMoreBtn').style.display = 'none';
+                    
+                    if (results.length === 0) {
+                        document.getElementById('emptyState').style.display = 'block';
+                    } else {
+                        document.getElementById('emptyState').style.display = 'none';
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Search failed.");
+                } finally {
+                    isLoading = false;
+                    toggleLoading(false);
+                }
+            }
         }
 
-        function renderUsers(users) {
+        function resetView() {
+            document.getElementById('searchInput').value = '';
+            fetchUsers(true); // Reset to full list
+        }
+
+        // 4. Render Table Rows
+        function renderTable(users) {
             const tbody = document.getElementById('usersBody');
-            const emptyState = document.getElementById('emptyState');
-            const countLabel = document.getElementById('userCount');
-            
-            tbody.innerHTML = '';
-            countLabel.innerText = `${users.length} Users Found`;
-
-            if (users.length === 0) {
-                emptyState.style.display = 'block';
-                return;
-            } else {
-                emptyState.style.display = 'none';
-            }
 
             users.forEach(user => {
                 const initials = user.fullName ? user.fullName.charAt(0).toUpperCase() : '?';
                 const roleClass = user.role === 'admin' ? 'role-admin' : (user.role === 'coordinator' ? 'role-coord' : 'role-participant');
                 const dateJoined = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-';
                 
-                // Registration Data Logic
+                // Registration Logic
                 const regCount = user.regCount || 0;
-                const events = user.regEvents || [];
-                const eventsListStr = events.join('<br>'); // For tooltip
-                
-                // Handle Registration Cell
                 let regCellContent = '<span style="color:#666; font-size:0.85rem;">Not Registered</span>';
+                
                 if(regCount > 0) {
+                    const eventsListStr = (user.regEvents || []).join('<br>');
                     regCellContent = `
                         <div class="reg-cell" style="position:relative; display:inline-block;">
                             <span class="reg-badge">${regCount} Events</span>
@@ -314,54 +348,40 @@
                         <td style="color:#aaa;">${dateJoined}</td>
                     </tr>
                 `;
-                tbody.innerHTML += row;
+                tbody.insertAdjacentHTML('beforeend', row);
             });
         }
 
-        function filterUsers() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const roleFilter = document.getElementById('roleFilter').value;
-            const regStatusFilter = document.getElementById('regStatusFilter').value;
-            const collegeFilter = document.getElementById('collegeFilter').value;
+        function updateUIState() {
+            const btn = document.getElementById('loadMoreBtn');
+            const empty = document.getElementById('emptyState');
+            const countLabel = document.getElementById('userCount');
 
-            // Update the global filtered variable
-            currentFilteredUsers = allUsers.filter(user => {
-                // 1. Text Search
-                const matchesSearch = (
-                    (user.fullName || '').toLowerCase().includes(searchTerm) ||
-                    (user.email || '').toLowerCase().includes(searchTerm) ||
-                    (user.rollNo || '').toLowerCase().includes(searchTerm)
-                );
+            countLabel.innerText = `Showing ${loadedUsers.length} Users`;
+
+            if (loadedUsers.length === 0) {
+                empty.style.display = 'block';
+                btn.style.display = 'none';
+            } else {
+                empty.style.display = 'none';
                 
-                // 2. Role Filter
-                const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-
-                // 3. Registration Status Filter
-                // Registered: regCount > 0, Not Registered: regCount == 0 (or undefined)
-                let matchesRegStatus = true;
-                const userEventCount = user.regCount || 0;
-
-                if (regStatusFilter === 'registered') {
-                    matchesRegStatus = userEventCount > 0;
-                } else if (regStatusFilter === 'not_registered') {
-                    matchesRegStatus = userEventCount === 0;
+                // Only show Load More if DynamoDB returned a key AND we aren't in search mode
+                if (lastEvaluatedKey && lastEvaluatedKey !== 'null' && !isSearchMode) {
+                    btn.style.display = 'inline-block';
+                } else {
+                    btn.style.display = 'none';
                 }
+            }
+        }
 
-                // 4. College Filter
-                const matchesCollege = collegeFilter === 'all' || user.college === collegeFilter;
-
-                return matchesSearch && matchesRole && matchesRegStatus && matchesCollege;
-            });
-
-            renderUsers(currentFilteredUsers);
+        function toggleLoading(show) {
+            document.getElementById('loading').style.display = show ? 'inline-block' : 'none';
         }
 
         function exportToExcel() {
-            // Use currentFilteredUsers instead of allUsers
-            if (currentFilteredUsers.length === 0) return alert("No data matches the current filters to export.");
+            if (loadedUsers.length === 0) return alert("No data to export.");
 
-            // Prepare enriched data for export
-            const exportData = currentFilteredUsers.map(u => ({
+            const exportData = loadedUsers.map(u => ({
                 "Full Name": u.fullName,
                 "Email": u.email,
                 "Role": u.role,
@@ -378,7 +398,6 @@
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(exportData);
             
-            // Auto-width for columns
             const wscols = [
                 {wch: 20}, {wch: 30}, {wch: 10}, {wch: 15}, 
                 {wch: 15}, {wch: 25}, {wch: 10}, {wch: 10}, {wch: 15},
@@ -386,9 +405,7 @@
             ];
             ws['!cols'] = wscols;
 
-            XLSX.utils.book_append_sheet(wb, ws, "Filtered Users");
-            
-            // Generate a filename that might include filter hints
+            XLSX.utils.book_append_sheet(wb, ws, "Users Export");
             const fileName = `Lakshya_Users_Export_${new Date().toISOString().slice(0,10)}.xlsx`;
             XLSX.writeFile(wb, fileName);
         }
@@ -397,9 +414,6 @@
             localStorage.clear();
             window.location.href = '../login';
         }
-
-        // Initialize
-        fetchUsers();
     </script>
 </body>
 </html>
