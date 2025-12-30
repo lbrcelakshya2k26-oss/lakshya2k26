@@ -5032,10 +5032,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
 
-server.setTimeout(600000);
+// Prevent PM2 crash loops
 server.keepAliveTimeout = 61000;
 server.headersTimeout = 65000;
 
-
 module.exports = app;
+
 
