@@ -28,6 +28,15 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 
+process.on("unhandledRejection", (err) => {
+    console.error("Unhandled Rejection:", err);
+});
+
+process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception:", err);
+});
+
+
 // --- 1. CONFIGURATION ---
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
@@ -161,26 +170,33 @@ const checkKitEligibility = (category) => {
 
 // Send Email via SES (Updated Logic)
 async function sendEmail(to, subject, htmlContent) {
-    const toAddresses = Array.isArray(to) ? to : to.split(',').map(e => e.trim());
-
-    const params = {
-        FromEmailAddress: '"LAKSHYA 2K26" <events@xetasolutions.in>', 
-        Destination: { ToAddresses: toAddresses },
-        Content: {
-            Simple: {
-                Subject: { Data: subject, Charset: 'UTF-8' },
-                Body: { Html: { Data: htmlContent, Charset: 'UTF-8' } },
-            },
-        },
-    };
-
     try {
+        const toAddresses = Array.isArray(to)
+            ? to
+            : to.split(',').map(e => e.trim());
+
+        const params = {
+            FromEmailAddress: '"LAKSHYA 2K26" <events@xetasolutions.in>',
+            Destination: { ToAddresses: toAddresses },
+            Content: {
+                Simple: {
+                    Subject: { Data: subject, Charset: 'UTF-8' },
+                    Body: {
+                        Html: { Data: htmlContent, Charset: 'UTF-8' }
+                    }
+                }
+            }
+        };
+
         const command = new SendEmailCommand(params);
         await sesClient.send(command);
+
+        console.log("Email sent successfully");
         return true;
+
     } catch (error) {
-        console.error('Error sending email with SES:', error);
-        return false;
+        console.error("Email send failed (ignored):", error?.message || error);
+        return false; // IMPORTANT: never throw
     }
 }
 
@@ -5019,6 +5035,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 server.setTimeout(600000);
 server.keepAliveTimeout = 61000;
 server.headersTimeout = 65000;
+
 
 module.exports = app;
 
