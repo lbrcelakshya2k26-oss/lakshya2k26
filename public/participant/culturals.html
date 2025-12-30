@@ -307,11 +307,70 @@
             line-height: 1.5;
         }
 
+        /* --- REGISTRATION CLOSED STYLES --- */
+        .closed-blur-effect {
+            filter: blur(8px) grayscale(0.5);
+            pointer-events: none;
+            opacity: 0.5;
+            transition: all 0.5s ease;
+        }
+
+        .closed-overlay {
+            position: fixed;
+            top: 50%;
+            left: calc(50% + 130px); /* Center considering the 260px sidebar */
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background: rgba(15, 15, 30, 0.95);
+            border: 1px solid var(--accent-color);
+            border-radius: 24px;
+            padding: 3rem;
+            z-index: 9999;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 30px rgba(255, 0, 204, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -40%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        .closed-icon {
+            font-size: 3.5rem;
+            color: #ff4444;
+            margin-bottom: 10px;
+        }
+
+        .closed-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .closed-message {
+            color: #aaa;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
         @media (max-width: 1024px) {
             .main-content { margin-left: 0; width: 100%; padding: 1.5rem; padding-top: 90px; }
             .top-bar { flex-direction: column; align-items: flex-start; gap: 1rem; }
             .page-title { font-size: 2.5rem; }
             .user-badge { display: none; }
+            
+            .closed-overlay {
+                left: 50%;
+                width: 90%;
+                padding: 2rem;
+            }
         }
     </style>
 </head>
@@ -319,6 +378,16 @@
 
     <div class="cosmic-bg"></div>
     <div class="grid-overlay"></div>
+
+    <!-- REGISTRATION CLOSED OVERLAY -->
+    <div class="closed-overlay">
+        <i class="fa-solid fa-lock closed-icon"></i>
+        <div class="closed-title">Registrations Closed</div>
+        <div class="closed-message">
+            Online registrations were closed.<br>
+            Please contact co-ordinators for further registration process.
+        </div>
+    </div>
 
     <main class="main-content">
         
@@ -343,30 +412,32 @@
         </div>
 
         <!-- SPECIAL NOTICE FOR RANGAMARTHANDA -->
-        <div class="info-notice">
-            <i class="fa-solid fa-bullhorn notice-icon"></i>
-            <div class="notice-content">
-                <h4>Registration Note: Rangamarthanda (Culturals)</h4>
-                <p>
-                    The registration process for Rangamarthanda is different from other events. 
-                    Participants are required to <strong>submit a clear video/audio file</strong> during the registration process for screening purposes. 
-                    After the screening round, our team will get back to you regarding payment and further steps.
-                </p>
-                <div class="notice-dates">
-                    <div class="date-item">
-                        <i class="fa-regular fa-calendar-xmark"></i> 
-                        Registration Closes: <span style="color:white; margin-left:5px;">25/12/25</span>
-                    </div>
-                    <div class="date-item">
-                        <i class="fa-regular fa-envelope"></i> 
-                        Shortlist Announcement: <span style="color:white; margin-left:5px;">On or before 27/12/25</span>
+        <div id="eventsContentWrapper" class="closed-blur-effect">
+            <div class="info-notice">
+                <i class="fa-solid fa-bullhorn notice-icon"></i>
+                <div class="notice-content">
+                    <h4>Registration Note: Rangamarthanda (Culturals)</h4>
+                    <p>
+                        The registration process for Rangamarthanda is different from other events. 
+                        Participants are required to <strong>submit a clear video/audio file</strong> during the registration process for screening purposes. 
+                        After the screening round, our team will get back to you regarding payment and further steps.
+                    </p>
+                    <div class="notice-dates">
+                        <div class="date-item">
+                            <i class="fa-regular fa-calendar-xmark"></i> 
+                            Registration Closes: <span style="color:white; margin-left:5px;">25/12/25</span>
+                        </div>
+                        <div class="date-item">
+                            <i class="fa-regular fa-envelope"></i> 
+                            Shortlist Announcement: <span style="color:white; margin-left:5px;">On or before 27/12/25</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="cards-grid" id="eventsContainer">
-             <div style="color:#666; grid-column:1/-1; text-align:center;">Loading Cultural Events...</div>
+            <div class="cards-grid" id="eventsContainer">
+                <div style="color:#666; grid-column:1/-1; text-align:center;">Loading Cultural Events...</div>
+            </div>
         </div>
 
     </main>
@@ -383,7 +454,8 @@
             <hr style="border:0; border-top:1px solid var(--glass-border); margin: 1.5rem 0;">
             <div id="modalContent" style="color:#ddd; line-height:1.6;"></div>
             <div style="margin-top: 2rem;">
-                <button class="cyber-btn" onclick="switchToDeptModal()">Register Now <i class="fa-solid fa-arrow-right"></i></button>
+                 <!-- Disabled button -->
+                <button class="cyber-btn" disabled style="opacity:0.5; cursor:not-allowed;">Registration Closed</button>
             </div>
         </div>
     </div>
@@ -517,6 +589,7 @@
                     const bgImage = (event.imageUrl && event.imageUrl !== 'default.jpg') ? event.imageUrl : 'https://via.placeholder.com/400x200/0a0a12/ff00cc?text=CULTURAL';
                     const teamSize = event.teamSize || "1";
                     
+                    // NOTE: Onclick removed for Register due to closure
                     const card = `
                     <div class="event-card">
                         <div class="card-image-container">
@@ -534,7 +607,7 @@
                             <div class="card-footer">
                                 <div class="action-buttons">
                                     <button class="icon-btn" onclick="openInfoModal('${event.eventId}')" title="Details"><i class="fa-solid fa-eye"></i></button>
-                                    <button class="icon-btn add-btn" onclick="prepareRegister('${event.eventId}')" title="Register">REGISTER <i class="fa-solid fa-arrow-right"></i></button>
+                                    <button class="icon-btn add-btn" disabled style="opacity:0.5; cursor:not-allowed;" title="Registrations Closed">CLOSED <i class="fa-solid fa-lock"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -605,53 +678,23 @@
         function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
 
         function prepareRegister(id) {
-            currentEventId = id;
-            openDeptModal();
+           // Disabled
         }
 
         function switchToDeptModal() {
-            closeModal('infoModal');
-            setTimeout(() => openDeptModal(), 300);
+            // Disabled
         }
 
         function openDeptModal() {
-            const event = allEvents.find(e => e.eventId === currentEventId);
-            const select = document.getElementById('deptSelect');
-            select.innerHTML = '<option value="" disabled selected>Select Category</option>';
-            // For culturals, defaulting to General if no specific depts
-            select.innerHTML += '<option value="General">General / Open Category</option>';
-            document.getElementById('deptModal').classList.add('active');
+            // Disabled
         }
 
         function checkEventRequirementsAndProceed() {
-            const select = document.getElementById('deptSelect');
-            if(!select.value) { select.style.borderColor = '#ff4444'; return; }
-            const selectedDept = select.value;
-
-            // Check Registration
-            if (myRegistrations.find(r => r.eventId === currentEventId)) {
-                showNotification("⚠️ You are already registered for this event.", true);
-                closeModal('deptModal');
-                return;
-            }
-
-            pendingItem = {
-                eventId: currentEventId,
-                deptName: selectedDept, dept: selectedDept,
-                addedAt: new Date().toISOString(),
-                teamName: null, teamMembers: [],
-                submissionTitle: "Cultural Performance", submissionAbstract: null, submissionUrl: null
-            };
-
-            closeModal('deptModal');
-            openSubmissionModal(); 
+            // Disabled
         }
 
         function openSubmissionModal() {
-            document.getElementById('fileInput').value = '';
-            document.getElementById('fileNameDisplay').innerText = "Click to upload file";
-            selectedFile = null;
-            document.getElementById('submissionModal').classList.add('active');
+            // Disabled
         }
 
         function handleFileSelect(input) {
@@ -662,110 +705,23 @@
         }
 
         async function uploadAndProceed() {
-            const btn = document.getElementById('btnSubmitDetails');
-            
-            // Check if file is mandatory? Let's make it optional for now or user can skip
-            if (selectedFile) {
-                btn.innerText = "Uploading..."; btn.disabled = true;
-                const formData = new FormData();
-                formData.append('file', selectedFile);
-                try {
-                    const res = await fetch('/api/utility/upload-file', { method: 'POST', body: formData });
-                    const data = await res.json();
-                    if(data.url) pendingItem.submissionUrl = data.url;
-                } catch(e) {
-                    alert("Upload failed.");
-                    btn.innerText = "Submit for Approval"; btn.disabled = false;
-                    return;
-                }
-            }
-            
-            closeModal('submissionModal');
-            if(selectedFile) btn.innerText = "Submit for Approval"; btn.disabled = false;
-            
-            checkTeamAndAdd();
+            // Disabled
         }
 
         function checkTeamAndAdd() {
-            const event = allEvents.find(e => e.eventId === currentEventId);
-            let maxTeamSize = 1;
-            if(event.teamSize) {
-                const matches = event.teamSize.match(/(\d+)/g); 
-                if(matches) maxTeamSize = parseInt(matches[matches.length - 1]);
-            }
-
-            if(maxTeamSize > 1) openTeamModal(maxTeamSize);
-            else submitRegistrationDirectly();
+            // Disabled
         }
 
         function openTeamModal(maxSize) {
-            const container = document.getElementById('teamMembersContainer');
-            container.innerHTML = ''; 
-            const additionalMembers = maxSize - 1; 
-
-            const note = document.createElement('p');
-            note.style.color = 'var(--accent-color)'; note.style.fontSize = '0.9rem';
-            note.innerHTML = `Please add details for up to <b>${additionalMembers}</b> additional members.`;
-            container.appendChild(note);
-
-            for(let i = 1; i <= additionalMembers; i++) {
-                const div = document.createElement('div');
-                div.style.marginTop = '15px'; div.style.padding = '10px';
-                div.style.border = '1px solid var(--glass-border)'; div.style.borderRadius = '8px';
-                div.innerHTML = `
-                    <strong style="color:var(--accent-color)">Member ${i + 1}</strong>
-                    <input type="text" class="search-input member-name" placeholder="Full Name" style="margin-top:5px;">
-                    <input type="text" class="search-input member-roll" placeholder="Roll No" style="margin-top:5px;">
-                    <input type="text" class="search-input member-mobile" placeholder="Mobile" style="margin-top:5px;">
-                    <input type="email" class="search-input member-email" placeholder="Email ID" style="margin-top:5px;">
-                `;
-                container.appendChild(div);
-            }
-            document.getElementById('teamNameInput').value = '';
-            document.getElementById('teamModal').classList.add('active');
+            // Disabled
         }
 
         async function finalizeRegistration() {
-            const teamName = document.getElementById('teamNameInput').value;
-            if(!teamName) { alert("Please enter a Team Name"); return; }
-            
-            const members = [];
-            const memberDivs = document.querySelectorAll('#teamMembersContainer > div');
-            memberDivs.forEach((div) => {
-                const name = div.querySelector('.member-name').value;
-                const roll = div.querySelector('.member-roll').value;
-                const mobile = div.querySelector('.member-mobile').value;
-                const email = div.querySelector('.member-email').value;
-                if(name) members.push({ name, roll, mobile, email });
-            });
-
-            pendingItem.teamName = teamName;
-            pendingItem.teamMembers = members;
-            closeModal('teamModal');
-            await submitRegistrationDirectly();
+            // Disabled
         }
 
         async function submitRegistrationDirectly() {
-            showNotification("Submitting Registration...");
-            try {
-                // Add PaymentMode as 'REVIEW' so it stays pending payment in backend
-                pendingItem.paymentMode = 'REVIEW'; 
-                
-                const res = await fetch('/api/register-event', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(pendingItem)
-                });
-
-                const data = await res.json();
-                if(res.ok) {
-                    showNotification("Registration Submitted! Wait for Approval.");
-                    // Reload to update status
-                    setTimeout(() => window.location.href = 'my-registrations', 2000);
-                } else {
-                    alert(data.error || "Registration failed.");
-                }
-            } catch(e) { console.error(e); alert("Network Error"); }
+            // Disabled
         }
 
         window.onload = loadEvents;
