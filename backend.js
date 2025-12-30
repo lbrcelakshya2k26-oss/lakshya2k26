@@ -348,6 +348,10 @@ app.get('/admin/participant-qr', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/participant-qr.html'));
 });
 
+app.get('/admin/issue-coupon', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/issue-coupons.html'));
+});
+
 
 const getEmailTemplate = (type, data) => {
     const { title, name, regId, eventName, dept, teamName, status, amount, txId, date, coupon, link } = data;
