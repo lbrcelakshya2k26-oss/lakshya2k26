@@ -4867,7 +4867,7 @@ app.post('/api/admin/issue-restricted-coupons', isAuthenticated('admin'), async 
 </p>
 
 <div style="text-align: center; margin: 25px 0;">
-    <a href="http://localhost:3000/volunteer-coupons?id=${cleanEmail}"
+    <a href="https://lakshya.lbrce.ac.in/volunteer-coupons?id=${cleanEmail}"
        style="display:inline-block; padding:12px 26px; background:#00b4db; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:600;">
         View Your Coupons
     </a>
