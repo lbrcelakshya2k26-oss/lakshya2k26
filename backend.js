@@ -4127,12 +4127,10 @@ app.get('/api/public/coupons/:id', async (req, res) => {
 });
 // 2. STALL DASHBOARD STATS
 app.get('/api/stall/stats', isAuthenticated('stall'), async (req, res) => {
-    const stallId = req.session.user.name;
-    const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
+    // FIX: Use .email (Stall ID) to count coupons redeemed by this specific ID
+    const stallId = req.session.user.email; 
+    
     try {
-        // Count total redeemed by this stall
-        // Note: For high scale, use a secondary index. For now, Scan is okay.
         const params = {
             TableName: 'Lakshya_FoodCoupons',
             FilterExpression: 'redeemedBy = :stall',
@@ -4141,60 +4139,15 @@ app.get('/api/stall/stats', isAuthenticated('stall'), async (req, res) => {
         const data = await docClient.send(new ScanCommand(params));
         const count = data.Count || 0;
 
-        res.json({ stallName: stallId, scannedCount: count });
+        // We can still send the display name back to the frontend
+        res.json({ stallName: req.session.user.name, scannedCount: count });
     } catch (e) {
+        console.error("Stats Error:", e);
         res.status(500).json({ error: 'Failed to fetch stats' });
     }
 });
 
 // 3. REDEEM COUPON (The Scanner Logic)
-app.post('/api/stall/redeem', isAuthenticated('stall'), async (req, res) => {
-    const { qrCode } = req.body;
-    const stallId = req.session.user.name;
-
-    try {
-        // A. Check if Coupon Exists
-        const getRes = await docClient.send(new GetCommand({
-            TableName: 'Lakshya_FoodCoupons',
-            Key: { code: qrCode }
-        }));
-
-        const coupon = getRes.Item;
-
-        if (!coupon) {
-            return res.status(404).json({ error: 'Invalid Coupon Code' });
-        }
-
-        // B. Check if Already Used
-        if (coupon.status === 'REDEEMED') {
-            return res.status(400).json({ error: `Already used by ${coupon.holderName} at ${coupon.redeemedBy || 'another stall'}` });
-        }
-
-        // C. Atomic Update to Redeem
-        await docClient.send(new UpdateCommand({
-            TableName: 'Lakshya_FoodCoupons',
-            Key: { code: qrCode },
-            UpdateExpression: "set #s = :newStatus, redeemedBy = :stall, redeemedAt = :time",
-            ConditionExpression: "#s = :oldStatus", // Prevents double scanning race condition
-            ExpressionAttributeNames: { "#s": "status" },
-            ExpressionAttributeValues: {
-                ":newStatus": "REDEEMED",
-                ":oldStatus": "ACTIVE",
-                ":stall": stallId,
-                ":time": new Date().toISOString()
-            }
-        }));
-
-        res.json({ message: 'Redeemed Successfully', student: coupon.holderName });
-
-    } catch (e) {
-        console.error("Redeem Error:", e);
-        if (e.name === 'ConditionalCheckFailedException') {
-            return res.status(400).json({ error: 'Coupon was just redeemed by someone else.' });
-        }
-        res.status(500).json({ error: 'Redemption Failed' });
-    }
-});
 
 // 4. FETCH MY COUPONS (For Students & Coordinators)
 app.get('/api/participant/my-coupons', isAuthenticated('participant'), async (req, res) => {
@@ -4914,8 +4867,9 @@ app.post('/api/admin/issue-restricted-coupons', isAuthenticated('admin'), async 
 
 app.post('/api/stall/redeem', isAuthenticated('stall'), async (req, res) => {
     const { qrCode } = req.body;
-    // In your stall-login logic, req.session.user.name holds the Stall ID (e.g., "BIRYANI_POINT")
-    const currentStallId = req.session.user.name; 
+    
+    // FIX: Use .email because your login route maps stallId -> session.email
+    const currentStallId = req.session.user.email; 
 
     try {
         // A. Check if Coupon Exists
@@ -4935,14 +4889,13 @@ app.post('/api/stall/redeem', isAuthenticated('stall'), async (req, res) => {
             return res.status(400).json({ error: `Already used by ${coupon.holderName} at ${coupon.redeemedBy || 'another stall'}` });
         }
 
-        // --- NEW LOGIC START: Check Restriction ---
-        // If the coupon has a 'validStallId' set, it MUST match the current stall
+        // --- CHECK RESTRICTION ---
+        // Verify if the coupon is locked to a specific stall ID
         if (coupon.validStallId && coupon.validStallId !== currentStallId) {
             return res.status(403).json({ 
                 error: `RESTRICTED COUPON. This is only valid at: ${coupon.validStallId}` 
             });
         }
-        // --- NEW LOGIC END ---
 
         // C. Atomic Update to Redeem
         await docClient.send(new UpdateCommand({
@@ -4954,7 +4907,7 @@ app.post('/api/stall/redeem', isAuthenticated('stall'), async (req, res) => {
             ExpressionAttributeValues: {
                 ":newStatus": "REDEEMED",
                 ":oldStatus": "ACTIVE",
-                ":stall": currentStallId,
+                ":stall": currentStallId, // Save the ID, not the Name
                 ":time": new Date().toISOString()
             }
         }));
