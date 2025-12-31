@@ -5,32 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <!-- --- PRIMARY SEO DATA --- -->
-    <title>LAKSHYA 2K26 | 19th National Level Techno Cultural Symposium</title>
-    <meta name="description" content="Welcome to LAKSHYA 2K26 - A National Level Techno Cultural Symposium. Participate in Technical Events, Culturals, and Many More Special Events. Experience the future of technology.">
-    <meta name="keywords" content="LAKSHYA 2K26, Tech Fest, Symposium, Technical Events, Workshops, College Fest, Engineering Fest, Student Symposium, Culturals">
-    <meta name="author" content="Team LAKSHYA">
-    <meta name="robots" content="index, follow">
+    <title>LAKSHYA 2K26 | Initializing...</title>
+    <meta name="description" content="Welcome to LAKSHYA 2K26. Experience the future of technology.">
     <meta name="theme-color" content="#00d2ff">
 
-    <!-- --- OPEN GRAPH / FACEBOOK / WHATSAPP --- -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://lakshya2k26.com/">
-    <meta property="og:title" content="LAKSHYA 2K26 | Unveiling The Feature">
-    <meta property="og:description" content="Join us for the ultimate technical & Cultural extravaganza! Lakshya 2K26.">
-    <meta property="og:image" content="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png">
-
-    <!-- --- TWITTER --- -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://lakshya2k26.com/">
-    <meta property="twitter:title" content="LAKSHYA 2K26 | National Level Tech Fest">
-    <meta property="twitter:description" content="Join us for the ultimate technical extravaganza! Events, Workshops, Pro-Shows and more at Lakshya 2K26.">
-    <meta property="twitter:image" content="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png">
-
-    <!-- --- FAVICON --- -->
-    <link rel="icon" type="image/png" href="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png">
-
     <!-- --- FONTS & STYLES --- -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-color: #00d2ff;
@@ -40,105 +20,248 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #05050a;
+            background-color: #000;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
             font-family: 'Orbitron', sans-serif;
+            position: relative;
         }
 
-        /* --- INTRO ANIMATION STYLES --- */
-        #intro-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+        /* --- WARP SPEED CANVAS --- */
+        #warp-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* --- CONTENT LAYER --- */
+        #intro-content {
             position: relative;
             z-index: 10;
-        }
-
-        .intro-logo-container {
-            position: relative;
-            width: 180px;
-            height: 180px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            margin-bottom: 2rem;
+            justify-content: center;
+            text-align: center;
+            mix-blend-mode: screen; /* Blends text coolly with stars */
         }
 
-        .intro-logo {
+        .logo-wrapper {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin-bottom: 30px;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .logo-img {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            animation: floatLogo 3s ease-in-out infinite;
-            filter: drop-shadow(0 0 20px rgba(0, 210, 255, 0.4));
+            filter: drop-shadow(0 0 20px var(--primary-color));
         }
 
-        .ring {
+        .scanner-line {
             position: absolute;
-            border-radius: 50%;
-            border: 1px solid transparent;
-            border-top-color: var(--primary-color);
-            border-bottom-color: var(--accent-color);
-            animation: spinRing 2s linear infinite;
+            top: 0; left: 0; width: 100%; height: 5px;
+            background: var(--primary-color);
+            box-shadow: 0 0 15px var(--primary-color);
+            animation: scan 2s linear infinite;
+            opacity: 0.7;
         }
 
-        .ring:nth-child(1) { width: 100%; height: 100%; border-width: 3px; }
-        .ring:nth-child(2) { width: 130%; height: 130%; border-width: 1px; animation-duration: 4s; opacity: 0.5; }
-        .ring:nth-child(3) { width: 160%; height: 160%; border-width: 1px; border-style: dashed; animation-duration: 10s; opacity: 0.3; }
-
-        .loading-text {
-            letter-spacing: 4px;
+        .system-text {
             color: white;
-            font-size: 1.2rem;
-            animation: pulseText 1.5s infinite alternate;
+            font-size: 1.5rem;
+            letter-spacing: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
         }
 
-        /* Background Particles (Visual Continuity) */
-        .hero-particles {
+        .sub-text {
+            color: var(--primary-color);
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            opacity: 0.8;
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            position: absolute;
+            top: 0; left: 0; height: 100%; width: 0%;
+            background: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-color);
+            animation: loadProgress 3.5s ease-in-out forwards;
+        }
+
+        /* Animations */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes scan { 0% { top: 0%; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        @keyframes loadProgress { 0% { width: 0%; } 40% { width: 30%; } 70% { width: 70%; } 100% { width: 100%; } }
+        @keyframes fadeOut { to { opacity: 0; transform: scale(2); filter: blur(20px); } }
+
+        /* The white flash for transition */
+        #white-flash {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: 
-                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 1px),
-                radial-gradient(white, rgba(255,255,255,.1) 1px, transparent 1px);
-            background-size: 500px 500px, 300px 300px;
-            opacity: 0.6; z-index: 1; animation: starsPass 60s linear infinite;
+            background: white; opacity: 0; pointer-events: none; z-index: 100;
+            transition: opacity 0.5s ease-out;
         }
-
-        @keyframes spinRing { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        @keyframes pulseText { from { opacity: 0.6; } to { opacity: 1; text-shadow: 0 0 10px var(--primary-color); } }
-        @keyframes starsPass { from { transform: translateY(0); } to { transform: translateY(-500px); } }
 
     </style>
 </head>
 <body>
 
-    <div class="hero-particles"></div>
+    <canvas id="warp-canvas"></canvas>
 
-    <div id="intro-container">
-        <div class="intro-logo-container">
-            <div class="ring"></div>
-            <div class="ring"></div>
-            <div class="ring"></div>
-            <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png" alt="Lakshya Logo" class="intro-logo" onerror="this.src='https://placehold.co/150x150/000000/00d2ff?text=LAKSHYA'">
+    <div id="intro-content">
+        <div class="logo-wrapper">
+            <img src="https://res.cloudinary.com/dpz44zf0z/image/upload/v1764605760/logo_oeso2m.png" alt="Logo" class="logo-img" onerror="this.src='https://placehold.co/150x150/000000/00d2ff?text=LAKSHYA'">
+            <div class="scanner-line"></div>
         </div>
-        <h2 class="loading-text">INITIALIZING...</h2>
+        <h1 class="system-text" id="status-text">SYSTEM BOOT</h1>
+        <p class="sub-text">TARGET: YEAR 2026</p>
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
     </div>
 
-    <script>
-        window.onload = function() {
-            // Random duration between 2500ms (2.5s) and 4500ms (4.5s)
-            const randomDuration = Math.floor(Math.random() * 2000) + 2500;
-            
-            console.log(`Redirecting in ${randomDuration}ms...`);
+    <div id="white-flash"></div>
 
+    <script>
+        // --- WARP SPEED EFFECT ---
+        const canvas = document.getElementById('warp-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let stars = [];
+        const numStars = 600;
+        let speed = 2; // Initial speed
+        let warpActive = false;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            // Center 0,0
+            ctx.translate(width / 2, height / 2);
+        }
+        window.addEventListener('resize', () => { resize(); stars = []; initStars(); });
+        resize();
+
+        class Star {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = (Math.random() - 0.5) * width * 2;
+                this.y = (Math.random() - 0.5) * height * 2;
+                this.z = Math.random() * width; // Depth
+                this.pz = this.z; // Previous z for trails
+            }
+            update() {
+                this.z -= speed;
+                if (this.z <= 1) {
+                    this.reset();
+                    this.z = width;
+                    this.pz = this.z;
+                }
+            }
+            draw() {
+                const x = (this.x / this.z) * 100;
+                const y = (this.y / this.z) * 100;
+                
+                // Trail effect
+                const px = (this.x / this.pz) * 100;
+                const py = (this.y / this.pz) * 100;
+
+                this.pz = this.z;
+
+                const s = (1 - this.z / width); // brightness based on proximity
+                
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${s})`;
+                ctx.lineWidth = s * 2.5; // Thicker lines when closer
+                ctx.moveTo(px, py);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+        }
+
+        function initStars() {
+            for(let i=0; i<numStars; i++) stars.push(new Star());
+        }
+        initStars();
+
+        function animate() {
+            // Clear with slight fade for motion blur
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.fillRect(-width/2, -height/2, width, height);
+            
+            stars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // --- SEQUENCE LOGIC ---
+        const statusText = document.getElementById('status-text');
+        const introContent = document.getElementById('intro-content');
+        const whiteFlash = document.getElementById('white-flash');
+
+        // Sequence of status messages
+        setTimeout(() => { statusText.innerText = "ACCESSING 2026..."; }, 1000);
+        setTimeout(() => { 
+            statusText.innerText = "WARP DRIVE ENGAGED"; 
+            statusText.style.color = "var(--primary-color)";
+            statusText.style.textShadow = "0 0 20px var(--primary-color)";
+            engageWarp(); // Speed up stars
+        }, 2500);
+
+        function engageWarp() {
+            const acceleration = setInterval(() => {
+                speed += 2; // Increase speed drastically
+                if (speed > 80) { // Max speed
+                    clearInterval(acceleration);
+                    triggerTransition();
+                }
+            }, 50);
+        }
+
+        function triggerTransition() {
+            // 1. Text explodes/fades
+            introContent.style.animation = "fadeOut 0.5s forwards";
+            
+            // 2. White Flash
+            setTimeout(() => {
+                whiteFlash.style.opacity = "1";
+            }, 400);
+
+            // 3. Redirect after flash covers screen
             setTimeout(() => {
                 window.location.href = 'home';
-            }, randomDuration);
-        };
+            }, 900);
+        }
     </script>
 </body>
 </html>
