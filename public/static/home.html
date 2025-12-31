@@ -26,7 +26,62 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { background-color: #0a0a0a; color: var(--text-color); overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; }
 
-        /* --- BACKGROUND LAYERS --- */
+        /* --- NEW YEAR OVERLAY STYLES (ADDED) --- */
+        #new-year-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #05050f; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 1s ease-out, visibility 1s ease-out;
+        }
+        #new-year-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        
+        #fireworks-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; pointer-events: none;
+        }
+
+        .ny-content {
+            z-index: 2; text-align: center; position: relative;
+            animation: zoomIn 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .ny-year {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(5rem, 18vw, 12rem);
+            font-weight: 900;
+            line-height: 0.9;
+            background: linear-gradient(180deg, #fff 20%, var(--primary-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 30px var(--primary-color));
+            margin-bottom: 5px;
+            letter-spacing: -2px;
+        }
+
+        .ny-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(1.2rem, 4vw, 3rem);
+            color: var(--accent-color);
+            letter-spacing: clamp(3px, 1vw, 8px);
+            text-transform: uppercase;
+            font-weight: 700;
+            text-shadow: 0 0 20px var(--accent-color);
+            margin-bottom: 20px;
+        }
+
+        .ny-btn-skip {
+            position: absolute; bottom: 50px; padding: 10px 25px;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 50px;
+            color: rgba(255,255,255,0.6); font-size: 0.8rem; cursor: pointer;
+            z-index: 10; background: rgba(0,0,0,0.3); transition: 0.3s;
+            text-transform: uppercase; letter-spacing: 2px;
+            backdrop-filter: blur(5px);
+        }
+        .ny-btn-skip:hover { color: white; border-color: var(--primary-color); background: rgba(0, 210, 255, 0.1); }
+
+        @keyframes zoomIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* --- EXISTING STYLES --- */
         .bg-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: url('../assets/admin-block.jpg') no-repeat center top/cover;
@@ -230,6 +285,17 @@
 </head>
 <body>
 
+    <!-- NEW YEAR BLAST OVERLAY -->
+    <div id="new-year-overlay">
+        <canvas id="fireworks-canvas"></canvas>
+        <div class="ny-content">
+            <h1 class="ny-year">2026</h1>
+            <h2 class="ny-text">Happy New Year</h2>
+            <p style="color: rgba(255,255,255,0.7); font-family: 'Poppins', sans-serif; letter-spacing: 1px;">WELCOME TO THE FUTURE</p>
+        </div>
+        <button class="ny-btn-skip" onclick="dismissNewYear()">Skip Intro</button>
+    </div>
+
     <div class="bg-layer"></div>
     <div class="overlay-layer"></div>
     <div class="hero-particles"></div>
@@ -387,7 +453,89 @@
     </footer>
 
     <script>
-        // --- MOBILE MENU LOGIC ---
+        // --- NEW YEAR BLAST LOGIC ---
+        const nyOverlay = document.getElementById('new-year-overlay');
+        let fireworksActive = true;
+
+        function dismissNewYear() {
+            fireworksActive = false;
+            nyOverlay.classList.add('hidden');
+            setTimeout(() => {
+                nyOverlay.style.display = 'none';
+            }, 1000); // Remove from layout after fade out
+        }
+
+        // Auto dismiss after 6 seconds (enough time to see the effect)
+        setTimeout(dismissNewYear, 6000);
+
+        // Simple Canvas Fireworks
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function createFirework(x, y, color) {
+            const count = 40; // particles per explosion
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    color: color,
+                    radius: Math.random() * 2 + 1,
+                    speed: Math.random() * 4 + 2,
+                    angle: Math.random() * Math.PI * 2,
+                    alpha: 1,
+                    decay: Math.random() * 0.02 + 0.01
+                });
+            }
+        }
+
+        function animateFireworks() {
+            if (!fireworksActive) return;
+
+            requestAnimationFrame(animateFireworks);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Trails effect
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Random explosions
+            if (Math.random() < 0.08) {
+                const colors = ['#00d2ff', '#ff00cc', '#ffffff', '#00ff88', '#ffff00'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                createFirework(
+                    Math.random() * canvas.width, 
+                    Math.random() * canvas.height * 0.7, 
+                    randomColor
+                );
+            }
+
+            particles.forEach((p, index) => {
+                p.x += Math.cos(p.angle) * p.speed;
+                p.y += Math.sin(p.angle) * p.speed;
+                p.alpha -= p.decay;
+
+                if (p.alpha <= 0) {
+                    particles.splice(index, 1);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+            });
+        }
+        
+        // Start fireworks
+        animateFireworks();
+
+
+        // --- EXISTING MOBILE MENU LOGIC ---
         const navLinks = document.getElementById('navLinks');
         const menuToggle = document.getElementById('mobile-menu');
 
@@ -414,7 +562,7 @@
             }
         });
 
-        // --- ACCOMMODATION MODAL LOGIC ---
+        // --- EXISTING ACCOMMODATION MODAL LOGIC ---
         const accModal = document.getElementById('accModal');
         const accForm = document.getElementById('accommodationForm');
         const successOverlay = document.getElementById('successOverlay');
@@ -428,7 +576,6 @@
         function closeAccModal() {
             accModal.classList.remove('active');
             document.body.style.overflow = 'auto'; // Re-enable scroll
-            // Reset success overlay after closing
             setTimeout(() => {
                 successOverlay.style.display = 'none';
                 accForm.reset();
@@ -439,7 +586,6 @@
             if (e.target === accModal) closeAccModal();
         }
 
-        // Formspree Submission
         accForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             accSubmitBtn.disabled = true;
@@ -448,6 +594,7 @@
             const formData = new FormData(accForm);
             
             try {
+                // Keep existing endpoint
                 const response = await fetch("https://formspree.io/f/xzdbrdjz", {
                     method: "POST",
                     body: formData,
@@ -460,7 +607,6 @@
                     alert("Submission failed. Please try again.");
                 }
             } catch (error) {
-                // For demo/offline: Show success anyway if network fails
                 successOverlay.style.display = 'flex';
             } finally {
                 accSubmitBtn.disabled = false;
@@ -468,7 +614,7 @@
             }
         });
 
-        // Countdown Logic
+        // --- EXISTING COUNTDOWN LOGIC ---
         const targetDate = new Date("Jan 3, 2026 00:00:00").getTime();
         setInterval(function() {
             const now = new Date().getTime();
