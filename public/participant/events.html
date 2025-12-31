@@ -366,6 +366,59 @@
             line-height: 1.5;
         }
 
+        /* --- REGISTRATION CLOSED STYLES --- */
+        .closed-blur-effect {
+            filter: blur(8px) grayscale(0.5);
+            pointer-events: none;
+            opacity: 0.5;
+            transition: all 0.5s ease;
+        }
+
+        .closed-overlay {
+            position: fixed;
+            top: 50%;
+            left: calc(50% + 130px); /* Center considering the 260px sidebar */
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background: rgba(10, 10, 15, 0.95);
+            border: 1px solid var(--primary-color);
+            border-radius: 24px;
+            padding: 3rem;
+            z-index: 9999;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 30px rgba(0, 210, 255, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -40%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        .closed-icon {
+            font-size: 3.5rem;
+            color: #ff4444;
+            margin-bottom: 10px;
+        }
+
+        .closed-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .closed-message {
+            color: #aaa;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
         @media (max-width: 1024px) {
             .main-content { margin-left: 0; width: 100%; padding: 1.5rem; padding-top: 90px; }
             .header-section { gap: 1.5rem; margin-bottom: 2rem; }
@@ -376,6 +429,12 @@
             .filters-container { flex-shrink: 0; display:flex; gap:10px; }
             .user-badge { display: none; }
             .page-title { font-size: 2.5rem; }
+            
+            .closed-overlay {
+                left: 50%;
+                width: 90%;
+                padding: 2rem;
+            }
         }
     </style>
 </head>
@@ -383,6 +442,16 @@
 
     <div class="cosmic-bg"></div>
     <div class="grid-overlay"></div>
+
+    <!-- REGISTRATION CLOSED OVERLAY -->
+    <div class="closed-overlay">
+        <i class="fa-solid fa-lock closed-icon"></i>
+        <div class="closed-title">Registrations Closed</div>
+        <div class="closed-message">
+            Online registrations were closed.<br>
+            Please contact co-ordinators for further registration process.
+        </div>
+    </div>
 
     <main class="main-content">
         
@@ -412,19 +481,22 @@
             </div>
         </div>
 
-        <div class="section-container" id="sec-Major">
-            <div class="section-header"><div class="section-title">Major Events</div><div class="section-line"></div></div>
-            <div class="cards-grid" id="majorEventsContainer"></div>
-        </div>
+        <!-- Wrapped Event Sections for Blurring -->
+        <div id="eventsWrapper" class="closed-blur-effect">
+            <div class="section-container" id="sec-Major">
+                <div class="section-header"><div class="section-title">Major Events</div><div class="section-line"></div></div>
+                <div class="cards-grid" id="majorEventsContainer"></div>
+            </div>
 
-        <div class="section-container" id="sec-MBA">
-            <div class="section-header"><div class="section-title">MBA Events</div><div class="section-line"></div></div>
-            <div class="cards-grid" id="mbaEventsContainer"></div>
-        </div>
+            <div class="section-container" id="sec-MBA">
+                <div class="section-header"><div class="section-title">MBA Events</div><div class="section-line"></div></div>
+                <div class="cards-grid" id="mbaEventsContainer"></div>
+            </div>
 
-        <div class="section-container" id="sec-Special">
-            <div class="section-header"><div class="section-title">OJAS (Special Events)</div><div class="section-line"></div></div>
-            <div class="cards-grid" id="specialEventsContainer"></div>
+            <div class="section-container" id="sec-Special">
+                <div class="section-header"><div class="section-title">OJAS (Special Events)</div><div class="section-line"></div></div>
+                <div class="cards-grid" id="specialEventsContainer"></div>
+            </div>
         </div>
 
         <div style="text-align:center; padding-top:40px; padding-bottom:20px;">
@@ -445,7 +517,8 @@
             <hr style="border:0; border-top:1px solid var(--glass-border); margin: 1.5rem 0;">
             <div id="modalContent" class="formatted-content"></div>
             <div style="margin-top: 2rem;">
-                <button class="cyber-btn" onclick="switchToDeptModal()">Register Now <i class="fa-solid fa-arrow-right"></i></button>
+                <!-- Disabled button due to closure -->
+                <button class="cyber-btn" disabled style="opacity:0.5; cursor:not-allowed;">Registration Closed</button>
             </div>
         </div>
     </div>
@@ -642,6 +715,7 @@
             let badgeText = event.type;
             if (event.type === 'Special' && event.departments && event.departments.length > 0) badgeText = event.departments[0];
 
+            // NOTE: Onclick removed for Add to Cart due to closure
             return `
             <div class="event-card" data-type="${event.type}">
                 <div class="card-image-container">
@@ -659,7 +733,7 @@
                     <div class="card-footer">
                         <div class="action-buttons">
                             <button class="icon-btn" onclick="openInfoModal('${event.eventId}')" title="Details"><i class="fa-solid fa-eye"></i></button>
-                            <button class="icon-btn add-btn" onclick="prepareAddToCart('${event.eventId}')" title="Add to Cart">ADD TO CART <i class="fa-solid fa-plus" style="margin-left:5px;"></i></button>
+                            <button class="icon-btn add-btn" disabled style="opacity:0.5; cursor:not-allowed;" title="Registrations Closed">CLOSED <i class="fa-solid fa-lock" style="margin-left:5px;"></i></button>
                         </div>
                     </div>
                 </div>
@@ -738,93 +812,25 @@
         }
 
         function prepareAddToCart(id) {
-            currentEventId = id;
-            openDeptModal();
+            // Disabled
+            alert("Registrations are closed.");
         }
 
         function switchToDeptModal() {
             closeModal('infoModal');
-            setTimeout(() => openDeptModal(), 300);
+            // Disabled
         }
 
         function openDeptModal() {
-            const event = allEvents.find(e => e.eventId === currentEventId);
-            const select = document.getElementById('deptSelect');
-            select.innerHTML = '<option value="" disabled selected>Select Department</option>';
-            if (event && event.departments && event.departments.length > 0) {
-                event.departments.forEach(dept => {
-                    const opt = document.createElement('option');
-                    opt.value = dept;
-                    opt.innerText = dept;
-                    select.appendChild(opt);
-                });
-            } else {
-                select.innerHTML += '<option value="General">General / Open to All</option>';
-            }
-            document.getElementById('deptModal').classList.add('active');
+            // Disabled
         }
 
         function checkEventRequirementsAndProceed() {
-            const select = document.getElementById('deptSelect');
-            if(!select.value) { select.style.borderColor = '#ff4444'; return; }
-            const selectedDept = select.value;
-
-            // Check Registration
-            const isRegistered = myRegistrations.find(r => r.eventId === currentEventId && r.deptName === selectedDept);
-            if (isRegistered) {
-                showNotification("⚠️ You are already registered for this event.", true);
-                closeModal('deptModal');
-                return;
-            }
-
-            // Init Pending Item
-            pendingCartItem = {
-                eventId: currentEventId,
-                deptName: selectedDept, 
-                dept: selectedDept,
-                addedAt: new Date().toISOString(),
-                teamName: null,
-                teamMembers: [],
-                submissionTitle: null,
-                submissionAbstract: null,
-                submissionUrl: null
-            };
-
-            const event = allEvents.find(e => e.eventId === currentEventId);
-            const titleUpper = event.title.toUpperCase();
-
-            closeModal('deptModal');
-
-            // --- CHECK FOR SPECIAL SUBMISSIONS ---
-            if (titleUpper.includes("SRUJANA") || titleUpper.includes("PRAGNA") || titleUpper.includes("UDHBHAVANA")) {
-                openSubmissionModal(titleUpper, false);
-            } else {
-                checkTeamAndAdd();
-            }
+            // Disabled
         }
 
         function openSubmissionModal(title, isCultural) {
-            // Reset fields
-            document.getElementById('subTitle').value = '';
-            document.getElementById('subAbstract').value = '';
-            document.getElementById('fileInput').value = '';
-            document.getElementById('fileNameDisplay').innerText = "Click to upload file (Optional)";
-            selectedFile = null;
-
-            const textContainer = document.getElementById('textFieldsContainer');
-            const fileLabel = document.getElementById('fileLabel');
-
-            if (isCultural) {
-                textContainer.style.display = 'none';
-                fileLabel.innerText = "Upload Video/Audio File for Screening (Recommended)";
-                document.getElementById('subModalDesc').innerText = "Please upload your performance file.";
-            } else {
-                textContainer.style.display = 'block';
-                fileLabel.innerText = "Upload Abstract/Paper/Poster (Optional)";
-                document.getElementById('subModalDesc').innerText = "Please provide details for " + title;
-            }
-
-            document.getElementById('submissionModal').classList.add('active');
+            // Disabled
         }
 
         function handleFileSelect(input) {
@@ -836,154 +842,23 @@
         }
 
         async function uploadAndProceed() {
-            const subTitle = document.getElementById('subTitle').value;
-            const subAbstract = document.getElementById('subAbstract').value;
-            const textContainer = document.getElementById('textFieldsContainer');
-            
-            // If text fields are visible, Title is mandatory
-            if (textContainer.style.display !== 'none' && !subTitle.trim()) {
-                alert("Please enter the Title.");
-                return;
-            }
-
-            const btn = document.getElementById('btnSubmitDetails');
-            btn.innerText = "Uploading..."; btn.disabled = true;
-
-            let fileUrl = null;
-
-            if (selectedFile) {
-                const formData = new FormData();
-                formData.append('file', selectedFile);
-                try {
-                    const res = await fetch('/api/utility/upload-file', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await res.json();
-                    if(data.url) fileUrl = data.url;
-                } catch(e) {
-                    console.error("Upload failed", e);
-                    alert("File upload failed. Try again.");
-                    btn.innerText = "Save & Continue"; btn.disabled = false;
-                    return;
-                }
-            }
-
-            // Save to pending item
-            if (textContainer.style.display !== 'none') {
-                pendingCartItem.submissionTitle = subTitle;
-                pendingCartItem.submissionAbstract = subAbstract;
-            } else {
-                pendingCartItem.submissionTitle = "Cultural Performance Upload";
-            }
-            pendingCartItem.submissionUrl = fileUrl;
-
-            closeModal('submissionModal');
-            btn.innerText = "Save & Continue"; btn.disabled = false;
-
-            checkTeamAndAdd();
+             // Disabled
         }
 
         function checkTeamAndAdd() {
-            const event = allEvents.find(e => e.eventId === currentEventId);
-            let maxTeamSize = 1;
-            if(event.teamSize) {
-                const matches = event.teamSize.match(/(\d+)/g); 
-                if(matches) maxTeamSize = parseInt(matches[matches.length - 1]);
-            }
-
-            if(maxTeamSize > 1) {
-                openTeamModal(maxTeamSize);
-            } else {
-                pushToServerCart(pendingCartItem);
-            }
+             // Disabled
         }
 
         function openTeamModal(maxSize) {
-            const container = document.getElementById('teamMembersContainer');
-            container.innerHTML = ''; 
-            const additionalMembers = maxSize - 1; 
-
-            const note = document.createElement('p');
-            note.style.color = '#00ff88'; note.style.fontSize = '0.9rem';
-            note.innerHTML = `You are the Team Leader. Please add details for up to <b>${additionalMembers}</b> additional members.`;
-            container.appendChild(note);
-
-            for(let i = 1; i <= additionalMembers; i++) {
-                const div = document.createElement('div');
-                div.style.marginTop = '15px'; div.style.padding = '10px';
-                div.style.border = '1px solid var(--glass-border)'; div.style.borderRadius = '8px';
-                div.innerHTML = `
-                    <strong style="color:var(--primary-color)">Member ${i + 1}</strong>
-                    <input type="text" class="search-input member-name" placeholder="Full Name" style="margin-top:5px; margin-bottom:5px;">
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <input type="text" class="search-input member-roll" placeholder="Roll No">
-                        <select class="search-input member-year" style="color:white;">
-                            <option value="" disabled selected>Select Year</option>
-                            <option value="1st Year">1st Year</option>
-                            <option value="2nd Year">2nd Year</option>
-                            <option value="3rd Year">3rd Year</option>
-                            <option value="4th Year">4th Year</option>
-                        </select>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-top:5px;">
-                        <input type="text" class="search-input member-mobile" placeholder="Mobile">
-                    </div>
-                    <input type="email" class="search-input member-email" placeholder="Email ID" style="margin-top:5px;">
-                `;
-                container.appendChild(div);
-            }
-            document.getElementById('teamNameInput').value = '';
-            document.getElementById('teamModal').classList.add('active');
+            // Disabled
         }
 
         async function finalizeAddToCart() {
-            const teamName = document.getElementById('teamNameInput').value;
-            if(!teamName) { alert("Please enter a Team Name"); return; }
-            const members = [];
-            const memberDivs = document.querySelectorAll('#teamMembersContainer > div');
-            let isValid = true;
-            memberDivs.forEach((div) => {
-                const name = div.querySelector('.member-name').value;
-                const roll = div.querySelector('.member-roll').value;
-                const year = div.querySelector('.member-year').value;
-                const mobile = div.querySelector('.member-mobile').value;
-                const email = div.querySelector('.member-email').value;
-                if(name) { 
-                    if(!roll || !year || !mobile || !email) isValid = false;
-                    members.push({ name, roll, year, mobile, email });
-                }
-            });
-
-            if(!isValid) { alert("Please fill all details for the added members."); return; }
-            pendingCartItem.teamName = teamName;
-            pendingCartItem.teamMembers = members;
-            closeModal('teamModal');
-            await pushToServerCart(pendingCartItem);
+             // Disabled
         }
 
         async function pushToServerCart(newItem) {
-            showNotification("Checking cart...");
-            try {
-                const resGet = await fetch('/api/cart');
-                let currentCart = [];
-                if(resGet.ok) currentCart = await resGet.json();
-
-                if(currentCart.find(i => i.eventId === newItem.eventId && i.dept === newItem.dept)) {
-                    showNotification("⚠️ This event (same dept) is already in your cart.", true);
-                    return;
-                }
-
-                currentCart.push(newItem);
-                const resPost = await fetch('/api/cart', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: currentCart })
-                });
-
-                if(resPost.ok) showNotification("Successfully saved to Cart!");
-                else alert("Failed to save cart to server.");
-            } catch(e) { console.error(e); alert("Network Error"); }
+             // Disabled
         }
 
         window.onload = loadEvents;
