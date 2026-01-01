@@ -13,28 +13,50 @@
     
     <style>
         :root { --primary: #00d2ff; --bg: #050510; --card: #151520; --text: #ffffff; }
-        body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; overflow-x: hidden; }
 
-        .no-print h1 { font-family: 'Montserrat'; font-weight: 900; color: var(--primary); margin: 0 0 20px 0; }
+        h1 { font-family: 'Montserrat'; font-weight: 900; color: var(--primary); margin: 0 0 20px 0; }
+        
+        /* Stats Dashboard */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat-badge {
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #aaa;
+            transition: 0.2s;
+        }
+        .stat-badge:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .stat-badge strong { color: var(--primary); font-size: 1.1rem; margin-left: 10px; }
+
         .controls { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 30px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; border: 1px solid rgba(255,255,255,0.1); }
         select { padding: 12px; border-radius: 6px; background: #222; color: white; border: 1px solid #444; cursor: pointer; min-width: 200px; }
         .btn-download { background: var(--primary); color: #000; font-weight: bold; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
         .btn-download:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 210, 255, 0.4); }
+        .btn-download:disabled { background: #444; color: #888; cursor: not-allowed; }
 
-        /* Layout */
-        .dept-section { margin-bottom: 60px; page-break-after: always; }
+        /* Screen Layout */
+        .dept-section { margin-bottom: 60px; }
         .dept-header { background: #eee; color: #000; padding: 10px 20px; font-family: 'Montserrat'; font-weight: 900; font-size: 1.5rem; border-left: 10px solid var(--primary); margin-bottom: 20px; text-transform: uppercase; }
         .event-section { margin-bottom: 30px; padding-left: 10px; }
         .event-title { font-size: 1.1rem; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; font-weight: bold; }
         
-        /* Compact Grid */
         .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
 
         .qr-card {
             background: white; color: black; padding: 8px; border-radius: 6px;
             display: flex; flex-direction: column; align-items: center; text-align: center;
             border: 1px solid #eee; position: relative;
-            page-break-inside: avoid; break-inside: avoid;
         }
         
         .serial-badge {
@@ -52,19 +74,114 @@
         .qr-code-img { margin: 4px 0; }
         .qr-code-img img { display: block; }
         .participant-name { font-weight: 700; font-size: 0.75rem; line-height: 1.1; margin-bottom: 2px; }
-        .event-label { font-size: 0.55rem; color: #444; margin-top: 4px; border-top: 1px solid #eee; width: 100%; padding-top: 2px; }
 
-        /* PDF Styles */
-        .pdf-mode { background-color: white !important; color: black !important; padding: 20px !important; }
-        .pdf-mode .dept-header { background: #f0f0f0 !important; color: black !important; border-left-color: #00d2ff !important; }
-        .pdf-mode .qr-card { border: 1px solid #ddd !important; background: white !important; color: black !important; box-shadow: none !important; }
-        .pdf-mode .serial-badge { color: white !important; background: black !important; }
+        /* ========================================= */
+        /* PRINT MODE STYLES                         */
+        /* ========================================= */
+        
+        #printArea {
+            display: none; /* Hidden by default */
+            background: white !important;
+            color: black !important;
+            width: 210mm;
+            margin: 0 auto;
+        }
+
+        /* When printing class is added to body */
+        body.printing {
+            background: white;
+            padding: 0;
+            margin: 0;
+            overflow: visible;
+        }
+
+        body.printing .no-print,
+        body.printing #qrContainer {
+            display: none !important;
+        }
+
+        body.printing #printArea {
+            display: block !important;
+        }
+
+        .print-page {
+            width: 210mm;
+            height: 296mm; /* Slightly less than 297mm to prevent overflow */
+            display: grid;
+            grid-template-columns: repeat(7, 1fr); /* 7 Columns */
+            grid-template-rows: repeat(10, 1fr);   /* 10 Rows */
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+            background: white;
+            page-break-after: always;
+            overflow: hidden;
+        }
+
+        .print-card {
+            border: 0.5px dashed #ddd; /* Light guide lines */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-sizing: border-box;
+            background: white;
+            padding: 2px;
+            overflow: hidden;
+        }
+
+        /* Optimized sizes for 30mm width */
+        .print-card .serial-badge {
+            font-size: 6px; 
+            padding: 1px 3px;
+            margin-bottom: 1px;
+            background: black;
+            color: white;
+            border-radius: 2px;
+            font-weight: bold;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .print-card img {
+            width: 13mm !important; /* Smaller QR */
+            height: 13mm !important;
+            display: block;
+            margin: 1px 0;
+        }
+
+        .print-card .participant-name {
+            font-size: 5px; 
+            font-weight: 700;
+            line-height: 1.1;
+            margin: 1px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 95%;
+            color: #000;
+        }
+
+        .print-card .role-badge {
+            font-size: 4px;
+            color: #555;
+            text-transform: uppercase;
+            font-weight: bold;
+            background: #eee;
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+
     </style>
 </head>
 <body>
 
+    <!-- Main Interface (Hidden during PDF generation) -->
     <div class="no-print">
         <h1><i class="fa-solid fa-qrcode"></i> Wristband QR Generator</h1>
+        
+        <div id="deptStats" class="stats-container"></div>
+
         <div class="controls">
             <div>
                 <label style="display:block; font-size:0.8rem; color:#aaa; margin-bottom:5px;">Filter Department</label>
@@ -73,27 +190,29 @@
                 </select>
             </div>
             
-            <button class="btn-download" onclick="downloadPDF()">
-                <i class="fa-solid fa-file-pdf"></i> Download PDF
+            <button class="btn-download" id="downloadBtn" onclick="downloadPDF()">
+                <i class="fa-solid fa-file-pdf"></i> Download PDF (70/Page)
             </button>
             
             <div style="margin-left:auto; text-align:right;">
                 <div id="totalCount" style="font-size:1.2rem; font-weight:bold; color:var(--primary);">0</div>
-                <div style="font-size:0.8rem; color:#aaa;">Wristbands to Generate</div>
+                <div style="font-size:0.8rem; color:#aaa;">Total Wristbands</div>
             </div>
         </div>
         <p id="loading">Loading registration data...</p>
+        <p id="error-msg" style="color: #ff4444; font-size: 0.8rem; display:none;"></p>
     </div>
 
     <div id="qrContainer"></div>
+
+    <!-- Hidden area for PDF generation -->
+    <div id="printArea"></div>
 
     <script>
         let allRegistrations = [];
         let eventsMap = {};
         let userMap = {};
 
-        // --- UPDATED DEPARTMENT LOGIC ---
-        // Priority List: Checks specific matches (CSM/AI&DS) before general matches (CSE)
         const DEPT_PRIORITY_LIST = [
             { keys: ["CSM", "MACHINE LEARNING", "42"], code: "42" },
             { keys: ["AI&DS", "ARTIFICIAL INTELLIGENCE", "54"], code: "54" },
@@ -110,25 +229,12 @@
         function getDeptCode(deptName) {
             if(!deptName) return "99";
             const upper = deptName.toUpperCase().trim();
-
-            // 1. Check for Short Code in Parentheses first (e.g. "Computer Science (CSE)")
-            const parenMatch = upper.match(/\(([A-Z&]+)\)/);
-            if (parenMatch && parenMatch[1]) {
-                const shortCode = parenMatch[1];
-                for (const item of DEPT_PRIORITY_LIST) {
-                    if (item.keys.includes(shortCode)) return item.code;
-                }
-            }
-
-            // 2. Iterate Priority List
             for (const item of DEPT_PRIORITY_LIST) {
-                // Check if any key is contained in the string
                 for (const key of item.keys) {
                     if (upper.includes(key)) return item.code;
                 }
             }
-            
-            return "99"; // Default / Other
+            return "99"; 
         }
 
         async function init() {
@@ -139,23 +245,62 @@
                     fetch('/api/admin/qr-registry')
                 ]);
 
+                if(!evRes.ok || !deptRes.ok || !regRes.ok) throw new Error("API Offline");
+
                 const events = await evRes.json();
                 events.forEach(e => eventsMap[e.eventId] = e.title);
 
                 const depts = await deptRes.json();
-                const filter = document.getElementById('deptFilter');
-                depts.forEach(d => {
-                    const opt = document.createElement('option');
-                    opt.value = d.name; opt.innerText = d.name;
-                    filter.appendChild(opt);
-                });
+                populateDepts(depts);
 
                 allRegistrations = await regRes.json();
                 await fetchUserNames();
-                document.getElementById('loading').style.display = 'none';
-                renderQRData();
+                
+                finalizeInit();
+            } catch (e) { 
+                generateDummyData();
+            }
+        }
 
-            } catch (e) { console.error(e); }
+        function populateDepts(depts) {
+            const filter = document.getElementById('deptFilter');
+            if(!filter) return;
+            filter.innerHTML = '<option value="all">All Departments</option>';
+            depts.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.name; opt.innerText = d.name;
+                filter.appendChild(opt);
+            });
+        }
+
+        function finalizeInit() {
+            const loading = document.getElementById('loading');
+            if(loading) loading.style.display = 'none';
+            renderStats(); 
+            renderQRData();
+        }
+
+        function generateDummyData() {
+            eventsMap = { "EV01": "Hackathon", "EV02": "Paper Presentation" };
+            populateDepts([{name: "CSE"}, {name: "ECE"}, {name: "ME"}]);
+            
+            allRegistrations = [];
+            for(let i=1; i<=145; i++) {
+                allRegistrations.push({
+                    deptName: i % 3 === 0 ? "CSE" : (i % 3 === 1 ? "ECE" : "ME"),
+                    eventId: i % 2 === 0 ? "EV01" : "EV02",
+                    registrationId: "REG-" + i.toString().padStart(4, '0'),
+                    studentEmail: `user${i}@test.com`,
+                    teamMembers: [] 
+                });
+                userMap[`user${i}@test.com`] = { fullName: `Participant ${i}` };
+            }
+            const errMsg = document.getElementById('error-msg');
+            if(errMsg) {
+                errMsg.innerText = "DEMO MODE: Showing Mock Participants";
+                errMsg.style.display = "block";
+            }
+            finalizeInit();
         }
 
         async function fetchUserNames() {
@@ -165,25 +310,42 @@
                 if(r.teamMembers) r.teamMembers.forEach(m => { if(m.email) emails.add(m.email); });
             });
             if(emails.size === 0) return;
-            const res = await fetch('/api/admin/export-data', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emails: [...emails] })
+            try {
+                const res = await fetch('/api/admin/export-data', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emails: [...emails] })
+                });
+                if(res.ok) userMap = await res.json();
+            } catch(e) {}
+        }
+
+        function renderStats() {
+            const statsContainer = document.getElementById('deptStats');
+            if(!statsContainer) return;
+            statsContainer.innerHTML = '';
+            const counts = {};
+            allRegistrations.forEach(reg => {
+                const dept = reg.deptName || "General";
+                counts[dept] = (counts[dept] || 0) + 1 + (reg.teamMembers?.length || 0);
             });
-            userMap = await res.json();
+            Object.keys(counts).sort().forEach(dept => {
+                const badge = document.createElement('div');
+                badge.className = 'stat-badge';
+                badge.innerHTML = `<span>${dept}</span> <strong>${counts[dept]}</strong>`;
+                statsContainer.appendChild(badge);
+            });
         }
 
         function renderQRData() {
             const container = document.getElementById('qrContainer');
-            const selectedDept = document.getElementById('deptFilter').value;
+            const deptFilter = document.getElementById('deptFilter');
+            if(!container || !deptFilter) return;
+            
+            const selectedDept = deptFilter.value;
             container.innerHTML = '';
 
             const grouped = {};
             const deptCounters = {}; 
-            
-            // Sort by Date to ensure ID is deterministic
-            allRegistrations.sort((a,b) => new Date(a.registeredAt) - new Date(b.registeredAt));
-
             let totalQRs = 0;
-            // Base URL for the scanner to open
             const baseUrl = window.location.origin + '/verify-ticket?id=';
 
             allRegistrations.forEach(reg => {
@@ -197,76 +359,56 @@
                 if(!grouped[dept]) grouped[dept] = {};
                 if(!grouped[dept][eventName]) grouped[dept][eventName] = [];
 
-                let leadName = userMap[reg.studentEmail]?.fullName || reg.studentEmail;
-                
-                // LEAD
-                deptCounters[deptCode]++;
-                const leadSerial = `${deptCode}00${deptCounters[deptCode].toString().padStart(3, '0')}`;
-                
-                grouped[dept][eventName].push({
-                    name: leadName,
-                    serial: leadSerial,
-                    qrData: baseUrl + reg.registrationId,
-                    role: "Lead"
-                });
-                totalQRs++;
-
-                // MEMBERS
-                if(reg.teamMembers && Array.isArray(reg.teamMembers)) {
-                    reg.teamMembers.forEach(m => {
-                        let mName = m.name || (m.email && userMap[m.email]?.fullName) || "Member";
-                        deptCounters[deptCode]++;
-                        const mSerial = `${deptCode}00${deptCounters[deptCode].toString().padStart(3, '0')}`;
-                        
-                        grouped[dept][eventName].push({
-                            name: mName,
-                            serial: mSerial,
-                            qrData: baseUrl + reg.registrationId,
-                            role: "Member"
-                        });
-                        totalQRs++;
+                const processParticipant = (name, role) => {
+                    deptCounters[deptCode]++;
+                    const serial = `${deptCode}${deptCounters[deptCode].toString().padStart(4, '0')}`;
+                    grouped[dept][eventName].push({
+                        name: name.split('@')[0], 
+                        serial: serial,
+                        qrData: baseUrl + reg.registrationId,
+                        role: role
                     });
-                }
+                    totalQRs++;
+                };
+
+                processParticipant(userMap[reg.studentEmail]?.fullName || reg.studentEmail, "Lead");
+                if(reg.teamMembers) reg.teamMembers.forEach(m => processParticipant(m.name || m.email, "Member"));
             });
 
-            document.getElementById('totalCount').innerText = totalQRs;
+            const totalCountEl = document.getElementById('totalCount');
+            if(totalCountEl) totalCountEl.innerText = totalQRs;
 
             Object.keys(grouped).sort().forEach(dept => {
                 const deptDiv = document.createElement('div');
                 deptDiv.className = 'dept-section';
-                const dCode = getDeptCode(dept);
-                deptDiv.innerHTML = `<div class="dept-header">${dept} <span style="float:right; opacity:0.6;">Code: ${dCode}</span></div>`;
+                deptDiv.innerHTML = `<div class="dept-header">${dept}</div>`;
 
                 Object.keys(grouped[dept]).forEach(evt => {
                     const eventDiv = document.createElement('div');
                     eventDiv.className = 'event-section';
-                    eventDiv.innerHTML = `<div class="event-title">${evt} (${grouped[dept][evt].length})</div>`;
-                    
+                    eventDiv.innerHTML = `<div class="event-title">${evt}</div>`;
                     const grid = document.createElement('div');
                     grid.className = 'qr-grid';
 
                     grouped[dept][evt].forEach(p => {
                         const card = document.createElement('div');
                         card.className = 'qr-card';
-                        const qrDivId = 'qr-' + Math.random().toString(36).substr(2, 9);
-                        
+                        const id = 'qr-' + Math.random().toString(36).substr(2, 9);
                         card.innerHTML = `
                             <div class="serial-badge">${p.serial}</div>
                             <div class="role-badge">${p.role}</div>
-                            <div id="${qrDivId}" class="qr-code-img"></div>
+                            <div id="${id}" class="qr-code-img"></div>
                             <div class="participant-name">${p.name}</div>
-                            <div class="event-label">${evt}</div>
                         `;
                         grid.appendChild(card);
-
                         setTimeout(() => {
-                            new QRCode(document.getElementById(qrDivId), {
-                                text: p.qrData, 
-                                width: 60, height: 60,
-                                colorDark : "#000000", colorLight : "#ffffff",
-                                correctLevel : QRCode.CorrectLevel.L
-                            });
-                        }, 0);
+                            const qrEl = document.getElementById(id);
+                            if(qrEl) {
+                                new QRCode(qrEl, {
+                                    text: p.qrData, width: 80, height: 80, correctLevel: QRCode.CorrectLevel.M
+                                });
+                            }
+                        }, 50);
                     });
                     eventDiv.appendChild(grid);
                     deptDiv.appendChild(eventDiv);
@@ -275,26 +417,105 @@
             });
         }
 
-        function downloadPDF() {
-            const element = document.getElementById('qrContainer');
-            element.classList.add('pdf-mode');
-            const btn = document.querySelector('.btn-download');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating PDF...';
+        async function downloadPDF() {
+            const sourceCards = Array.from(document.querySelectorAll('.qr-card'));
+            if(sourceCards.length === 0) return alert("No QR codes found.");
+
+            const btn = document.getElementById('downloadBtn');
+            const originalBtnHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparing...';
+            btn.disabled = true;
+
+            const printArea = document.getElementById('printArea');
+            printArea.innerHTML = '';
             
+            // 1. Prepare Data for Print
+            // Use 70 items per page (7 columns x 10 rows)
+            const ITEMS_PER_PAGE = 70; 
+
+            for (let i = 0; i < sourceCards.length; i += ITEMS_PER_PAGE) {
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'print-page';
+                
+                const chunk = sourceCards.slice(i, i + ITEMS_PER_PAGE);
+                chunk.forEach(orig => {
+                    const pCard = document.createElement('div');
+                    pCard.className = 'print-card';
+
+                    const serial = orig.querySelector('.serial-badge').innerText;
+                    const role = orig.querySelector('.role-badge').innerText;
+                    const name = orig.querySelector('.participant-name').innerText;
+                    
+                    const canvas = orig.querySelector('canvas');
+                    const img = orig.querySelector('img');
+                    
+                    let qrSource = '';
+                    if (canvas) {
+                        qrSource = canvas.toDataURL("image/png");
+                    } else if (img && img.src) {
+                        qrSource = img.src;
+                    }
+                    
+                    // Slightly smaller image container for print
+                    const qrImgHtml = qrSource ? `<img src="${qrSource}" />` : '<div style="height:13mm"></div>';
+
+                    pCard.innerHTML = `
+                        <div class="serial-badge">${serial}</div>
+                        ${qrImgHtml}
+                        <div class="participant-name">${name}</div>
+                        <div class="role-badge">${role}</div>
+                    `;
+                    pageDiv.appendChild(pCard);
+                });
+                printArea.appendChild(pageDiv);
+            }
+
+            // 2. Wait for images in printArea to be ready (even though they are dataURLs)
+            // This prevents "white squares" where images should be.
+            const images = Array.from(printArea.querySelectorAll('img'));
+            await Promise.all(images.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+            }));
+
+            // 3. Switch View Mode (Fix for Blank PDF)
+            // Instead of using a fixed/hidden div, we essentially "navigate" to the print view
+            document.body.classList.add('printing');
+            window.scrollTo(0,0);
+
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating PDF...';
+
             const opt = {
-                margin: [10, 10, 10, 10], 
-                filename: `LAKSHYA_Wristbands_${new Date().toISOString().split('T')[0]}.pdf`,
+                margin: 0,
+                filename: `LAKSHYA_Wristbands_${new Date().toISOString().slice(0,10)}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true, 
+                    logging: false,
+                    letterRendering: true,
+                    allowTaint: true,
+                    scrollY: 0,
+                    scrollX: 0
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            html2pdf().set(opt).from(element).save().then(() => {
-                element.classList.remove('pdf-mode');
-                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Download PDF';
-            });
+            // 4. Generate PDF
+            try {
+                await html2pdf().set(opt).from(printArea).save();
+            } catch(e) {
+                console.error("PDF Generation Error:", e);
+                alert("Download failed. Please refresh and try again.");
+            } finally {
+                // 5. Restore View
+                document.body.classList.remove('printing');
+                printArea.innerHTML = ''; // Clear memory
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
+            }
         }
+
         init();
     </script>
 </body>
