@@ -39,9 +39,10 @@
         }
 
         .header-section {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
             background: var(--glass-bg); padding: 20px 30px; border-radius: 15px;
             border: 1px solid var(--glass-border); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            flex-wrap: wrap; gap: 20px;
         }
 
         .header-title h2 {
@@ -50,13 +51,31 @@
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
-        .stats-summary { display: flex; gap: 20px; }
+        .stats-summary { display: flex; gap: 20px; flex-wrap: wrap; }
         .stat-card {
             background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 10px;
-            border: 1px solid var(--glass-border); text-align: center;
+            border: 1px solid var(--glass-border); text-align: center; flex: 1; min-width: 120px;
         }
         .stat-number { font-size: 1.2rem; font-weight: bold; color: var(--primary-color); }
         .stat-label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; }
+
+        /* Breakdown Section Styles */
+        .breakdown-section {
+            background: var(--glass-bg); padding: 20px; border-radius: 15px;
+            border: 1px solid var(--glass-border); margin-bottom: 30px;
+        }
+        .breakdown-title {
+            color: var(--primary-color); margin-bottom: 15px; font-size: 1.1rem; font-family: 'Montserrat', sans-serif;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .breakdown-table { width: 100%; border-collapse: collapse; }
+        .breakdown-table th {
+            background: rgba(255,255,255,0.05); padding: 10px; text-align: left;
+            font-size: 0.85rem; color: #ccc; border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .breakdown-table td {
+            padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem;
+        }
 
         .search-bar {
             width: 100%; padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border);
@@ -69,16 +88,16 @@
             overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
-        table { width: 100%; border-collapse: collapse; }
-        th {
+        table.main-table { width: 100%; border-collapse: collapse; }
+        table.main-table th {
             background: rgba(0, 210, 255, 0.1); padding: 18px; text-align: left; font-weight: 600;
             color: var(--primary-color); text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;
         }
-        td {
+        table.main-table td {
             padding: 15px 18px; border-bottom: 1px solid rgba(255,255,255,0.05);
             font-size: 0.95rem; vertical-align: middle;
         }
-        tr:hover { background: rgba(255,255,255,0.02); }
+        table.main-table tr:hover { background: rgba(255,255,255,0.02); }
 
         .btn-toggle {
             padding: 8px 16px; border-radius: 50px; border: none; cursor: pointer;
@@ -117,6 +136,7 @@
         @media (max-width: 768px) {
             .header-section { flex-direction: column; gap: 20px; align-items: flex-start; }
             .btn-toggle span { display: none; } 
+            .breakdown-table th, .breakdown-table td { padding: 8px; font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -153,10 +173,30 @@
             </div>
         </div>
 
+        <!-- NEW: Event-wise Breakdown Section -->
+        <div class="breakdown-section">
+            <div class="breakdown-title">
+                <i class="fa-solid fa-list-check"></i> Event-wise Breakdown
+            </div>
+            <table class="breakdown-table">
+                <thead>
+                    <tr>
+                        <th>Event Name</th>
+                        <th style="text-align: center;">Total Eligible</th>
+                        <th style="text-align: center;">Collected</th>
+                        <th style="text-align: center;">Pending</th>
+                    </tr>
+                </thead>
+                <tbody id="breakdownBody">
+                    <tr><td colspan="4" style="text-align:center; padding:15px; color:#666;">Loading breakdown...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
         <input type="text" id="searchInput" class="search-bar" placeholder="Search by Name, Roll Number or Ticket ID..." onkeyup="filterTable()">
 
         <div class="table-container">
-            <table>
+            <table class="main-table">
                 <thead>
                     <tr>
                         <th>Student Details</th>
@@ -185,10 +225,53 @@
                 beneficiaries = await response.json();
                 renderTable(beneficiaries);
                 updateStats();
+                renderBreakdown(); // Call Breakdown Render
             } catch (error) {
                 console.error("Error loading kit data:", error);
                 document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" class="loading-state" style="color:#ff4444;">Failed to load data.</td></tr>`;
+                document.getElementById('breakdownBody').innerHTML = `<tr><td colspan="4" style="text-align:center; color:#ff4444;">Failed to load summary.</td></tr>`;
             }
+        }
+
+        // NEW: Function to Render Event-wise Breakdown
+        function renderBreakdown() {
+            const stats = {};
+            
+            // Group by Event Title
+            beneficiaries.forEach(b => {
+                const evt = b.eventTitle || 'Unknown Event';
+                if (!stats[evt]) {
+                    stats[evt] = { total: 0, collected: 0 };
+                }
+                stats[evt].total++;
+                if (b.kitCollected) {
+                    stats[evt].collected++;
+                }
+            });
+
+            const tbody = document.getElementById('breakdownBody');
+            tbody.innerHTML = '';
+
+            const events = Object.keys(stats).sort();
+            
+            if (events.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#666;">No data available for your department.</td></tr>`;
+                return;
+            }
+
+            events.forEach(evt => {
+                const s = stats[evt];
+                const pending = s.total - s.collected;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight:500;">${evt}</td>
+                    <td style="text-align:center;">${s.total}</td>
+                    <td style="text-align:center; color: var(--success-color); font-weight:600;">${s.collected}</td>
+                    <td style="text-align:center; color: #ffc107;">${pending}</td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         function renderTable(data) {
@@ -243,8 +326,10 @@
             // Optimistic UI
             const student = beneficiaries.find(s => s.registrationId === regId);
             if(student) student.kitCollected = newStatus;
+            
             filterTable();
             updateStats();
+            renderBreakdown(); // Update breakdown on toggle
 
             try {
                 const res = await fetch('/api/coordinator/toggle-kit-status', {
@@ -261,6 +346,8 @@
                 alert("Error updating status");
                 if(student) student.kitCollected = !newStatus; // Revert
                 filterTable();
+                updateStats();
+                renderBreakdown();
             }
         }
 
