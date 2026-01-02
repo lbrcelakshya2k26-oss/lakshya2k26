@@ -47,8 +47,71 @@
         .stalls-table th, .stalls-table td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border); }
         .stalls-table th { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); }
         .amount-highlight { color: #00ff88; font-weight: bold; }
+        
+        .stall-link { color: #00d2ff; cursor: pointer; text-decoration: underline; font-weight: bold; }
+        .stall-link:hover { color: #fff; }
+
+        /* MODAL CSS */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 1000; display: none;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #1a1a25; width: 90%; max-width: 600px; max-height: 80vh;
+            border-radius: 12px; border: 1px solid #333; display: flex; flex-direction: column;
+        }
+        .modal-header { padding: 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 0; overflow-y: auto; flex-grow: 1; }
+        .modal-actions { display: flex; gap: 15px; align-items: center; }
+        .close-btn, .print-btn-modal { color: #fff; cursor: pointer; font-size: 1.2rem; }
+        .print-btn-modal:hover { color: #00d2ff; }
+
+        .hist-item { padding: 15px 20px; border-bottom: 1px solid #333; }
+        .hist-item:last-child { border-bottom: none; }
+        .hist-top { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .h-name { font-weight: bold; color: #fff; }
+        .h-time { color: #888; font-size: 0.8rem; }
+        .h-email { color: #aaa; font-size: 0.9rem; }
+        .h-code { color: #00d2ff; font-family: monospace; font-size: 0.8rem; }
 
         @media (max-width: 768px) { .charts-container { grid-template-columns: 1fr; } }
+
+        /* PRINT STYLES - Hides dashboard, shows only modal content cleanly */
+        @media print {
+            body > * { display: none !important; }
+            
+            #historyModal {
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important; left: 0 !important;
+                width: 100% !important; height: auto !important;
+                background: white !important;
+                color: black !important;
+                z-index: 9999 !important;
+            }
+            .modal-content {
+                width: 100% !important; max-width: 100% !important; height: auto !important;
+                border: none !important; box-shadow: none !important;
+                background: white !important;
+            }
+            .modal-header { border-bottom: 2px solid #000 !important; color: black !important; }
+            .modal-header h3 { color: black !important; }
+            .modal-actions { display: none !important; }
+
+            .modal-body { overflow: visible !important; height: auto !important; }
+            
+            .hist-item {
+                border-bottom: 1px solid #ccc !important;
+                color: black !important;
+                page-break-inside: avoid;
+            }
+            .h-name { color: black !important; }
+            .h-email { color: #333 !important; }
+            .h-time { color: #555 !important; }
+            .h-code { color: #000 !important; font-weight: bold; }
+        }
+
     </style>
 </head>
 <body>
@@ -58,6 +121,7 @@
             <h2>Coupon Analytics</h2>
             <p style="color:#888; margin-top:5px;">Real-time usage and settlement tracking.</p>
         </div>
+        <!-- Global Dashboard Print -->
         <button onclick="window.print()" style="padding:10px 20px; background:#333; color:white; border:none; border-radius:5px; cursor:pointer;">
             <i class="fa-solid fa-print"></i> Report
         </button>
@@ -108,6 +172,22 @@
         </tbody>
     </table>
 
+    <!-- History Modal -->
+    <div class="modal-overlay" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="margin:0; color: #fff;" id="modalTitle">Stall History</h3>
+                <div class="modal-actions">
+                    <div class="print-btn-modal" onclick="window.print()" title="Print History"><i class="fa-solid fa-print"></i></div>
+                    <span class="close-btn" onclick="closeModal()">&times;</span>
+                </div>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Items -->
+            </div>
+        </div>
+    </div>
+
     <script>
         async function loadStats() {
             try {
@@ -123,13 +203,18 @@
                 // 2. Render Charts
                 renderCharts(data);
 
-                // 3. Render Table
+                // 3. Render Table (WITH CLICK HANDLER)
                 const tbody = document.getElementById('stallTableBody');
                 tbody.innerHTML = data.stalls.map(s => `
                     <tr>
-                        <td><strong>${s.name}</strong><br><small style="color:#666">${s.id}</small></td>
+                        <td>
+                            <span class="stall-link" onclick="viewStallHistory('${s.id}')">
+                                ${s.name}
+                            </span>
+                            <br><small style="color:#666">${s.id}</small>
+                        </td>
                         <td>${s.count}</td>
-                        <td>${new Date(s.lastActive).toLocaleTimeString()}</td>
+                        <td>${new Date(s.lastActive).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                         <td class="amount-highlight">₹${(s.count * 50).toLocaleString()}</td>
                     </tr>
                 `).join('');
@@ -139,8 +224,50 @@
             }
         }
 
+        async function viewStallHistory(stallId) {
+            const modal = document.getElementById('historyModal');
+            const body = document.getElementById('modalBody');
+            const title = document.getElementById('modalTitle');
+            
+            title.innerText = `History: ${stallId}`;
+            modal.style.display = 'flex';
+            body.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">Loading...</div>';
+
+            try {
+                const res = await fetch(`/api/admin/stall-history?stallId=${encodeURIComponent(stallId)}`);
+                const items = await res.json();
+
+                if(items.length === 0) {
+                    body.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">No history found.</div>';
+                    return;
+                }
+
+                body.innerHTML = items.map(i => {
+                    const date = new Date(i.redeemedAt);
+                    return `
+                    <div class="hist-item">
+                        <div class="hist-top">
+                            <span class="h-name">${i.holderName || 'Unknown Student'}</span>
+                            <span class="h-time">${date.toLocaleDateString()} ${date.toLocaleTimeString()}</span>
+                        </div>
+                        <div class="h-email">${i.holderEmail}</div>
+                        <div class="h-code">Coupon: ${i.code}</div>
+                    </div>`;
+                }).join('');
+
+            } catch(e) {
+                body.innerHTML = '<div style="padding:20px; text-align:center; color:red;">Failed to load.</div>';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
         function renderCharts(data) {
-            // Hourly Chart
+            // Check if chart instance exists and destroy if needed (prevents canvas reuse error)
+            // For simplicity in this static file, we assume fresh load
+            
             new Chart(document.getElementById('timeChart'), {
                 type: 'line',
                 data: {
@@ -157,7 +284,6 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
-            // Dept Pie Chart
             new Chart(document.getElementById('deptChart'), {
                 type: 'doughnut',
                 data: {
