@@ -4981,6 +4981,51 @@ app.post('/api/admin/manage-coupon-action', isAuthenticated('admin'), async (req
         res.status(500).json({ error: "Action failed" });
     }
 });
+app.get('/api/stall/my-history', isAuthenticated('stall'), async (req, res) => {
+    const stallId = req.session.user.email; // Stall ID is stored in email field for stalls
+    
+    try {
+        const params = {
+            TableName: 'Lakshya_FoodCoupons',
+            FilterExpression: 'redeemedBy = :stall',
+            ExpressionAttributeValues: { ':stall': stallId }
+        };
+        const data = await docClient.send(new ScanCommand(params));
+        
+        // Sort by Time (Newest First)
+        const items = data.Items || [];
+        items.sort((a, b) => new Date(b.redeemedAt) - new Date(a.redeemedAt));
+
+        res.json(items);
+    } catch (e) {
+        console.error("Stall History Error:", e);
+        res.status(500).json({ error: 'Failed to fetch history' });
+    }
+});
+
+// 2. API: Admin View History for a Specific Stall
+app.get('/api/admin/stall-history', isAuthenticated('admin'), async (req, res) => {
+    const { stallId } = req.query;
+    if (!stallId) return res.status(400).json({ error: "Stall ID required" });
+
+    try {
+        const params = {
+            TableName: 'Lakshya_FoodCoupons',
+            FilterExpression: 'redeemedBy = :stall',
+            ExpressionAttributeValues: { ':stall': stallId }
+        };
+        const data = await docClient.send(new ScanCommand(params));
+        
+        // Sort by Time (Newest First)
+        const items = data.Items || [];
+        items.sort((a, b) => new Date(b.redeemedAt) - new Date(a.redeemedAt));
+
+        res.json(items);
+    } catch (e) {
+        console.error("Admin Stall History Error:", e);
+        res.status(500).json({ error: 'Failed to fetch history' });
+    }
+});
 
 
 const PORT = process.env.PORT || 3000;
