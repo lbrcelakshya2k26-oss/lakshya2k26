@@ -351,7 +351,9 @@ app.get('/admin/participant-qr', isAuthenticated('admin'), (req, res) => {
 app.get('/admin/issue-coupon', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/issue-coupons.html'));
 });
-
+app.get('/admin/coupon-issue', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/coupon-issue.html'));
+});
 
 const getEmailTemplate = (type, data) => {
     const { title, name, regId, eventName, dept, teamName, status, amount, txId, date, coupon, link } = data;
@@ -5026,6 +5028,123 @@ app.get('/api/admin/stall-history', isAuthenticated('admin'), async (req, res) =
     }
 });
 
+app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), async (req, res) => {
+    const { emails } = req.body;
+
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+        return res.status(400).json({ error: "No emails provided" });
+    }
+
+    let issuedCount = 0;
+    let resentCount = 0;
+    let errors = [];
+
+    // Use current host for the link
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
+    for (const rawEmail of emails) {
+        const email = rawEmail.trim();
+        if (!email) continue;
+
+        try {
+            // 1. Check if user exists to get their real name (Optional, nice to have)
+            let holderName = "Participant";
+            try {
+                const userRes = await docClient.send(new GetCommand({ 
+                    TableName: 'Lakshya_Users', 
+                    Key: { email: email } 
+                }));
+                if (userRes.Item) holderName = userRes.Item.fullName;
+            } catch (e) {
+                // User might not be registered, which is fine
+            }
+
+            // 2. Check if this email already has coupons
+            // We search by email to see if they have existing ones
+            const existingCheck = await docClient.send(new ScanCommand({
+                TableName: 'Lakshya_FoodCoupons',
+                FilterExpression: 'holderEmail = :e',
+                ExpressionAttributeValues: { ':e': email }
+            }));
+
+            let uniqueSourceId;
+
+            if (existingCheck.Count > 0) {
+                // User has coupons -> Resend the EXISTING link
+                // We grab the 'source' from their first coupon to build the link
+                uniqueSourceId = existingCheck.Items[0].source;
+                resentCount++;
+            } else {
+                // User is new -> Generate NEW coupons
+                // We create a unique ID for this batch so the public link is secure/unique to them
+                uniqueSourceId = uuidv4(); 
+
+                // Generate 2 Coupons
+                const coupon1 = {
+                    code: `FOOD-${uuidv4().substring(0,8).toUpperCase()}`,
+                    holderEmail: email,
+                    holderName: holderName,
+                    status: 'ACTIVE',
+                    issuedAt: new Date().toISOString(),
+                    source: uniqueSourceId, // Used for the public link lookup
+                    // validStallId is OMITTED so it works at ANY stall
+                };
+                const coupon2 = {
+                    code: `FOOD-${uuidv4().substring(0,8).toUpperCase()}`,
+                    holderEmail: email,
+                    holderName: holderName,
+                    status: 'ACTIVE',
+                    issuedAt: new Date().toISOString(),
+                    source: uniqueSourceId,
+                    // validStallId is OMITTED
+                };
+
+                await docClient.send(new PutCommand({ TableName: 'Lakshya_FoodCoupons', Item: coupon1 }));
+                await docClient.send(new PutCommand({ TableName: 'Lakshya_FoodCoupons', Item: coupon2 }));
+                issuedCount++;
+            }
+
+            // 3. Send Email
+            const link = `${baseUrl}/my-coupons?id=${uniqueSourceId}`;
+            
+            const emailSubject = "Here are your Food Coupons! 🍔 | LAKSHYA 2K26";
+            const emailHtml = `
+            <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; background: #fff; border-radius: 8px; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #00d2ff, #3a7bd5); padding: 25px; text-align: center;">
+                    <h1 style="color: #fff; margin: 0; font-size: 24px;">LAKSHYA 2K26</h1>
+                    <p style="color: #eafaff; margin: 5px 0 0;">Food & Refreshments</p>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="font-size: 16px; color: #333;">Hello <strong>${holderName}</strong>,</p>
+                    <p style="color: #555;">You have been issued <strong>2 Food Coupons</strong> valid at any stall in the food court.</p>
+                    
+                    <div style="background: #f0fbff; border: 1px dashed #00d2ff; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center;">
+                        <h3 style="color: #0077ff; margin: 0 0 10px 0;">🍔 Coupons Ready</h3>
+                        <a href="${link}" style="background-color: #00d2ff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
+                           Tap to View Coupons
+                        </a>
+                    </div>
+                    
+                    <p style="font-size: 13px; color: #888;">Note: Do not share this link. It contains your unique QR codes.</p>
+                </div>
+            </div>`;
+
+            await sendEmail(email, emailSubject, emailHtml);
+
+        } catch (err) {
+            console.error(`Failed to issue to ${email}:`, err);
+            errors.push(email);
+        }
+    }
+
+    res.json({
+        success: true,
+        message: `Processed. Issued: ${issuedCount}, Resent: ${resentCount}.`,
+        errors: errors
+    });
+});
 
 const PORT = process.env.PORT || 3000;
 
