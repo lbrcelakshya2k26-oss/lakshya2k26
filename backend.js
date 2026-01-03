@@ -3013,7 +3013,7 @@ app.post('/api/coordinator/toggle-kit-status', isAuthenticated('coordinator'), a
             return res.status(400).json({ error: "Student must be marked PRESENT first." });
         }
 
-        // 3. Update Kit Status
+        // 3. Update Kit Status (This runs FIRST now)
         await docClient.send(new UpdateCommand({
             TableName: 'Lakshya_Registrations',
             Key: { registrationId },
@@ -3024,80 +3024,79 @@ app.post('/api/coordinator/toggle-kit-status', isAuthenticated('coordinator'), a
             }
         }));
 
-        // 4. COUPON GENERATION LOGIC (NEW)
+        // 4. COUPON GENERATION (Wrapped in try-catch so it won't crash the server)
         if (status === true) {
-            // Check if coupons already exist for this registration to ensure idempotency
-            // FIX: 'source' is a reserved keyword, so we use ExpressionAttributeNames (#src)
-            const couponCheck = await docClient.send(new ScanCommand({
-                TableName: 'Lakshya_FoodCoupons',
-                FilterExpression: '#src = :src',
-                ExpressionAttributeNames: { '#src': 'source' },
-                ExpressionAttributeValues: { ':src': registrationId }
-            }));
-
-            // Fetch Student Name & Event Title for Email
-            let studentName = reg.teamName || "Student";
-            let eventTitle = "LAKSHYA 2K26 Event";
-
-            // Try to get real name from Users table
             try {
-                const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: reg.studentEmail }}));
-                if(u.Item) studentName = u.Item.fullName;
-                
-                const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId }}));
-                if(e.Item) eventTitle = e.Item.title;
-            } catch(e){}
+                const couponCheck = await docClient.send(new ScanCommand({
+                    TableName: 'Lakshya_FoodCoupons',
+                    FilterExpression: '#src = :src',
+                    ExpressionAttributeNames: { '#src': 'source' },
+                    ExpressionAttributeValues: { ':src': registrationId }
+                }));
 
-            // Generate Coupons if they don't exist
-            if (couponCheck.Count === 0) {
-                await generateCouponsForUser(reg.studentEmail, studentName, registrationId);
-                console.log(`Coupons generated for ${registrationId}`);
-            }
+                // Fetch Student Name & Event Title for Email
+                let studentName = reg.teamName || "Student";
+                let eventTitle = "LAKSHYA 2K26 Event";
 
-            // 5. SEND EMAIL NOTIFICATION
-            const emailSubject = "Kit Collected & Coupons Active! 🍔 | LAKSHYA 2K26";
-            const emailHtml = `
-            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
-                
-                <!-- Header -->
-                <div style="background: linear-gradient(135deg, #00d2ff, #3a7bd5); padding: 20px; text-align: center;">
-                     <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">LAKSHYA 2K26</h1>
-                     <p style="color: #eafaff; margin: 5px 0 0; font-size: 14px;">Kit Distribution Update</p>
-                </div>
-
-                <div style="padding: 30px;">
-                    <p style="font-size: 16px; color: #333;">Dear <strong>${studentName}</strong>,</p>
+                try {
+                    const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: reg.studentEmail }}));
+                    if(u.Item) studentName = u.Item.fullName;
                     
-                    <p style="font-size: 15px; color: #555; line-height: 1.6;">
-                        This is to confirm that your event kit for <strong>${eventTitle}</strong> has been successfully collected.
-                    </p>
+                    const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId }}));
+                    if(e.Item) eventTitle = e.Item.title;
+                } catch(e){}
+
+                // Generate Coupons if they don't exist
+                if (couponCheck.Count === 0) {
+                    await generateCouponsForUser(reg.studentEmail, studentName, registrationId);
+                    console.log(`Coupons generated for ${registrationId}`);
+                }
+
+                // 5. SEND EMAIL (Exact same link as previous)
+                const emailSubject = "Kit Collected & Coupons Active! 🍔 | LAKSHYA 2K26";
+                const emailHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
                     
-                    <!-- Coupon Highlight Box -->
-                    <div style="background-color: #f0fbff; border: 1px dashed #00d2ff; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center;">
-                        <h3 style="color: #0077ff; margin: 0 0 10px 0;">🍔 Food Coupons Activated!</h3>
-                        <p style="color: #555; font-size: 14px; margin: 0;">
-                            <strong>2 Digital Food Coupons</strong> have been added to your account.
+                    <div style="background: linear-gradient(135deg, #00d2ff, #3a7bd5); padding: 20px; text-align: center;">
+                         <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">LAKSHYA 2K26</h1>
+                         <p style="color: #eafaff; margin: 5px 0 0; font-size: 14px;">Kit Distribution Update</p>
+                    </div>
+
+                    <div style="padding: 30px;">
+                        <p style="font-size: 16px; color: #333;">Dear <strong>${studentName}</strong>,</p>
+                        
+                        <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                            This is to confirm that your event kit for <strong>${eventTitle}</strong> has been successfully collected.
                         </p>
-                        <div style="margin-top: 15px;">
-                            <a href="https://lakshya.lbrce.ac.in/my-coupons?id=${registrationId}" 
-                               style="background-color: #ff00cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 14px; display: inline-block;">
-                               View My QR Codes
-                            </a>
+                        
+                        <div style="background-color: #f0fbff; border: 1px dashed #00d2ff; padding: 20px; border-radius: 8px; margin: 25px 0; text-align: center;">
+                            <h3 style="color: #0077ff; margin: 0 0 10px 0;">🍔 Food Coupons Activated!</h3>
+                            <p style="color: #555; font-size: 14px; margin: 0;">
+                                <strong>2 Digital Food Coupons</strong> have been added to your account.
+                            </p>
+                            <div style="margin-top: 15px;">
+                                <a href="http://localhost:3000/my-coupons?id=${registrationId}" 
+                                   style="background-color: #ff00cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 14px; display: inline-block;">
+                                   View My QR Codes
+                                </a>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 14px; color: #666;">
+                            <strong>Note:</strong> Show the QR code from the "My Coupons" section to the stall vendor to redeem your food. Do not share screenshots with others.
+                        </p>
+
+                        <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                            <p style="color: #888; font-size: 13px; margin: 0;">Best Regards,<br>Team LAKSHYA</p>
                         </div>
                     </div>
+                </div>`;
 
-                    <p style="font-size: 14px; color: #666;">
-                        <strong>Note:</strong> Show the QR code from the "My Coupons" section to the stall vendor to redeem your food. Do not share screenshots with others.
-                    </p>
-
-                    <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-                        <p style="color: #888; font-size: 13px; margin: 0;">Best Regards,<br>Team LAKSHYA</p>
-                    </div>
-                </div>
-            </div>`;
-
-            // Fire and forget email
-            sendEmail(reg.studentEmail, emailSubject, emailHtml).catch(err => console.error("Kit Email Failed:", err));
+                // Fire and forget email
+                sendEmail(reg.studentEmail, emailSubject, emailHtml).catch(err => console.error("Kit Email Failed:", err));
+            } catch (couponError) {
+                console.error("COUPON ERROR (Ignored to keep site running):", couponError);
+            }
         }
 
         res.json({ message: "Updated successfully & Coupons Generated" });
