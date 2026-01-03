@@ -9,6 +9,8 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -45,10 +47,9 @@
                             <p class="text-blue-800/80 text-sm leading-relaxed">
                                 Use this tool to issue standard food coupons to anyone. 
                                 <ul class="list-disc list-inside mt-2 space-y-1 ml-1">
-                                    <li>Coupons are <strong>not restricted</strong> to any specific stall.</li>
-                                    <li>Each email will receive <strong>2 Food Coupons</strong> by default.</li>
-                                    <li>Recipients will get an automated email with a secure link to view their coupons.</li>
-                                    <li>If a user already has coupons, the system will just resend their link.</li>
+                                    <li>Coupons are <strong>valid at ANY stall</strong>.</li>
+                                    <li>Each email will receive <strong>2 Food Coupons</strong>.</li>
+                                    <li><strong>Smart Check:</strong> If a user already has coupons, we will NOT create duplicates. We will simply resend their link.</li>
                                 </ul>
                             </p>
                         </div>
@@ -170,23 +171,16 @@
                     // Update UI
                     document.getElementById('resultSection').classList.remove('hidden');
                     
-                    // Parse message roughly: "Processed X. Issued: Y, Resent: Z. Errors: A"
-                    // Or rely on data structure if backend sends broken down stats. 
-                    // Let's assume the backend sends specific counts or we parse the message.
-                    // Actually, the backend sends { success: true, issued: X, resent: Y, errors: [] } ideally.
-                    // Based on my backend code: { success: true, message: "...", errors: [] }
-                    // I'll assume standard parsing or basic display.
-                    
-                    // Quick parsing of the message string from backend
-                    const msg = data.message;
-                    const issued = msg.match(/Issued: (\d+)/)?.[1] || 0;
+                    // Parse message roughly from backend
+                    const msg = data.message || "";
+                    const issued = msg.match(/Issued New: (\d+)/)?.[1] || 0;
                     const resent = msg.match(/Resent: (\d+)/)?.[1] || 0;
                     
                     document.getElementById('successCount').textContent = issued;
                     document.getElementById('resentCount').textContent = resent;
-                    document.getElementById('errorCount').textContent = data.errors.length;
+                    document.getElementById('errorCount').textContent = data.errors ? data.errors.length : 0;
 
-                    if (data.errors.length > 0) {
+                    if (data.errors && data.errors.length > 0) {
                         document.getElementById('errorList').classList.remove('hidden');
                         document.getElementById('errorContent').textContent = data.errors.join(', ');
                     } else {
@@ -194,7 +188,6 @@
                     }
 
                     showToast("Coupons Processed Successfully!");
-                    // emailInput.value = ''; // Keep input so they see what they sent? Or clear? Let's keep.
                 } else {
                     showToast(data.error || "Failed to process", "error");
                 }
@@ -214,10 +207,12 @@
             const toastMsg = document.getElementById('toastMsg');
             
             toastMsg.textContent = msg;
+            const icon = toast.querySelector('i');
+            
             if(type === 'error') {
-                toast.querySelector('i').className = 'fa-solid fa-circle-exclamation text-red-400';
+                icon.className = 'fa-solid fa-circle-exclamation text-red-400';
             } else {
-                toast.querySelector('i').className = 'fa-solid fa-circle-check text-green-400';
+                icon.className = 'fa-solid fa-circle-check text-green-400';
             }
 
             toast.classList.remove('translate-y-24', 'opacity-0');
