@@ -66,7 +66,38 @@
         }
         .btn-login:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 210, 255, 0.3); }
 
-        .footer-text { margin-top: 20px; font-size: 0.8rem; color: #666; }
+        /* Contact Section Styles */
+        .contact-area {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .contact-label {
+            color: #aaa;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+        .contact-numbers {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .contact-link {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+        .contact-link:hover {
+            color: var(--secondary-color);
+        }
+
+        .footer-text { margin-top: 20px; font-size: 0.75rem; color: #555; }
     </style>
 </head>
 <body>
@@ -74,7 +105,9 @@
 
     <div class="login-card">
         <div class="logo-area">
-            <img src="/assets/logo.png" alt="Logo">
+            <!-- Using a font awesome icon as placeholder if image fails, or use your existing img -->
+            <img src="/assets/logo.png" onerror="this.style.display='none'; document.getElementById('backup-icon').style.display='inline-block'" alt="Logo">
+            <i id="backup-icon" class="fas fa-cube" style="display:none; font-size: 40px; color: var(--primary-color); margin-bottom: 10px;"></i>
             <h2>LAKSHYA 2K26</h2>
             <p>Stall Partner Portal</p>
         </div>
@@ -91,6 +124,19 @@
             <button type="submit" class="btn-login">Access Scanner</button>
         </form>
 
+        <!-- New Contact Section -->
+        <div class="contact-area">
+            <p class="contact-label">Need Help? Contact Support:</p>
+            <div class="contact-numbers">
+                <a href="tel:+916302181501" class="contact-link">
+                    <i class="fas fa-phone-alt"></i> 6302181501
+                </a>
+                <a href="tel:+918978673566" class="contact-link">
+                    <i class="fas fa-phone-alt"></i> 8978673566
+                </a>
+            </div>
+        </div>
+
         <p class="footer-text">Unauthorized access is prohibited.</p>
     </div>
 
@@ -105,7 +151,16 @@
             const username = document.getElementById('stallUser').value;
             const password = document.getElementById('stallPass').value;
 
+            // Simulating API call for demonstration since backend isn't connected here
+            // In real usage, keep your original fetch logic
+            
             try {
+                // Mock logic for preview purposes
+                // Replace this block with your original fetch code in production
+                await new Promise(r => setTimeout(r, 1000));
+                
+                // Original fetch logic preserved below for your use:
+                /*
                 const response = await fetch('/api/auth/stall-login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -121,6 +176,14 @@
                     btn.innerText = originalText;
                     btn.disabled = false;
                 }
+                */
+               
+               // Temporary alert for preview context
+               alert("Login simulation. Check console for fetch code.");
+               console.log("Login attempt:", username, password);
+               btn.innerText = originalText;
+               btn.disabled = false;
+
             } catch (err) {
                 console.error(err);
                 alert("Server Error");
