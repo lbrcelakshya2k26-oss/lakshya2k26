@@ -228,10 +228,18 @@
         // --- SIDEBAR TOGGLE ---
       
 
-        // --- LOAD EVENTS ---
+        // --- LOAD EVENTS (WITH FILTER) ---
         async function loadEvents() {
             const container = document.getElementById('eventList');
+            container.innerHTML = '<p style="color:#aaa;">Loading events...</p>'; // Show loading
+
             try {
+                // 1. Fetch User Data to get Dept
+                const userRes = await fetch('/api/coordinator/dashboard-data');
+                const userData = await userRes.json();
+                const userDept = (userData.dept || "").toUpperCase();
+
+                // 2. Fetch All Events
                 const res = await fetch('/api/coordinator/my-events');
                 const events = await res.json();
                 
@@ -242,14 +250,35 @@
                 }
 
                 events.forEach(event => {
+                    const title = (event.title || "").toUpperCase();
+                    
+                    // --- UDBHAVANA FILTER LOGIC ---
+                    // If event title contains "UDBHAVANA" (or typo "UDHBHAVANA")
+                    if (title.includes("UDBHAVANA") || title.includes("UDHBHAVANA")) {
+                        // If logged-in user is NOT 'UDBHAVANA' AND NOT 'MY MANAGED EVENTS', hide it.
+                        // 'MY MANAGED EVENTS' is returned when a specific coordinator (like udbhavana@xeta.com) 
+                        // is assigned specific event IDs, regardless of their dept name.
+                        if (userDept !== "UDBHAVANA" && userDept !== "MY MANAGED EVENTS") {
+                            return; // Skip iteration
+                        }
+                    }
+                    // ------------------------------
+
                     const div = document.createElement('div');
                     div.className = 'event-item';
                     div.innerHTML = `<h4>${event.title}</h4><p>${event.type}</p>`;
                     div.onclick = () => selectEvent(event.eventId, event.title, div);
                     container.appendChild(div);
                 });
+
+                // Fallback if everything was filtered out
+                if (container.children.length === 0) {
+                     container.innerHTML = '<p style="color:#aaa;">No events available.</p>';
+                }
+
             } catch (e) {
                 console.error(e);
+                container.innerHTML = '<p style="color:red;">Error loading data.</p>';
             }
         }
 
