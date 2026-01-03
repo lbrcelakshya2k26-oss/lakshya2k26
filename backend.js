@@ -4120,7 +4120,13 @@ app.get('/api/public/coupons/:id', async (req, res) => {
             ExpressionAttributeValues: { ':s': id }
         };
         const data = await docClient.send(new ScanCommand(params));
-        res.json(data.Items || []);
+        let items = data.Items || [];
+
+        // FIX: Sort by Date (Newest First) and Take Top 2
+        items.sort((a, b) => new Date(b.issuedAt) - new Date(a.issuedAt));
+        const validCoupons = items.slice(0, 2);
+
+        res.json(validCoupons);
     } catch (e) {
         console.error("Public Coupon Fetch Error:", e);
         res.status(500).json({ error: 'Failed to fetch coupons' });
@@ -4160,7 +4166,13 @@ app.get('/api/participant/my-coupons', isAuthenticated('participant'), async (re
             ExpressionAttributeValues: { ':e': email }
         };
         const data = await docClient.send(new ScanCommand(params));
-        res.json(data.Items || []);
+        let items = data.Items || [];
+
+        // FIX: Sort by Date (Newest First) and Take Top 2
+        items.sort((a, b) => new Date(b.issuedAt) - new Date(a.issuedAt));
+        const validCoupons = items.slice(0, 2);
+
+        res.json(validCoupons);
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch coupons' });
     }
@@ -5039,7 +5051,6 @@ app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), asyn
     let resentCount = 0;
     let errors = [];
 
-    // Use current host for the link
     const protocol = req.protocol;
     const host = req.get('host');
     const baseUrl = `${protocol}://${host}`;
@@ -5049,7 +5060,7 @@ app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), asyn
         if (!email) continue;
 
         try {
-            // 1. Check if user exists to get their real name (Optional, nice to have)
+            // A. Get User Name (Optional)
             let holderName = "Participant";
             try {
                 const userRes = await docClient.send(new GetCommand({ 
@@ -5057,12 +5068,9 @@ app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), asyn
                     Key: { email: email } 
                 }));
                 if (userRes.Item) holderName = userRes.Item.fullName;
-            } catch (e) {
-                // User might not be registered, which is fine
-            }
+            } catch (e) {}
 
-            // 2. Check if this email already has coupons
-            // We search by email to see if they have existing ones
+            // B. CHECK FOR EXISTING COUPONS (Prevent Duplicates)
             const existingCheck = await docClient.send(new ScanCommand({
                 TableName: 'Lakshya_FoodCoupons',
                 FilterExpression: 'holderEmail = :e',
@@ -5070,26 +5078,24 @@ app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), asyn
             }));
 
             let uniqueSourceId;
+            let couponsToNotify = [];
 
             if (existingCheck.Count > 0) {
-                // User has coupons -> Resend the EXISTING link
-                // We grab the 'source' from their first coupon to build the link
+                // CASE 1: Coupons Exist -> Resend Link Only
+                // We use the source ID from the first coupon found to keep the link consistent
                 uniqueSourceId = existingCheck.Items[0].source;
                 resentCount++;
             } else {
-                // User is new -> Generate NEW coupons
-                // We create a unique ID for this batch so the public link is secure/unique to them
+                // CASE 2: No Coupons -> Create Exactly 2
                 uniqueSourceId = uuidv4(); 
 
-                // Generate 2 Coupons
                 const coupon1 = {
                     code: `FOOD-${uuidv4().substring(0,8).toUpperCase()}`,
                     holderEmail: email,
                     holderName: holderName,
                     status: 'ACTIVE',
                     issuedAt: new Date().toISOString(),
-                    source: uniqueSourceId, // Used for the public link lookup
-                    // validStallId is OMITTED so it works at ANY stall
+                    source: uniqueSourceId
                 };
                 const coupon2 = {
                     code: `FOOD-${uuidv4().substring(0,8).toUpperCase()}`,
@@ -5097,8 +5103,7 @@ app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), asyn
                     holderName: holderName,
                     status: 'ACTIVE',
                     issuedAt: new Date().toISOString(),
-                    source: uniqueSourceId,
-                    // validStallId is OMITTED
+                    source: uniqueSourceId
                 };
 
                 await docClient.send(new PutCommand({ TableName: 'Lakshya_FoodCoupons', Item: coupon1 }));
@@ -5106,7 +5111,7 @@ app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), asyn
                 issuedCount++;
             }
 
-            // 3. Send Email
+            // C. Send Email
             const link = `${baseUrl}/my-coupons?id=${uniqueSourceId}`;
             
             const emailSubject = "Here are your Food Coupons! 🍔 | LAKSHYA 2K26";
@@ -5141,7 +5146,7 @@ app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), asyn
 
     res.json({
         success: true,
-        message: `Processed. Issued: ${issuedCount}, Resent: ${resentCount}.`,
+        message: `Processed. Issued New: ${issuedCount}, Resent: ${resentCount}.`,
         errors: errors
     });
 });
