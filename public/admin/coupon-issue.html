@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue General Food Coupons | Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-50">
+            <div class="max-w-5xl mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg">
+                        <i class="fa-solid fa-ticket-simple"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-slate-900">Issue General Coupons</h1>
+                        <p class="text-xs text-slate-500 font-medium">Bulk Distribution System</p>
+                    </div>
+                </div>
+                <a href="/admin/dashboard" class="text-sm font-semibold text-slate-500 hover:text-blue-600 transition-colors">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Back to Dashboard
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow p-6">
+            <div class="max-w-3xl mx-auto">
+                
+                <!-- Info Card -->
+                <div class="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8">
+                    <div class="flex items-start gap-4">
+                        <div class="text-blue-600 mt-1"><i class="fa-solid fa-circle-info fa-lg"></i></div>
+                        <div>
+                            <h3 class="font-bold text-blue-900 text-sm uppercase tracking-wide mb-1">How this works</h3>
+                            <p class="text-blue-800/80 text-sm leading-relaxed">
+                                Use this tool to issue standard food coupons to anyone. 
+                                <ul class="list-disc list-inside mt-2 space-y-1 ml-1">
+                                    <li>Coupons are <strong>not restricted</strong> to any specific stall.</li>
+                                    <li>Each email will receive <strong>2 Food Coupons</strong> by default.</li>
+                                    <li>Recipients will get an automated email with a secure link to view their coupons.</li>
+                                    <li>If a user already has coupons, the system will just resend their link.</li>
+                                </ul>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Section -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">
+                        Recipient Emails
+                        <span class="ml-1 text-xs font-normal text-slate-400">(Comma separated or new lines)</span>
+                    </label>
+                    
+                    <div class="relative">
+                        <textarea id="emailInput" rows="8" 
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder:text-slate-400"
+                            placeholder="student1@example.com&#10;student2@example.com&#10;volunteer@example.com"></textarea>
+                        <div class="absolute bottom-4 right-4 text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-100 shadow-sm">
+                            <span id="countDisplay">0</span> Emails
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex items-center justify-between">
+                        <button onclick="clearInput()" class="text-slate-400 hover:text-slate-600 text-sm font-bold px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                            Clear
+                        </button>
+                        <button onclick="issueCoupons()" id="issueBtn" class="bg-slate-900 hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-95 flex items-center gap-2">
+                            <span>Issue Coupons</span>
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Section (Hidden by default) -->
+                <div id="resultSection" class="hidden mt-8 animate-fade-in">
+                    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800">Process Summary</h3>
+                            <span id="statusBadge" class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded uppercase">Completed</span>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-3 gap-4 mb-6">
+                                <div class="bg-green-50 rounded-xl p-4 text-center border border-green-100">
+                                    <div class="text-2xl font-bold text-green-600" id="successCount">0</div>
+                                    <div class="text-xs font-bold text-green-800/60 uppercase mt-1">Issued New</div>
+                                </div>
+                                <div class="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+                                    <div class="text-2xl font-bold text-blue-600" id="resentCount">0</div>
+                                    <div class="text-xs font-bold text-blue-800/60 uppercase mt-1">Resent Existing</div>
+                                </div>
+                                <div class="bg-red-50 rounded-xl p-4 text-center border border-red-100">
+                                    <div class="text-2xl font-bold text-red-600" id="errorCount">0</div>
+                                    <div class="text-xs font-bold text-red-800/60 uppercase mt-1">Failed</div>
+                                </div>
+                            </div>
+                            
+                            <div id="errorList" class="hidden">
+                                <h4 class="text-xs font-bold text-red-500 uppercase mb-2">Failed Emails</h4>
+                                <div class="bg-red-50 rounded-lg p-3 text-xs font-mono text-red-700 max-h-32 overflow-y-auto" id="errorContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 translate-y-24 opacity-0 transition-all duration-300 z-50">
+        <div class="bg-slate-800 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3">
+            <i class="fa-solid fa-circle-check text-green-400"></i>
+            <span class="font-medium" id="toastMsg">Operation successful</span>
+        </div>
+    </div>
+
+    <script>
+        const emailInput = document.getElementById('emailInput');
+        const countDisplay = document.getElementById('countDisplay');
+
+        // Live Count
+        emailInput.addEventListener('input', () => {
+            const text = emailInput.value;
+            const count = text.split(/[\n,]/).filter(e => e.trim().length > 0).length;
+            countDisplay.textContent = count;
+        });
+
+        function clearInput() {
+            emailInput.value = '';
+            countDisplay.textContent = '0';
+            document.getElementById('resultSection').classList.add('hidden');
+        }
+
+        async function issueCoupons() {
+            const rawText = emailInput.value;
+            const emails = rawText.split(/[\n,]/).map(e => e.trim()).filter(e => e.length > 0);
+
+            if (emails.length === 0) {
+                showToast("Please enter at least one email", "error");
+                return;
+            }
+
+            const btn = document.getElementById('issueBtn');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...`;
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+
+            try {
+                const response = await fetch('/api/admin/issue-general-coupons-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Update UI
+                    document.getElementById('resultSection').classList.remove('hidden');
+                    
+                    // Parse message roughly: "Processed X. Issued: Y, Resent: Z. Errors: A"
+                    // Or rely on data structure if backend sends broken down stats. 
+                    // Let's assume the backend sends specific counts or we parse the message.
+                    // Actually, the backend sends { success: true, issued: X, resent: Y, errors: [] } ideally.
+                    // Based on my backend code: { success: true, message: "...", errors: [] }
+                    // I'll assume standard parsing or basic display.
+                    
+                    // Quick parsing of the message string from backend
+                    const msg = data.message;
+                    const issued = msg.match(/Issued: (\d+)/)?.[1] || 0;
+                    const resent = msg.match(/Resent: (\d+)/)?.[1] || 0;
+                    
+                    document.getElementById('successCount').textContent = issued;
+                    document.getElementById('resentCount').textContent = resent;
+                    document.getElementById('errorCount').textContent = data.errors.length;
+
+                    if (data.errors.length > 0) {
+                        document.getElementById('errorList').classList.remove('hidden');
+                        document.getElementById('errorContent').textContent = data.errors.join(', ');
+                    } else {
+                        document.getElementById('errorList').classList.add('hidden');
+                    }
+
+                    showToast("Coupons Processed Successfully!");
+                    // emailInput.value = ''; // Keep input so they see what they sent? Or clear? Let's keep.
+                } else {
+                    showToast(data.error || "Failed to process", "error");
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast("Server Connection Failed", "error");
+            } finally {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            
+            toastMsg.textContent = msg;
+            if(type === 'error') {
+                toast.querySelector('i').className = 'fa-solid fa-circle-exclamation text-red-400';
+            } else {
+                toast.querySelector('i').className = 'fa-solid fa-circle-check text-green-400';
+            }
+
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
