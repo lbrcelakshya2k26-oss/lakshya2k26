@@ -92,6 +92,10 @@
         .btn-excel { background: rgba(31, 111, 74, 0.6); border: 1px solid #2e8b57; color: white; } 
         .btn-excel:hover { background: #2e8b57; transform: translateY(-2px); }
 
+        .btn-save { background: var(--secondary-color); width: 100%; justify-content: center; margin-top: 15px; }
+        .btn-add-member { background: rgba(255, 255, 255, 0.1); border: 1px dashed #666; width: 100%; justify-content: center; margin-top: 10px; }
+        .btn-add-member:hover { background: rgba(255, 255, 255, 0.2); }
+
         /* --- TABLE --- */
         .table-wrapper { 
             background: rgba(20, 20, 35, 0.6); border-radius: 15px; padding: 0; 
@@ -110,8 +114,14 @@
         tfoot tr { background: rgba(0, 210, 255, 0.05); border-top: 2px solid var(--border-color); }
         tfoot td { font-size: 1rem; }
 
-        .click-link { color: var(--primary-color); cursor: pointer; text-decoration: underline; font-weight: 500; transition: 0.2s; }
+        .click-link { color: var(--primary-color); cursor: pointer; text-decoration: underline; font-weight: 500; transition: 0.2s; font-size: 0.85rem; }
         .click-link:hover { color: white; text-shadow: 0 0 10px var(--primary-color); }
+        
+        .action-icon {
+            cursor: pointer; font-size: 1.1rem; color: #aaa; transition: 0.3s; margin: 0 8px;
+        }
+        .action-icon:hover { color: var(--primary-color); transform: scale(1.1); }
+        .action-icon.edit:hover { color: var(--accent-color); }
         
         .badge { padding: 5px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
         .badge-paid { background: rgba(76, 175, 80, 0.15); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); }
@@ -141,6 +151,15 @@
         .team-table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 0.85rem; }
         .team-table th { text-align: left; color: var(--secondary-color); background: rgba(255,255,255,0.05); padding: 10px; }
         .team-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #ddd; }
+        
+        /* Edit Inputs */
+        .edit-group { margin-bottom: 15px; }
+        .edit-label { display: block; color: #aaa; font-size: 0.85rem; margin-bottom: 5px; }
+        .edit-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid #444; padding: 10px; color: white; border-radius: 5px; }
+        
+        /* Dynamic Member Row */
+        .member-row { display: grid; grid-template-columns: 1fr 1fr 1fr 30px; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .remove-member { color: #ff4444; cursor: pointer; text-align: center; }
 
         /* --- RESPONSIVE --- */
         @media(max-width: 1024px) { 
@@ -150,6 +169,7 @@
             .close-sidebar-btn { display: block; }
             .main { width: 100%; margin-left: 0; padding: 1.5rem; padding-top: 90px; }
             .controls-bar { flex-direction: column; align-items: stretch; }
+            .member-row { grid-template-columns: 1fr; border-bottom: 1px solid #333; padding-bottom: 10px; }
         }
     </style>
 </head>
@@ -169,14 +189,16 @@
             <i class="fa-solid fa-xmark close-sidebar-btn" onclick="toggleSidebar()"></i>
         </div>
         <ul class="menu">
-            <li><a href="dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
+           <li><a href="dashboard" ><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
             <li><a href="registrations" class="active"><i class="fa-solid fa-clipboard-list"></i> Registrations</a></li>
-            <li><a href="add-event"><i class="fa-solid fa-calendar-plus"></i> Add Event</a></li>
-            <li><a href="departments"><i class="fa-solid fa-building-columns"></i> Departments</a></li>
-            <li><a href="manage-users"><i class="fa-solid fa-users"></i> Users</a></li>
-            <li><a href="committee"><i class="fa-solid fa-user-tie"></i> Committee</a></li>
+            <li><a href="all-users"><i class="fa-solid fa-calendar-plus"></i>All Users</a></li>
+            <li><a href="admin-kits"><i class="fa-solid fa-building-columns"></i>Kits</a></li>
+            <li><a href="coupon-stats"><i class="fa-solid fa-sliders"></i> Coupon data</a></li>
+            <li><a href="manage-stalls"><i class="fa-solid fa-sliders"></i> Stall Management</a></li>
             <li><a href="setup-scoring"><i class="fa-solid fa-sliders"></i> Setup Scoring</a></li>
             <li><a href="view-scores"><i class="fa-solid fa-square-poll-vertical"></i> View Scores</a></li>
+            <li><a href="participant-qr"><i class="fa-solid fa-square-poll-vertical"></i> Qr's</a></li>
+            <li><a href="view-team"><i class="fa-solid fa-square-poll-vertical"></i> Coordinators</a></li>
             <li><a onclick="logout()" class="logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
         </ul>
     </aside>
@@ -223,7 +245,7 @@
                             <th>Event</th>
                             <th>Amount</th>
                             <th>Status</th>
-                            <th>Action</th>
+                            <th style="text-align:center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -244,12 +266,49 @@
         </div>
     </main>
 
-    <!-- Detail Modal -->
+    <!-- VIEW Detail Modal -->
     <div class="modal-overlay" id="detailModal">
         <div class="modal-box">
-            <span class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></span>
+            <span class="modal-close" onclick="closeModal('detailModal')"><i class="fa-solid fa-xmark"></i></span>
             <h3 style="color:var(--primary-color); margin-bottom:10px; font-family:'Montserrat';" id="modalTitle">Details</h3>
             <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- EDIT Detail Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-box">
+            <span class="modal-close" onclick="closeModal('editModal')"><i class="fa-solid fa-xmark"></i></span>
+            <h3 style="color:var(--accent-color); margin-bottom:20px; font-family:'Montserrat'; border-bottom:1px solid #333; padding-bottom:10px;">Edit Participant Details</h3>
+            
+            <input type="hidden" id="editRegId">
+
+            <div class="edit-group">
+                <label class="edit-label">Team Name (Optional)</label>
+                <input type="text" id="editTeamName" class="edit-input" placeholder="Enter Team Name">
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div class="edit-group">
+                    <label class="edit-label">Submission Title</label>
+                    <input type="text" id="editSubTitle" class="edit-input" placeholder="Project Title">
+                </div>
+                <div class="edit-group">
+                    <label class="edit-label">Submission Abstract (Short)</label>
+                    <input type="text" id="editSubAbstract" class="edit-input" placeholder="Brief Abstract">
+                </div>
+            </div>
+
+            <h4 class="detail-section-title">Manage Team Members</h4>
+            <div id="membersContainer">
+                <!-- Dynamic Member Rows -->
+            </div>
+            
+            <button class="btn btn-add-member" onclick="addMemberRow()"><i class="fa-solid fa-plus"></i> Add Team Member</button>
+
+            <button class="btn btn-save" onclick="saveChanges()">
+                <i class="fa-solid fa-floppy-disk"></i> Save Changes
+            </button>
         </div>
     </div>
 
@@ -317,7 +376,8 @@
             }
 
             try {
-                let url = `/api/admin/all-registrations?limit=50`;
+                // UPDATED: Limit changed to 500
+                let url = `/api/admin/all-registrations?limit=500`;
                 if (lastEvaluatedKey && !isReset) {
                     url += `&lastKey=${lastEvaluatedKey}`;
                 }
@@ -328,15 +388,11 @@
 
                 const data = await res.json();
                 
-                // FIXED: Handle both Array (Old Backend) and Object (New Backend) responses
-                // This ensures data shows up even if the backend update isn't active yet.
                 let newItems = [];
                 if (Array.isArray(data)) {
-                    // Old Backend response (just an array of items)
                     newItems = data;
                     lastEvaluatedKey = null; 
                 } else {
-                    // New Backend response (object with items and pagination key)
                     newItems = data.items || [];
                     lastEvaluatedKey = data.lastEvaluatedKey;
                 }
@@ -409,11 +465,9 @@
         }
 
         // --- BULK FETCH USER DETAILS ---
-        // Fetches details from Users table for a batch of registrations
         async function bulkFetchUserDetails(registrations) {
             if(registrations.length === 0) return;
 
-            // Collect unique emails that we haven't fetched yet
             let emailsToFetch = new Set();
             
             registrations.forEach(r => {
@@ -430,21 +484,17 @@
             if(emailsToFetch.size === 0) return;
 
             try {
-                // Use existing bulk export endpoint
                 const res = await fetch('/api/admin/export-data', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ emails: Array.from(emailsToFetch) })
                 });
                 const newDetails = await res.json();
-                
-                // Merge into master map
                 userDetailsMap = { ...userDetailsMap, ...newDetails };
             } catch(e) { console.error("Details Fetch Error:", e); }
         }
 
         // --- RENDER ---
-        // isAppend: if true, adds rows to existing table. If false, clears table first.
         function renderTable(data, isAppend = false) {
             const tbody = document.getElementById('tableBody');
             
@@ -453,14 +503,12 @@
             }
 
             data.forEach((reg, index) => {
-                // Global Index Logic: if appending, start from existing count + 1
                 const displayIndex = isAppend ? (document.querySelectorAll('#tableBody tr').length + 1) : (index + 1);
 
                 const eventName = eventsMap[reg.eventId] || reg.eventId;
                 const user = userDetailsMap[reg.studentEmail] || {};
                 const badgeClass = reg.paymentStatus === 'COMPLETED' ? 'badge-paid' : 'badge-pending';
                 
-                // Smart Name Display
                 let displayName = reg.teamName ? reg.teamName : (user.fullName || reg.studentEmail);
                 let subText = reg.teamName ? "Team Lead: " + (user.fullName || "N/A") : "Individual";
                 let icon = reg.teamName ? '<i class="fa-solid fa-users"></i>' : '<i class="fa-solid fa-user"></i>';
@@ -469,10 +517,8 @@
                 const amt = parseFloat(reg.amountPaid) || 0;
                 const amountStr = amt ? `₹${amt}` : '₹0';
 
-                // NOTE: 'deptName' on reg object is preferred (snapshot at time of reg), fallback to user profile dept
                 const deptDisplay = reg.deptName || user.dept || '-';
 
-                // Hidden data attributes for client-side filtering of the CURRENT batch
                 const row = `
                     <tr class="reg-row" data-dept="${deptDisplay}" data-event="${reg.eventId}">
                         <td>${displayIndex}</td>
@@ -485,7 +531,10 @@
                         <td>${eventName}</td>
                         <td style="color: #4caf50; font-weight: bold;">${amountStr}</td>
                         <td><span class="badge ${badgeClass}">${reg.paymentStatus}</span></td>
-                        <td><span class="click-link" onclick="viewDetails('${reg.registrationId}')">View Details</span></td>
+                        <td style="text-align:center;">
+                            <i class="fa-solid fa-eye action-icon" onclick="viewDetails('${reg.registrationId}')" title="View"></i>
+                            <i class="fa-solid fa-pen-to-square action-icon edit" onclick="openEditModal('${reg.registrationId}')" title="Edit"></i>
+                        </td>
                     </tr>
                 `;
                 tbody.insertAdjacentHTML('beforeend', row);
@@ -494,7 +543,7 @@
             updateTotal();
         }
 
-        // --- CLIENT SIDE FILTERING (For Loaded Data) ---
+        // --- CLIENT FILTERING ---
         function applyClientFilters() {
             const dept = document.getElementById('deptSelect').value;
             const event = document.getElementById('eventSelect').value;
@@ -515,14 +564,9 @@
 
         function updateTotal() {
             let total = 0;
-            // Iterate visible rows only? Or all loaded?
-            // Usually totals reflect what is on screen or loaded. Let's do all visible.
-            // But 'amount' isn't stored in DOM easily. Let's calc from loadedRegistrations + Filter check
-            
             const dept = document.getElementById('deptSelect').value;
             const event = document.getElementById('eventSelect').value;
 
-            // Recalculate based on loaded data + filters
             const visible = loadedRegistrations.filter(r => {
                 const user = userDetailsMap[r.studentEmail] || {};
                 const rDept = r.deptName || user.dept || '-';
@@ -545,7 +589,6 @@
             `;
         }
 
-        // --- UI HELPERS ---
         function updateUIState() {
             const btn = document.getElementById('loadMoreBtn');
             const empty = document.getElementById('emptyState');
@@ -570,7 +613,7 @@
             document.getElementById('loading').style.display = show ? 'inline-block' : 'none';
         }
 
-        // --- DETAILS MODAL ---
+        // --- VIEW DETAILS MODAL ---
         async function viewDetails(regId) {
             const reg = loadedRegistrations.find(r => r.registrationId === regId);
             if(!reg) return;
@@ -592,18 +635,15 @@
                     <span>Event: <strong style="color:var(--primary-color)">${eventsMap[reg.eventId]}</strong></span>
                     <span>Status: <strong>${reg.paymentStatus}</strong></span>
                 </div>
-                
                  <div style="display:flex; justify-content:space-between; padding:10px; background:rgba(76, 175, 80, 0.1); border-left: 4px solid #4caf50; border-radius:4px; margin-bottom:15px;">
                     <span>Amount Paid:</span>
                     <strong style="color:#4caf50; font-size:1.1rem;">${amount}</strong>
                 </div>
-
                 <h4 class="detail-section-title">1. Team Lead Details</h4>
                 <div class="detail-row"><span class="detail-label">Full Name</span><span class="detail-val">${user.fullName || 'N/A'}</span></div>
                 <div class="detail-row"><span class="detail-label">Email</span><span class="detail-val">${reg.studentEmail}</span></div>
                 <div class="detail-row"><span class="detail-label">Mobile</span><span class="detail-val">${user.mobile || 'N/A'}</span></div>
                 <div class="detail-row"><span class="detail-label">Roll Number</span><span class="detail-val">${user.rollNo || 'N/A'}</span></div>
-
                 <h4 class="detail-section-title">2. Team Members</h4>
                 <div class="table-scroll">
                 <table class="team-table">
@@ -617,36 +657,110 @@
                 reg.teamMembers.forEach(m => {
                     const mDetails = userDetailsMap[m.email] || {};
                     const mRoll = mDetails.rollNo || m.rollNo || m.regNo || '-';
-                    
-                    html += `
-                        <tr>
-                            <td>${m.name || '-'}</td>
-                            <td>${m.mobile || '-'}</td>
-                            <td>${m.email || '-'}</td>
-                            <td>${mRoll}</td>
-                        </tr>
-                    `;
+                    html += `<tr><td>${m.name || '-'}</td><td>${m.mobile || '-'}</td><td>${m.email || '-'}</td><td>${mRoll}</td></tr>`;
                 });
             } else {
                 html += `<tr><td colspan="4" style="text-align:center; color:#666;">No additional members.</td></tr>`;
             }
 
-            html += `
-                    </tbody>
-                </table>
-                </div>
-
-                <h4 class="detail-section-title">3. Institution Details</h4>
-                <div class="detail-row"><span class="detail-label">Department</span><span class="detail-val">${user.dept || 'N/A'}</span></div>
-                <div class="detail-row"><span class="detail-label">College</span><span class="detail-val">${user.college || 'N/A'}</span></div>
-            `;
-            
+            html += `</tbody></table></div>`;
             content.innerHTML = html;
         }
 
-        function closeModal() { document.getElementById('detailModal').style.display = 'none'; }
+        // --- EDIT MODAL LOGIC ---
+        function openEditModal(regId) {
+            const reg = loadedRegistrations.find(r => r.registrationId === regId);
+            if(!reg) return;
 
-        // --- EXPORT (Exports currently loaded data) ---
+            // Populate Fields
+            document.getElementById('editRegId').value = reg.registrationId;
+            document.getElementById('editTeamName').value = reg.teamName || "";
+            document.getElementById('editSubTitle').value = reg.submissionTitle || "";
+            document.getElementById('editSubAbstract').value = reg.submissionAbstract || "";
+
+            // Clear Dynamic Members
+            const container = document.getElementById('membersContainer');
+            container.innerHTML = '';
+
+            // Populate Members
+            if(reg.teamMembers && reg.teamMembers.length > 0) {
+                reg.teamMembers.forEach(m => addMemberRow(m.name, m.email, m.mobile, m.rollNo));
+            }
+
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function addMemberRow(name="", email="", mobile="", roll="") {
+            const container = document.getElementById('membersContainer');
+            const div = document.createElement('div');
+            div.className = 'member-row';
+            div.innerHTML = `
+                <input type="text" class="edit-input mem-name" placeholder="Name" value="${name}">
+                <input type="text" class="edit-input mem-email" placeholder="Email" value="${email}">
+                <input type="text" class="edit-input mem-roll" placeholder="Roll No" value="${roll}">
+                <i class="fa-solid fa-trash remove-member" onclick="this.parentElement.remove()"></i>
+            `;
+            container.appendChild(div);
+        }
+
+        async function saveChanges() {
+            const regId = document.getElementById('editRegId').value;
+            const teamName = document.getElementById('editTeamName').value;
+            const subTitle = document.getElementById('editSubTitle').value;
+            const subAbstract = document.getElementById('editSubAbstract').value;
+
+            // Gather Team Members
+            const rows = document.querySelectorAll('.member-row');
+            let members = [];
+            rows.forEach(row => {
+                const name = row.querySelector('.mem-name').value;
+                const email = row.querySelector('.mem-email').value;
+                const roll = row.querySelector('.mem-roll').value;
+                if(name && email) {
+                    members.push({ name, email, rollNo: roll });
+                }
+            });
+
+            // Optimistic UI Update (for faster feeling)
+            const reg = loadedRegistrations.find(r => r.registrationId === regId);
+            if(reg) {
+                reg.teamName = teamName;
+                reg.submissionTitle = subTitle;
+                reg.submissionAbstract = subAbstract;
+                reg.teamMembers = members;
+            }
+
+            try {
+                const res = await fetch('/api/admin/update-registration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        registrationId: regId,
+                        teamName,
+                        submissionTitle: subTitle,
+                        submissionAbstract: subAbstract,
+                        teamMembers: members
+                    })
+                });
+
+                const result = await res.json();
+                if(res.ok) {
+                    alert("Changes saved successfully!");
+                    closeModal('editModal');
+                    // Re-render table to show changes
+                    renderTable(loadedRegistrations); 
+                } else {
+                    alert("Error: " + result.error);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Failed to save changes. Check console.");
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // --- EXPORT ---
         async function exportExcel() {
             if(loadedRegistrations.length === 0) return alert("No data to export");
             
@@ -684,7 +798,6 @@
                 };
             });
             
-            // Total Row
             data.push({
                 "S.No": "TOTAL",
                 "Team / Participant Name": "TOTAL REVENUE",
