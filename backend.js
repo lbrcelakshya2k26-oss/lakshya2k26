@@ -4540,7 +4540,7 @@ app.get('/admin/onsite-reports', isAuthenticated('admin'), (req, res) => {
 app.get('/api/reports/onsite-registrations', async (req, res) => {
     const user = req.session.user;
     if (!user || (user.role !== 'admin' && user.role !== 'coordinator')) {
-        return res.status(401).json({ error: "Unauthorized access" });
+        return res.status(401).json({ error: "Unauthorized" });
     }
 
     try {
@@ -4556,28 +4556,55 @@ app.get('/api/reports/onsite-registrations', async (req, res) => {
             params.ExpressionAttributeValues[':email'] = user.email;
             params.ExpressionAttributeValues[':dept'] = user.dept;
         }
+        
+        // --- UNLIMITED DATA FETCHING FIX ---
+        let allRegistrations = [];
+        let lastEvaluatedKey = undefined;
 
-        const regData = await docClient.send(new ScanCommand(params));
-        const registrations = regData.Items || [];
+        // Loop until database stops returning a "LastEvaluatedKey"
+        do {
+            if (lastEvaluatedKey) {
+                params.ExclusiveStartKey = lastEvaluatedKey;
+            }
 
-        // Enrich with Event Titles
-        const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
+            const command = new ScanCommand(params);
+            const response = await docClient.send(command);
+
+            if (response.Items) {
+                allRegistrations.push(...response.Items);
+            }
+
+            lastEvaluatedKey = response.LastEvaluatedKey;
+
+        } while (lastEvaluatedKey);
+        // -----------------------------------
+
+        // Fetch Event Map for Titles (Single optimized scan)
         const eventMap = {};
-        (eventData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
+        try {
+            const eventData = await docClient.send(new ScanCommand({ 
+                TableName: 'Lakshya_Events',
+                ProjectionExpression: 'eventId, title' 
+            }));
+            (eventData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
+        } catch(e) { console.warn("Event fetch warning:", e); }
 
-        const enrichedReport = registrations.map(reg => ({
+        const enrichedReport = allRegistrations.map(reg => ({
             ...reg,
-            eventTitle: eventMap[reg.eventId] || 'Unknown Event'
+            eventTitle: eventMap[reg.eventId] || 'Unknown Event',
+            amountPaid: parseFloat(reg.amountPaid) || 0 // Ensure number format
         }));
+        
+        // Sort by Date (Newest First)
+        enrichedReport.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
 
         res.json(enrichedReport);
 
     } catch (error) {
         console.error("Report Fetch Error:", error);
-        res.status(500).json({ error: "Failed to load audit records" });
+        res.status(500).json({ error: "Failed to load complete audit records" });
     }
-});
-// backend.js - Update On-Site Registration
+});// backend.js - Update On-Site Registration
 app.put('/api/coordinator/update-onsite-reg', async (req, res) => {
     const { registrationId, amountPaid, kitAllocated } = req.body;
     const user = req.session.user;
