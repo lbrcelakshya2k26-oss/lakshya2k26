@@ -1718,7 +1718,7 @@ app.get('/api/admin/all-registrations', isAuthenticated('admin'), async (req, re
 
         const params = {
             TableName: 'Lakshya_Registrations',
-            Limit: parseInt(limit) || 50 // Fetch 50 at a time
+            Limit: parseInt(limit) || 500 // Fetch 50 at a time
         };
 
         // Handle Pagination Key
