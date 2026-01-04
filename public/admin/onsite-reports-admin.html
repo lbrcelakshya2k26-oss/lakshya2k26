@@ -113,6 +113,7 @@
                     <div class="loading">
                         <i class="fa-solid fa-spinner fa-spin"></i>
                         <p style="color: #888;">SYNCHRONIZING SECURE AUDIT LOG...</p>
+                        <p style="font-size:0.8rem; color:#555; margin-top:5px;">Processing unlimited records...</p>
                     </div>
                 </div>
             </div>
@@ -133,17 +134,20 @@
 
         async function fetchAuditData() {
             try {
+                // Ensure the backend endpoint matches exactly where you put the fix
                 const res = await fetch('/api/reports/onsite-registrations');
-                const data = await res.json();
                 
                 if (res.status === 401) {
                     window.location.href = '/login';
                     return;
                 }
 
+                if (!res.ok) throw new Error('Failed to fetch data');
+
+                const data = await res.json();
                 auditData = data || [];
                 
-                // Identify unique departments
+                // Identify unique departments for the dropdown
                 departments.clear();
                 auditData.forEach(item => { if(item.deptName) departments.add(item.deptName); });
                 populateDeptFilter();
@@ -151,15 +155,23 @@
                 updateStats(auditData);
                 renderTable(auditData);
                 renderBreakdown(auditData);
+
             } catch (err) {
                 console.error(err);
-                document.getElementById('contentArea').innerHTML = '<div style="padding: 50px; text-align: center;"><p style="color: #ff4444; font-weight: bold;">Security sync failed. Please check your connection and refresh.</p></div>';
+                document.getElementById('contentArea').innerHTML = `
+                    <div style="padding: 50px; text-align: center;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; color: #ff4444; margin-bottom: 15px;"></i>
+                        <p style="color: #ff4444; font-weight: bold;">Security sync failed.</p>
+                        <p style="color: #666; font-size: 0.9rem;">Please check your connection and refresh.</p>
+                    </div>`;
             }
         }
 
         function populateDeptFilter() {
             const select = document.getElementById('deptFilter');
-            // Keep "All"
+            // Save current selection if re-populating
+            const currentVal = select.value;
+            
             select.innerHTML = '<option value="All">All Departments</option>';
             Array.from(departments).sort().forEach(dept => {
                 const opt = document.createElement('option');
@@ -167,11 +179,15 @@
                 opt.innerText = dept;
                 select.appendChild(opt);
             });
+            
+            if (departments.has(currentVal)) {
+                select.value = currentVal;
+            }
         }
 
         function updateStats(data) {
             const totalCash = data.reduce((sum, item) => sum + (parseFloat(item.amountPaid) || 0), 0);
-            const kits = data.filter(item => item.kitAllocated).length;
+            const kits = data.filter(item => item.kitAllocated === true).length;
 
             document.getElementById('totalCash').innerText = `₹${totalCash.toLocaleString()}`;
             document.getElementById('totalEntries').innerText = data.length;
@@ -192,14 +208,14 @@
             const sortedDepts = Object.entries(deptStats).sort((a,b) => b[1] - a[1]);
 
             if (sortedDepts.length === 0) {
-                container.innerHTML = '<p style="color: #666; font-size: 0.8rem; text-align: center;">No data available.</p>';
+                container.innerHTML = '<p style="color: #666; font-size: 0.8rem; text-align: center;">No revenue recorded yet.</p>';
                 return;
             }
 
             container.innerHTML = sortedDepts.map(([name, amount]) => `
                 <div class="breakdown-item">
-                    <span title="${name}">${name}</span>
-                    <span>₹${amount.toLocaleString()}</span>
+                    <span title="${name}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">${name}</span>
+                    <span style="color: #00ff88;">₹${amount.toLocaleString()}</span>
                 </div>
             `).join('');
         }
@@ -207,7 +223,11 @@
         function renderTable(data) {
             const container = document.getElementById('contentArea');
             if (data.length === 0) {
-                container.innerHTML = '<div style="padding: 100px; text-align: center;"><i class="fa-solid fa-folder-open" style="font-size: 3rem; color: #222; margin-bottom: 20px;"></i><p style="color: #666;">No on-site records match the current filters.</p></div>';
+                container.innerHTML = `
+                    <div style="padding: 80px; text-align: center;">
+                        <i class="fa-solid fa-magnifying-glass" style="font-size: 2rem; color: #333; margin-bottom: 20px;"></i>
+                        <p style="color: #666;">No on-site records match the current filters.</p>
+                    </div>`;
                 return;
             }
 
@@ -228,19 +248,19 @@
             `;
 
             data.forEach(item => {
-                const date = new Date(item.registeredAt).toLocaleString();
+                const date = item.registeredAt ? new Date(item.registeredAt).toLocaleString() : 'N/A';
                 html += `
                     <tr>
                         <td style="color: #888; font-size: 0.75rem;">
                             ${date}<br>
                             <span style="font-size: 0.65rem; opacity: 0.5;">${item.paymentId || 'CASH_TRX'}</span>
                         </td>
-                        <td style="font-weight: 700; font-family: 'Montserrat'; color: #00d2ff; font-size: 0.85rem;">${item.registrationId}</td>
-                        <td style="font-size: 0.85rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${item.studentEmail}</td>
+                        <td style="font-weight: 700; font-family: 'Montserrat'; color: #00d2ff; font-size: 0.85rem;">${item.registrationId.substring(0, 15)}...</td>
+                        <td style="font-size: 0.85rem;">${item.studentEmail}</td>
                         <td>
-                            <div style="color: #ddd; font-weight: 600;">${item.eventTitle}</div>
-                            <div style="font-size: 0.7rem; color: ${item.kitAllocated ? 'var(--primary)' : '#555'}">
-                                ${item.kitAllocated ? '<i class="fa-solid fa-box-open"></i> Kit Allocated' : '<i class="fa-solid fa-xmark"></i> No Kit'}
+                            <div style="color: #ddd; font-weight: 600;">${item.eventTitle || 'Unknown Event'}</div>
+                            <div style="font-size: 0.7rem; margin-top: 4px; color: ${item.kitAllocated ? 'var(--primary)' : '#555'}">
+                                ${item.kitAllocated ? '<i class="fa-solid fa-box-open"></i> Kit Allocated' : '<span style="opacity:0.5">No Kit</span>'}
                             </div>
                         </td>
                         <td><span style="font-size: 0.8rem; color: #aaa; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px;">${item.deptName || 'General'}</span></td>
@@ -259,11 +279,16 @@
             const dept = document.getElementById('deptFilter').value;
 
             const filtered = auditData.filter(item => {
+                const safeRegId = (item.registrationId || '').toLowerCase();
+                const safeEmail = (item.studentEmail || '').toLowerCase();
+                const safeCoord = (item.managedBy || '').toLowerCase();
+                const safeTitle = (item.eventTitle || '').toLowerCase();
+
                 const matchesSearch = 
-                    item.registrationId.toLowerCase().includes(query) ||
-                    item.studentEmail.toLowerCase().includes(query) ||
-                    (item.managedBy && item.managedBy.toLowerCase().includes(query)) ||
-                    item.eventTitle.toLowerCase().includes(query);
+                    safeRegId.includes(query) ||
+                    safeEmail.includes(query) ||
+                    safeCoord.includes(query) ||
+                    safeTitle.includes(query);
                 
                 const matchesDept = (dept === 'All' || item.deptName === dept);
 
@@ -276,14 +301,17 @@
         }
 
         function exportToExcel() {
-            if (auditData.length === 0) return;
+            if (auditData.length === 0) {
+                alert("No data to export");
+                return;
+            }
             
             const exportItems = auditData.map(item => ({
-                'Transaction Date': new Date(item.registeredAt).toLocaleString(),
+                'Transaction Date': item.registeredAt ? new Date(item.registeredAt).toLocaleString() : 'N/A',
                 'Registration ID': item.registrationId,
                 'Payment ID': item.paymentId || 'CASH',
                 'Student Email': item.studentEmail,
-                'Event Title': item.eventTitle,
+                'Event Title': item.eventTitle || 'Unknown',
                 'Department': item.deptName || 'General',
                 'Coordinator Email': item.managedBy || 'System',
                 'Amount Paid (INR)': parseFloat(item.amountPaid) || 0,
