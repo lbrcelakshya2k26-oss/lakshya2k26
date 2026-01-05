@@ -1210,21 +1210,48 @@ app.get('/api/coordinator/dashboard-data', isAuthenticated('coordinator'), async
         const userDept = user.dept;
         const managedEventIds = user.managedEventIds || [];
 
-        // SCENARIO 1: Multi-Event Coordinator
+        // --- HELPER: Pagination Loop ---
+        // This function keeps asking DynamoDB for "Next Page" until all data is retrieved
+        const fetchAll = async (params, isQuery = false) => {
+            let allItems = [];
+            let lastKey = undefined;
+            do {
+                // If we have a key from the last loop, add it to params to get the next page
+                if (lastKey) {
+                    params.ExclusiveStartKey = lastKey;
+                }
+                
+                const command = isQuery ? new QueryCommand(params) : new ScanCommand(params);
+                const response = await docClient.send(command);
+                
+                if (response.Items) {
+                    allItems.push(...response.Items);
+                }
+                
+                // Update the key. If it's undefined, the loop stops.
+                lastKey = response.LastEvaluatedKey;
+            } while (lastKey);
+            
+            return allItems;
+        };
+        // -------------------------------
+
+        // SCENARIO 1: Multi-Event Coordinator (Uses SCAN with Filter)
         if (managedEventIds.length > 0) {
             let allRegistrations = [];
             
-            // Run a scan for each event ID in parallel
-            const promises = managedEventIds.map(eid => 
-                docClient.send(new ScanCommand({
+            // We run the fetchAll helper for each event ID in parallel
+            const promises = managedEventIds.map(eid => {
+                const params = {
                     TableName: 'Lakshya_Registrations',
                     FilterExpression: 'eventId = :eid',
                     ExpressionAttributeValues: { ':eid': eid }
-                }))
-            );
+                };
+                return fetchAll(params, false); // false = Use ScanCommand
+            });
             
             const results = await Promise.all(promises);
-            results.forEach(r => { if(r.Items) allRegistrations.push(...r.Items); });
+            results.forEach(items => { allRegistrations.push(...items); });
             
             return res.json({ 
                 dept: 'My Managed Events', 
@@ -1232,7 +1259,7 @@ app.get('/api/coordinator/dashboard-data', isAuthenticated('coordinator'), async
             });
         }
 
-        // SCENARIO 2: Department Coordinator (Standard Fallback)
+        // SCENARIO 2: Department Coordinator (Uses QUERY on Index)
         if (!userDept) return res.json({ dept: 'Unknown', registrations: [] });
         
         const params = {
@@ -1241,8 +1268,11 @@ app.get('/api/coordinator/dashboard-data', isAuthenticated('coordinator'), async
             KeyConditionExpression: 'deptName = :dept',
             ExpressionAttributeValues: { ':dept': userDept }
         };
-        const data = await docClient.send(new QueryCommand(params));
-        res.json({ dept: userDept, registrations: data.Items || [] });
+        
+        // Fetch all pages using Query
+        const items = await fetchAll(params, true); // true = Use QueryCommand
+        
+        res.json({ dept: userDept, registrations: items });
 
     } catch (err) {
         console.error("Coord Dashboard Error:", err);
