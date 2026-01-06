@@ -5208,6 +5208,190 @@ app.post('/api/admin/issue-general-coupons-bulk', isAuthenticated('admin'), asyn
     });
 });
 
+app.get('/api/participant/my-certificates', isAuthenticated('participant'), async (req, res) => {
+    const userEmail = req.session.user.email;
+
+    try {
+        // 1. Fetch Leader Details (to get College Name)
+        const userDoc = await docClient.send(new GetCommand({ 
+            TableName: 'Lakshya_Users', 
+            Key: { email: userEmail } 
+        }));
+        const leader = userDoc.Item || { fullName: 'Participant', college: 'LBRCE' };
+
+        // 2. Fetch Registrations
+        const regData = await docClient.send(new QueryCommand({
+            TableName: 'Lakshya_Registrations',
+            IndexName: 'StudentIndex',
+            KeyConditionExpression: 'studentEmail = :email',
+            ExpressionAttributeValues: { ':email': userEmail }
+        }));
+        
+        // 3. Filter for Attended Events ONLY
+        const validRegs = (regData.Items || []).filter(r => r.attendance === true);
+
+        const certificates = [];
+
+        for (const reg of validRegs) {
+            // A. Fetch Real Event Title
+            let eventTitle = reg.eventId;
+            try {
+                const e = await docClient.send(new GetCommand({ TableName: 'Lakshya_Events', Key: { eventId: reg.eventId } }));
+                if(e.Item && e.Item.title) eventTitle = e.Item.title;
+            } catch(e) {}
+
+            // Helper to clean strings
+            const cleanStr = (str) => (str || "").toString().trim();
+
+            // B. Add Certificate for the LEADER
+            certificates.push({
+                uniqueId: `${reg.registrationId}-SELF`,
+                studentName: cleanStr(leader.fullName), 
+                collegeName: cleanStr(leader.college || 'LBRCE'), 
+                eventName: cleanStr(eventTitle),
+                role: 'Participant'
+            });
+
+            // C. Add Certificates for TEAM MEMBERS
+            if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
+                reg.teamMembers.forEach((member, idx) => {
+                    if(member.name && member.name.trim() !== "") {
+                        certificates.push({
+                            uniqueId: `${reg.registrationId}-TEAM-${idx}`,
+                            studentName: cleanStr(member.name),
+                            collegeName: cleanStr(leader.college || 'LBRCE'), 
+                            eventName: cleanStr(eventTitle),
+                            role: 'Team Member'
+                        });
+                    }
+                });
+            }
+        }
+
+        res.json(certificates);
+
+    } catch (err) {
+        console.error("Certificate Fetch Error:", err);
+        res.status(500).json({ error: 'Failed to load certificate data' });
+    }
+});
+
+app.post('/api/admin/cert-config', isAuthenticated('admin'), async (req, res) => {
+    try {
+        const config = req.body; 
+        
+        // We use a static Key 'DEFAULT' to apply this config globally to all certificates
+        // This solves the issue of fixing layout for everyone at once.
+        await docClient.send(new PutCommand({
+            TableName: 'Lakshya_CertConfig',
+            Item: {
+                configId: 'DEFAULT', 
+                ...config,
+                updatedAt: new Date().toISOString()
+            }
+        }));
+        res.json({ message: 'Configuration saved successfully' });
+    } catch (e) {
+        console.error("Cert Config Save Error:", e);
+        res.status(500).json({ error: 'Failed to save configuration.' });
+    }
+});
+
+// 2. Get Certificate Layout (Public Access)
+app.get('/api/public/cert-config', async (req, res) => {
+    try {
+        const data = await docClient.send(new GetCommand({
+            TableName: 'Lakshya_CertConfig',
+            Key: { configId: 'DEFAULT' }
+        }));
+        
+        if (data.Item) {
+            res.json(data.Item);
+        } else {
+            res.json({
+                baseY: { name: 0.448, college: 0.5378, event: 0.590 }, 
+                offsetX: { name: 0, college: 0.005, event: 0 }, 
+                fontScale: { name: 0.045, detail: 0.017, event: 0.016 },
+                colors: { name: '#ff3131', detail: '#011963' }
+            });
+        }
+    } catch (e) {
+        res.json({
+            baseY: { name: 0.448, college: 0.5378, event: 0.590 }, 
+            offsetX: { name: 0, college: 0.005, event: 0 }, 
+            fontScale: { name: 0.045, detail: 0.017, event: 0.016 },
+            colors: { name: '#ff3131', detail: '#011963' }
+        });
+    }
+});
+
+app.get('/api/admin/certificate-recipients', isAuthenticated('admin'), async (req, res) => {
+    const { dept, eventId, lastKey } = req.query;
+
+    try {
+        let params = {
+            TableName: 'Lakshya_Registrations',
+            FilterExpression: 'paymentStatus = :s',
+            ExpressionAttributeValues: { ':s': 'COMPLETED' },
+            Limit: 200 // Fetch 200 at a time
+        };
+
+        if (dept && dept !== 'all') {
+            params.FilterExpression += ' AND deptName = :d';
+            params.ExpressionAttributeValues[':d'] = dept;
+        }
+        if (eventId && eventId !== 'all') {
+            params.FilterExpression += ' AND eventId = :e';
+            params.ExpressionAttributeValues[':e'] = eventId;
+        }
+
+        // Handle Pagination Key
+        if (lastKey && lastKey !== 'null') {
+            params.ExclusiveStartKey = JSON.parse(decodeURIComponent(lastKey));
+        }
+
+        const data = await docClient.send(new ScanCommand(params));
+        const allRegistrations = data.Items || [];
+
+        // Fetch Event Map for names
+        const eventData = await docClient.send(new ScanCommand({ TableName: 'Lakshya_Events' }));
+        const eventMap = {};
+        (eventData.Items || []).forEach(e => eventMap[e.eventId] = e.title);
+
+        const output = [];
+        for (const reg of allRegistrations) {
+            let college = "LBRCE", fullName = "Student";
+            try {
+                const u = await docClient.send(new GetCommand({ TableName: 'Lakshya_Users', Key: { email: reg.studentEmail } }));
+                if (u.Item) { college = u.Item.college || "LBRCE"; fullName = u.Item.fullName; }
+            } catch (e) {}
+
+            const eventTitle = eventMap[reg.eventId] || reg.eventId;
+
+            output.push({ type: 'PARTICIPANT', studentName: fullName, collegeName: college, eventName: eventTitle, dept: reg.deptName, regId: reg.registrationId });
+
+            if (reg.teamMembers && Array.isArray(reg.teamMembers)) {
+                reg.teamMembers.forEach(m => {
+                    if (m.name && m.name.trim().length > 0) {
+                        output.push({ type: 'TEAM_MEMBER', studentName: m.name, collegeName: college, eventName: eventTitle, dept: reg.deptName, regId: reg.registrationId });
+                    }
+                });
+            }
+        }
+
+        res.json({
+            items: output,
+            lastEvaluatedKey: data.LastEvaluatedKey ? encodeURIComponent(JSON.stringify(data.LastEvaluatedKey)) : null
+        });
+
+    } catch (e) {
+        res.status(500).json({ error: "Failed to fetch recipients" });
+    }
+});
+app.get('/admin/admin-certificates', isAuthenticated('admin'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/admin-certificates.html'));
+});
+
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, '0.0.0.0', () => {
