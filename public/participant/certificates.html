@@ -4,121 +4,363 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Certificates | LAKSHYA 2K26</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+    <!-- Elegant Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Playfair+Display:wght@700&family=Great+Vibes&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        /* Using same COSMIC THEME variables */
-        :root { --primary-color: #00d2ff; --glass-bg: rgba(20, 20, 35, 0.85); --text-color: #ffffff; --glass-border: rgba(255,255,255,0.1); }
-        body { background-color: #0a0a0a; color: var(--text-color); display: flex; min-height: 100vh; font-family: 'Poppins', sans-serif; margin:0; overflow-x: hidden; }
-        
-        /* Background */
-        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: url('../assets/admin-block.jpg') no-repeat center/cover; z-index: -2; }
-        .overlay-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,15,0.92); z-index: -1; }
-
-        /* --- SIDEBAR (Responsive) --- */
-        .sidebar {
-            width: 260px; background: var(--glass-bg); border-right: 1px solid var(--glass-border);
-            backdrop-filter: blur(10px); padding: 2rem; display: flex; flex-direction: column;
-            position: fixed; height: 100vh; z-index: 1000; transition: transform 0.3s ease-in-out; left: 0; top: 0;
-        }
-        .logo { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 900; color: var(--primary-color); margin-bottom: 3rem; text-align: center; }
-        .menu { list-style: none; flex-grow: 1; }
-        .menu li { margin-bottom: 1rem; }
-        .menu a { text-decoration: none; color: #ccc; display: flex; align-items: center; gap: 15px; padding: 10px; border-radius: 8px; transition: 0.3s; }
-        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.1); color: var(--primary-color); }
-        .logout { color: #ff4444; cursor: pointer; margin-top: auto; }
-
-        /* --- MOBILE HEADER --- */
-        .mobile-header { display: none; }
-        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999; opacity: 0; transition: opacity 0.3s; }
-
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.active { transform: translateX(0); }
-            .main { margin-left: 0 !important; width: 100% !important; padding: 1.5rem; padding-top: 80px !important; }
-            .mobile-header {
-                display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 60px;
-                background: rgba(15, 15, 30, 0.95); backdrop-filter: blur(10px); z-index: 900;
-                align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--glass-border);
-            }
-            .mobile-logo { font-family: 'Montserrat', sans-serif; font-weight: 900; color: white; }
-            .menu-toggle { font-size: 1.5rem; color: var(--primary-color); cursor: pointer; }
+        /* Custom Font for Signature/Name */
+        @font-face {
+            font-family: 'Lavonia Classy';
+            src: url('https://res.cloudinary.com/dpz44zf0z/raw/upload/v1736166034/Lavonia-Classy_m7sq5a.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
         }
 
-        .main { flex-grow: 1; padding: 2rem; margin-left: 260px; width: calc(100% - 260px); overflow-y: auto; }
-        .container { max-width: 900px; margin: 0 auto; }
-        h2 { margin-bottom: 2rem; font-family: 'Montserrat', sans-serif; color: var(--primary-color); }
+        :root { --primary-color: #00d2ff; --glass-bg: rgba(20, 20, 35, 0.95); --text-color: #ffffff; }
+        body { background-color: #0a0a0a; color: var(--text-color); display: flex; min-height: 100vh; font-family: 'Montserrat', sans-serif; margin:0; overflow-x: hidden; }
+        
+        .font-loader { font-family: 'Lavonia Classy'; position: absolute; opacity: 0; pointer-events: none; z-index: -999; }
 
-        /* Certificate Grid */
-        .cert-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; }
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: -2; }
+        .sidebar { width: 260px; background: var(--glass-bg); padding: 2rem; position: fixed; height: 100vh; z-index: 100; border-right: 1px solid rgba(255,255,255,0.1); }
+        .logo { font-size: 1.5rem; font-weight: 900; color: var(--primary-color); margin-bottom: 3rem; text-align: center; }
+        .menu { list-style: none; padding: 0; }
+        .menu a { text-decoration: none; color: #ccc; display: flex; align-items: center; gap: 15px; padding: 12px; border-radius: 8px; transition: 0.3s; margin-bottom: 10px; }
+        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.15); color: var(--primary-color); }
+
+        .main { flex-grow: 1; padding: 2rem; margin-left: 260px; width: calc(100% - 260px); }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h2 { font-family: 'Playfair Display', serif; color: var(--primary-color); font-size: 2.2rem; margin-bottom: 2rem; }
+
+        .cert-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
+        .cert-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; text-align: center; transition: 0.3s; }
+        .cert-card:hover { transform: translateY(-5px); border-color: var(--primary-color); }
         
-        .cert-card {
-            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
-            border-radius: 15px; padding: 2rem; text-align: center; transition: 0.3s;
+        .preview-box { width: 100%; height: 160px; background: #222; border-radius: 8px; margin-bottom: 15px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
+        .preview-box i { font-size: 3rem; color: #444; }
+        .badge { position: absolute; top: 10px; right: 10px; background: #ffd700; color: #000; font-size: 10px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }
+
+        .info h3 { margin: 5px 0; color: #fff; font-size: 1.1rem; }
+        .info .name { color: var(--primary-color); font-family: 'Lavonia Classy', serif; font-size: 1.5rem; margin: 5px 0; }
+        
+        .btn { background: var(--primary-color); color: #000; padding: 10px 20px; border-radius: 50px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; margin-top: 10px; transition: 0.2s; }
+        .btn:hover { background: #fff; transform: scale(1.05); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-content { display: flex; flex-direction: column; align-items: center; justify-content: center; max-width: 95vw; height: 90vh; position: relative; }
+        
+        .canvas-container { display: flex; justify-content: center; align-items: center; position: relative; max-width: 100%; max-height: 80vh; margin-bottom: 20px; }
+        canvas { max-width: 100%; max-height: 80vh; border: 2px solid var(--primary-color); border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5); background: white; }
+
+        .action-panel { display: flex; gap: 20px; justify-content: center; width: 100%; }
+        .action-panel button { font-size: 1rem; padding: 12px 30px; min-width: 120px; }
+
+        @media (max-width: 768px) { 
+            .sidebar { display: none; } 
+            .main { margin-left: 0; width: 100%; }
+            .action-panel { flex-direction: column; align-items: center; gap: 10px; }
+            .action-panel button { width: 100%; }
         }
-        .cert-card:hover { transform: translateY(-5px); border-color: var(--primary-color); box-shadow: 0 0 20px rgba(0,210,255,0.1); }
-        
-        .cert-icon { font-size: 3rem; color: gold; margin-bottom: 1rem; }
-        .cert-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; }
-        .cert-date { color: #aaa; font-size: 0.9rem; margin-bottom: 1.5rem; }
-        
-        .btn-download {
-            background: var(--primary-color); color: black; padding: 8px 20px; border-radius: 50px;
-            text-decoration: none; font-weight: bold; font-size: 0.9rem; transition: 0.2s;
-        }
-        .btn-download:hover { background: white; }
     </style>
 </head>
 <body>
-    <div class="bg-layer"></div>
-    <div class="overlay-layer"></div>
-    
-    <!-- Sidebar Injected by Common JS -->
+    <!-- Hidden element to force font load -->
+    <div class="font-loader">Load Lavonia</div>
+
+    <div class="sidebar">
+        <div class="logo">LAKSHYA 2K26</div>
+        <ul class="menu">
+            <li><a href="/participant/dashboard"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li><a href="/participant/certificates" class="active"><i class="fa-solid fa-award"></i> Certificates</a></li>
+            <li><a href="/logout" style="color:#ff4444;"><i class="fa-solid fa-power-off"></i> Logout</a></li>
+        </ul>
+    </div>
 
     <main class="main">
         <div class="container">
-            <h2>My Certificates</h2>
+            <h2>Your Certificates</h2>
             <div class="cert-grid" id="certContainer">
                 <p style="color:#aaa;">Loading certificates...</p>
             </div>
         </div>
     </main>
 
-    <script>const CURRENT_PAGE = 'certificates';</script>
-    <script src="/js/common.js"></script>
+    <div class="modal-overlay" id="previewModal">
+        <div class="modal-content">
+            <div class="canvas-container">
+                <canvas id="certCanvas"></canvas>
+            </div>
+            <div class="action-panel">
+                <button id="downloadBtn" onclick="downloadCurrentCert()" class="btn" style="background: #2ecc71; color: white;">
+                    <i class="fa-solid fa-download"></i> Download Image
+                </button>
+                <button onclick="closeModal()" class="btn" style="background: #e74c3c; color: white;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Original Logic -->
     <script>
+        // --- 1. ROBUST WORKER LOADING (CORS FIX) ---
+        const WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        // This fetches the worker code as a Blob to bypass cross-origin restrictions on Web Workers
+        fetch(WORKER_URL)
+            .then(function(response) { return response.blob(); })
+            .then(function(blob) {
+                const blobUrl = URL.createObjectURL(blob);
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
+                }
+            })
+            .catch(function(err) {
+                console.warn("PDF Worker Blob failed, using direct link:", err);
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
+                }
+            });
+
+        // Safe Defaults
+        let CONFIG = {
+            pdfUrl: '/assets/certificate-bg.pdf', 
+            baseY: { name: 0.448, college: 0.5378, event: 0.590 }, 
+            offsetX: { name: 0, college: 0.005, event: 0 }, 
+            fontScale: { name: 0.045, detail: 0.017, event: 0.016 },
+            style: { 
+                nameFont: 'Lavonia Classy', // STRICTLY ENFORCED
+                detailFont: 'Montserrat', 
+                nameColor: '#ff3131', 
+                detailColor: '#011963' 
+            },
+            colors: { name: '#ff3131', detail: '#011963' }
+        };
+
+        let currentCertData = null;
+        let baseImage = null; 
+        let canvas, ctx;
+
         async function loadCertificates() {
             const container = document.getElementById('certContainer');
+
+            // 1. Fetch Dynamic Configuration from Admin Settings
             try {
-                const res = await fetch('/api/participant/my-registrations-data');
-                const data = await res.json();
+                const cfgRes = await fetch('/api/public/cert-config');
+                const remoteConfig = await cfgRes.json();
                 
-                // Filter attended events
-                const attended = data.filter(r => r.attendance === true);
+                if(remoteConfig && remoteConfig.baseY) {
+                    CONFIG.baseY = remoteConfig.baseY;
+                    
+                    if (remoteConfig.offsetX) CONFIG.offsetX = remoteConfig.offsetX;
+                    if (remoteConfig.fontScale) CONFIG.fontScale = remoteConfig.fontScale;
+                    
+                    if(remoteConfig.colors) {
+                        if (remoteConfig.colors.name) CONFIG.style.nameColor = remoteConfig.colors.name;
+                        if (remoteConfig.colors.detail) CONFIG.style.detailColor = remoteConfig.colors.detail;
+                    }
+                    
+                    // --- IMPORTANT: FONT LOCK ---
+                    // We purposefully DO NOT let remoteConfig override nameFont here
+                    // to ensure Lavonia Classy is always used as per user request.
+                    // We only update detailFont if needed (though we default to keeping it Montserrat)
+                    if(remoteConfig.style && remoteConfig.style.detailFont) {
+                       CONFIG.style.detailFont = remoteConfig.style.detailFont;
+                    }
+                }
+            } catch(e) { console.warn("Using default config due to fetch error:", e); }
+
+            // 2. Fetch User Certificates
+            try {
+                const res = await fetch('/api/participant/my-certificates');
+                const list = await res.json();
                 
                 container.innerHTML = '';
-                if(attended.length === 0) {
-                    container.innerHTML = '<p style="color:#aaa;">No certificates available yet. Attend events to earn them!</p>';
+                if(list.length === 0) {
+                    container.innerHTML = '<div style="color:#aaa; text-align:center; padding: 2rem;">No certificates available yet.</div>';
                     return;
                 }
 
-                attended.forEach(reg => {
-                    container.innerHTML += `
-                        <div class="cert-card">
-                            <div class="cert-icon"><i class="fa-solid fa-award"></i></div>
-                            <h3 class="cert-title">Certificate of Participation</h3>
-                            <p class="cert-date">Event ID: ${reg.eventId}</p>
-                            <a href="#" onclick="alert('Downloading Certificate...')" class="btn-download">Download <i class="fa-solid fa-download"></i></a>
-                        </div>
-                    `;
+                list.forEach(function(cert) {
+                    cert.studentName = toTitleCase(cert.studentName);
+                    cert.eventName = cert.eventName.toUpperCase();
+                    cert.collegeName = (cert.collegeName || "LBRCE").toUpperCase();
+
+                    const dataStr = encodeURIComponent(JSON.stringify(cert));
+                    
+                    // Safe string construction
+                    let html = '<div class="cert-card">';
+                    html += '<div class="preview-box"><span class="badge">' + cert.role + '</span><i class="fa-solid fa-certificate" style="color:#555;"></i></div>';
+                    html += '<div class="info"><h3>' + cert.eventName + '</h3>';
+                    html += '<p class="name" style="font-family: \'Lavonia Classy\', serif;">' + cert.studentName + '</p>';
+                    html += '<p style="color:#888; font-size:0.8rem;">' + cert.collegeName + '</p></div>';
+                    html += '<button onclick="openGenerator(\'' + dataStr + '\', this)" class="btn"><i class="fa-solid fa-wand-magic-sparkles"></i> View & Download</button>';
+                    html += '</div>';
+                    
+                    container.innerHTML += html;
                 });
             } catch(e) {
-                container.innerHTML = '<p style="color:red;">Error loading certificates.</p>';
+                console.error(e);
+                container.innerHTML = '<p style="color:red; text-align:center;">Failed to load certificates.</p>';
             }
         }
-        loadCertificates();
+
+        async function openGenerator(dataStr, btn) {
+            if (typeof pdfjsLib === 'undefined') {
+                alert("PDF Library not loaded. Please refresh the page.");
+                return;
+            }
+
+            try {
+                currentCertData = JSON.parse(decodeURIComponent(dataStr));
+            } catch(e) {
+                alert("Error parsing certificate data.");
+                return;
+            }
+
+            const oldText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Loading...';
+            btn.disabled = true;
+
+            try {
+                // FORCE LOAD FONT BEFORE RENDERING
+                try {
+                    await document.fonts.load("40px 'Lavonia Classy'");
+                    await document.fonts.ready;
+                } catch(fontErr) {
+                    console.warn("Font load check failed, proceeding anyway:", fontErr);
+                }
+                
+                canvas = document.getElementById('certCanvas');
+                ctx = canvas.getContext('2d');
+
+                if (!baseImage) {
+                    await renderBasePdf();
+                } else {
+                    canvas.width = baseImage.width;
+                    canvas.height = baseImage.height;
+                }
+
+                updateRender();
+                document.getElementById('previewModal').style.display = 'flex';
+
+            } catch (err) {
+                console.error(err);
+                alert("Error loading template: " + (err.message || "Unknown error. Check PDF path or CORS."));
+            } finally {
+                btn.innerHTML = oldText;
+                btn.disabled = false;
+            }
+        }
+
+        async function renderBasePdf() {
+            // Ensure worker is ready
+            if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
+            }
+
+            const loadingTask = pdfjsLib.getDocument(CONFIG.pdfUrl);
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 4.0 }); // High res for download
+            
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = viewport.width;
+            offCanvas.height = viewport.height;
+            const offCtx = offCanvas.getContext('2d');
+
+            await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
+            baseImage = offCanvas; 
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+        }
+
+        function updateRender() {
+            if (!baseImage || !currentCertData) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(baseImage, 0, 0);
+
+            const offsets = CONFIG.offsetX || { name: 0, college: 0.005, event: 0 };
+            const scales = CONFIG.fontScale || { name: 0.045, detail: 0.017, event: 0.016 };
+
+            const nameSize = Math.floor(canvas.width * scales.name);
+            const detailSize = Math.floor(canvas.width * scales.detail);
+            const eventSize = Math.floor(canvas.width * scales.event);
+
+            const centerX = canvas.width / 2;
+            
+            // Draw Student Name - Center
+            // STRICTLY USING LAVONIA CLASSY
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = CONFIG.style.nameColor;
+
+            const nameX = centerX + (canvas.width * (offsets.name || 0));
+            const nameY = canvas.height * CONFIG.baseY.name;
+            
+            // Force the font here
+            drawTextSmart(ctx, currentCertData.studentName, nameX, nameY, nameSize, 'Lavonia Classy', true);
+
+            // Draw College & Event Names
+            ctx.textBaseline = 'ideographic';
+            ctx.fillStyle = CONFIG.style.detailColor;
+            
+            // College Name (Montserrat)
+            ctx.textAlign = 'left';
+            const collOffX = offsets.college || 0;
+            drawTextSmart(ctx, currentCertData.collegeName, centerX + (canvas.width * collOffX), (canvas.height * CONFIG.baseY.college), detailSize, CONFIG.style.detailFont, true);
+            
+            // Event Name - Center (Montserrat)
+            ctx.textAlign = 'center';
+            const eventX = centerX + (canvas.width * (offsets.event || 0));
+            drawTextSmart(ctx, currentCertData.eventName, eventX, (canvas.height * CONFIG.baseY.event), eventSize, CONFIG.style.detailFont, true);
+        }
+
+        function drawTextSmart(ctx, text, x, y, initialSize, fontName, isBold) {
+            let currentSize = initialSize;
+            const weight = isBold ? '700' : '500';
+            // Fallback to sans-serif just in case, but fontName is prioritized
+            ctx.font = weight + " " + currentSize + "px '" + fontName + "', sans-serif";
+            
+            const maxWidth = canvas.width * 0.85;
+            let textWidth = ctx.measureText(text).width;
+            
+            while (textWidth > maxWidth && currentSize > 18) {
+                currentSize -= 1;
+                ctx.font = weight + " " + currentSize + "px '" + fontName + "', sans-serif";
+                textWidth = ctx.measureText(text).width;
+            }
+            ctx.fillText(text, x, y);
+        }
+
+        function toTitleCase(str) {
+            return str ? str.replace(/\w\S*/g, function(txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); }) : "";
+        }
+
+        function downloadCurrentCert() {
+            try {
+                const link = document.createElement('a');
+                const safeName = currentCertData.studentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                link.download = "LAKSHYA_Cert_" + safeName + ".png";
+                // Ensure toDataURL works even if something tainted the canvas
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+            } catch (e) {
+                alert("Download failed. This is usually due to browser security restrictions.");
+                console.error(e);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('previewModal').style.display = 'none';
+        }
+
+        window.onload = loadCertificates;
     </script>
 </body>
 </html>
