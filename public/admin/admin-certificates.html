@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Manager | LAKSHYA Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&family=Pinyon+Script&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        /* Lavonia Classy Font */
+        @font-face {
+            font-family: 'Lavonia Classy';
+            src: url('https://res.cloudinary.com/dpz44zf0z/raw/upload/v1736166034/Lavonia-Classy_m7sq5a.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --primary: #00d2ff; --bg: #050510; --card: #151520; --text: #fff; --border: rgba(255,255,255,0.1); }
+        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; display: flex; min-height: 100vh; overflow-x: hidden; }
+        
+        /* Force Font Load */
+        .font-loader { font-family: 'Lavonia Classy'; position: absolute; opacity: 0; pointer-events: none; z-index: -999; }
+
+        .sidebar { width: 260px; background: var(--card); border-right: 1px solid var(--border); padding: 2rem; position: fixed; height: 100vh; z-index: 100; top: 0; left: 0; }
+        .logo { font-family: 'Montserrat'; font-size: 1.5rem; font-weight: 900; color: var(--primary); margin-bottom: 3rem; text-align: center; }
+        .menu { list-style: none; padding: 0; }
+        .menu a { display: flex; align-items: center; gap: 10px; padding: 12px; color: #ccc; text-decoration: none; border-radius: 8px; transition: 0.3s; margin-bottom: 5px; }
+        .menu a:hover, .menu a.active { background: rgba(0, 210, 255, 0.1); color: var(--primary); }
+
+        .main { margin-left: 260px; flex-grow: 1; padding: 2rem; width: calc(100% - 260px); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+        
+        .layout-grid { display: grid; grid-template-columns: 350px 1fr; gap: 2rem; }
+        
+        .controls-panel { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); height: fit-content; position: sticky; top: 2rem; }
+        .control-group { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        .control-group h4 { color: var(--primary); margin-bottom: 10px; font-family: 'Montserrat'; font-size: 0.9rem; text-transform: uppercase; }
+        
+        .slider-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; color: #aaa; }
+        input[type="range"] { width: 60%; accent-color: var(--primary); cursor: pointer; }
+
+        .preview-area { background: #1a1a25; padding: 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+        canvas { width: 100%; height: auto; border-radius: 8px; display: block; box-shadow: 0 0 20px rgba(0,0,0,0.5); background: white; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { background: var(--card); border: 1px solid var(--border); color: #aaa; padding: 10px 20px; cursor: pointer; border-radius: 6px; font-weight: bold; }
+        .tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
+
+        .bulk-filters { display: flex; gap: 15px; margin-bottom: 20px; background: #111; padding: 15px; border-radius: 8px; align-items: center; flex-wrap: wrap; }
+        select { background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 4px; min-width: 150px; }
+        
+        .table-container { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; }
+        .student-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .student-table th { text-align: left; color: #aaa; padding: 12px; border-bottom: 1px solid #333; text-transform: uppercase; letter-spacing: 1px; }
+        .student-table td { padding: 12px; border-bottom: 1px solid #222; color: #eee; cursor: pointer; }
+        .student-table tr:hover td { background: rgba(255,255,255,0.05); color: var(--primary); }
+        .student-table tr.selected td { background: rgba(0, 210, 255, 0.1); border-left: 3px solid var(--primary); color: var(--primary); }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-save { background: var(--primary); color: #000; width: 100%; justify-content: center; margin-top: 10px; }
+        .btn-zip { background: #2ecc71; color: #fff; }
+        .btn-load { background: #333; color: #fff; width: 100%; margin-top: 20px; justify-content: center; }
+
+        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
+        .progress-bar { width: 300px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 15px; }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.2s; }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; width: 100%; }
+            .layout-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hidden element to force font load -->
+    <div class="font-loader">Load Lavonia</div>
+
+    <div class="sidebar">
+        <div class="logo">LAKSHYA ADMIN</div>
+        <ul class="menu">
+            <li><a href="/admin/dashboard"><i class="fa-solid fa-arrow-left"></i> Dashboard</a></li>
+            <li><a href="#" class="active"><i class="fa-solid fa-wand-magic-sparkles"></i> Certificate Editor</a></li>
+        </ul>
+    </div>
+
+    <div class="main">
+        <div class="header">
+            <div>
+                <h2>Certificate Manager</h2>
+                <p id="activeStudentLabel" style="font-size: 0.9rem; color: #aaa;">Previewing: Sample Certificate</p>
+            </div>
+            <div id="statusMsg" style="color: #2ecc71; opacity: 0; font-weight: bold;">Configuration Saved!</div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="designTabBtn" onclick="switchTab('design')">Layout Designer</button>
+            <button class="tab-btn" id="bulkTabBtn" onclick="switchTab('bulk')">Participant List</button>
+        </div>
+
+        <!-- TAB 1: DESIGNER -->
+        <div id="designTab" class="layout-grid">
+            <div class="controls-panel">
+                <h4>Dynamic Position Controls</h4>
+                
+                <div class="control-group">
+                    <h4>Student Name</h4>
+                    <div class="slider-row"><span>Vertical (Y)</span> <input type="range" id="nameY" min="0" max="1" step="0.001"></div>
+                    <div class="slider-row"><span>Horizontal (X)</span> <input type="range" id="nameX" min="-0.5" max="0.5" step="0.001"></div>
+                    <div class="slider-row"><span>Font Size</span> <input type="range" id="nameS" min="0.01" max="0.1" step="0.001"></div>
+                    <div class="slider-row"><span>Color</span> <input type="color" id="nameC"></div>
+                </div>
+
+                <div class="control-group">
+                    <h4>College Name</h4>
+                    <div class="slider-row"><span>Vertical (Y)</span> <input type="range" id="collY" min="0" max="1" step="0.001"></div>
+                    <div class="slider-row"><span>Horizontal (X)</span> <input type="range" id="collX" min="-0.5" max="0.5" step="0.001"></div>
+                    <div class="slider-row"><span>Font Size</span> <input type="range" id="collS" min="0.01" max="0.1" step="0.001"></div>
+                    <div class="slider-row"><span>Color</span> <input type="color" id="detailC"></div>
+                </div>
+
+                <div class="control-group">
+                    <h4>Event Name</h4>
+                    <div class="slider-row"><span>Vertical (Y)</span> <input type="range" id="evtY" min="0" max="1" step="0.001"></div>
+                    <div class="slider-row"><span>Horizontal (X)</span> <input type="range" id="evtX" min="-0.5" max="0.5" step="0.001"></div>
+                    <div class="slider-row"><span>Font Size</span> <input type="range" id="evtS" min="0.01" max="0.1" step="0.001"></div>
+                </div>
+
+                <button class="btn btn-save" onclick="saveConfig()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save & Apply Globally
+                </button>
+            </div>
+
+            <div class="preview-area">
+                <canvas id="editorCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- TAB 2: BULK ACTIONS -->
+        <div id="bulkTab" style="display: none;">
+            <div class="bulk-filters">
+                <select id="deptFilter" onchange="resetAndFetch()">
+                    <option value="all">All Departments</option>
+                </select>
+                <select id="eventFilter" onchange="resetAndFetch()">
+                    <option value="all">All Events</option>
+                </select>
+                <button class="btn btn-zip" onclick="generateBulkZip()">
+                    <i class="fa-solid fa-download"></i> Download All as ZIP
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table class="student-table">
+                    <thead><tr><th>#</th><th>Student Name</th><th>College Name</th><th>Event / Role</th><th>Dept</th></tr></thead>
+                    <tbody id="studentList"></tbody>
+                </table>
+                <button id="loadMoreBtn" class="btn btn-load" onclick="fetchStudents(true)" style="display: none;">
+                    Load More Records (200)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generation Loader -->
+    <div class="loading-overlay" id="loader">
+        <h3 style="color:white; margin-bottom:10px;">Rendering Certificates</h3>
+        <p style="color:#aaa;" id="progressText">0 / 0</p>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <script>
+        // --- FIXED: Worker Loading without Syntax Errors ---
+        const WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        fetch(WORKER_URL)
+            .then(function(response) { return response.blob(); })
+            .then(function(blob) {
+                const blobUrl = URL.createObjectURL(blob);
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
+                }
+            })
+            .catch(function(err) {
+                console.warn("PDF Worker Blob failed:", err);
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
+                }
+            });
+
+        // Safe Defaults
+        let CONFIG = {
+            baseY: { name: 0.448, college: 0.5378, event: 0.590 }, 
+            offsetX: { name: 0, college: 0.005, event: 0 }, 
+            fontScale: { name: 0.045, detail: 0.017, event: 0.016 },
+            colors: { name: '#ff3131', detail: '#011963' }
+        };
+
+        let currentPreviewData = {
+            studentName: "Sample Participant Name",
+            collegeName: "LBRCE COLLEGE OF ENGINEERING",
+            eventName: "LAKSHYA MEGA EVENT"
+        };
+
+        let lastKey = null;
+        let canvas, ctx, baseImage;
+        let recipientList = [];
+
+        window.onload = async function() {
+            canvas = document.getElementById('editorCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // Pre-load Lavonia Classy
+            try {
+                // Simplified async await safely
+                await document.fonts.load("12px 'Lavonia Classy'");
+                await document.fonts.ready;
+            } catch (e) { console.warn("Font loading warning:", e); }
+            
+            await Promise.all([loadConfig(), renderBasePdf()]);
+            setupInputs();
+            updatePreview();
+            loadFilters();
+            fetchStudents(); 
+        };
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/public/cert-config');
+                const data = await res.json();
+                
+                if (data && data.baseY) {
+                    CONFIG.baseY = data.baseY;
+                    // Strict checks without optional chaining (?.)
+                    if (data.fontScale) CONFIG.fontScale = data.fontScale;
+                    if (data.colors) CONFIG.colors = data.colors;
+                    
+                    if (data.offsetX) {
+                        CONFIG.offsetX = {
+                            name: (data.offsetX.name !== undefined) ? data.offsetX.name : 0,
+                            college: (data.offsetX.college !== undefined) ? data.offsetX.college : 0.005,
+                            event: (data.offsetX.event !== undefined) ? data.offsetX.event : 0
+                        };
+                    }
+                }
+            } catch (e) { console.warn("Config load failed, using defaults."); }
+        }
+
+        async function saveConfig() {
+            const btn = document.querySelector('.btn-save');
+            const oldHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...';
+            try {
+                await fetch('/api/admin/cert-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(CONFIG)
+                });
+                const msg = document.getElementById('statusMsg');
+                msg.style.opacity = 1;
+                setTimeout(function() { msg.style.opacity = 0; }, 3000);
+            } catch (e) { alert("Error saving config"); }
+            btn.innerHTML = oldHtml;
+        }
+
+        function switchTab(tab) {
+            document.getElementById('designTab').style.display = (tab === 'design') ? 'grid' : 'none';
+            document.getElementById('bulkTab').style.display = (tab === 'bulk') ? 'block' : 'none';
+            
+            const designBtn = document.getElementById('designTabBtn');
+            const bulkBtn = document.getElementById('bulkTabBtn');
+            
+            if (tab === 'design') {
+                designBtn.classList.add('active');
+                bulkBtn.classList.remove('active');
+            } else {
+                designBtn.classList.remove('active');
+                bulkBtn.classList.add('active');
+            }
+        }
+
+        async function renderBasePdf() {
+            try {
+                // Verify pdfjsLib exists
+                if (typeof pdfjsLib === 'undefined') return;
+
+                if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                     pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
+                }
+
+                const loadingTask = pdfjsLib.getDocument('/assets/certificate-bg.pdf');
+                const pdf = await loadingTask.promise;
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 2.0 });
+                
+                const offCanvas = document.createElement('canvas');
+                offCanvas.width = viewport.width;
+                offCanvas.height = viewport.height;
+                await page.render({ canvasContext: offCanvas.getContext('2d'), viewport: viewport }).promise;
+                
+                baseImage = offCanvas;
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+            } catch (e) { console.error("PDF rendering error:", e); }
+        }
+
+        function setupInputs() {
+            function bindRange(id, path, key) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                
+                // Safe access
+                let val = 0;
+                if (CONFIG[path] && CONFIG[path][key] !== undefined) {
+                    val = CONFIG[path][key];
+                }
+                el.value = val;
+
+                el.oninput = function(e) {
+                    if (!CONFIG[path]) CONFIG[path] = {};
+                    CONFIG[path][key] = parseFloat(e.target.value);
+                    updatePreview();
+                };
+            }
+
+            function bindColor(id, path, key) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                
+                let val = '#000000';
+                if (CONFIG[path] && CONFIG[path][key]) {
+                    val = CONFIG[path][key];
+                }
+                el.value = val;
+
+                el.oninput = function(e) {
+                    if (!CONFIG[path]) CONFIG[path] = {};
+                    CONFIG[path][key] = e.target.value;
+                    updatePreview();
+                };
+            }
+
+            bindRange('nameY', 'baseY', 'name');
+            bindRange('nameX', 'offsetX', 'name');
+            bindRange('nameS', 'fontScale', 'name');
+            bindColor('nameC', 'colors', 'name');
+            
+            bindRange('collY', 'baseY', 'college');
+            bindRange('collX', 'offsetX', 'college');
+            bindRange('collS', 'fontScale', 'detail');
+            bindColor('detailC', 'colors', 'detail');
+            
+            bindRange('evtY', 'baseY', 'event');
+            bindRange('evtX', 'offsetX', 'event');
+            bindRange('evtS', 'fontScale', 'event');
+        }
+
+        function updatePreview() {
+            if (!baseImage) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(baseImage, 0, 0);
+            drawCert(ctx, canvas.width, canvas.height, currentPreviewData);
+        }
+
+        function drawCert(context, w, h, data) {
+            // Replaced optional chaining (?.) with standard checks
+            const fontScales = CONFIG.fontScale || {};
+            const offsets = CONFIG.offsetX || {};
+            const baseYs = CONFIG.baseY || {};
+            const colors = CONFIG.colors || {};
+
+            const nameSize = Math.floor(w * (fontScales.name || 0.045));
+            const detailSize = Math.floor(w * (fontScales.detail || 0.017));
+            const eventSize = Math.floor(w * (fontScales.event || 0.016));
+            const centerX = w / 2;
+
+            context.textBaseline = 'middle';
+            context.fillStyle = colors.name || '#ff3131';
+            context.textAlign = 'center';
+            
+            // Student Name - Lavonia Classy
+            const nameXOff = centerX + (w * (offsets.name || 0));
+            const nameYPos = h * (baseYs.name || 0.448);
+            renderText(context, data.studentName, nameXOff, nameYPos, nameSize, 'Lavonia Classy', true, w);
+
+            context.fillStyle = colors.detail || '#011963';
+            context.textBaseline = 'ideographic';
+            
+            // College Name - Montserrat
+            context.textAlign = 'left'; 
+            const collXOff = centerX + (w * (offsets.college || 0.005));
+            const collYPos = h * (baseYs.college || 0.5378);
+            renderText(context, data.collegeName, collXOff, collYPos, detailSize, 'Montserrat', true, w);
+
+            // Event Name - Montserrat
+            context.textAlign = 'center';
+            const evtXOff = centerX + (w * (offsets.event || 0));
+            const evtYPos = h * (baseYs.event || 0.590);
+            renderText(context, data.eventName, evtXOff, evtYPos, eventSize, 'Montserrat', true, w);
+        }
+
+        function renderText(ctx, text, x, y, size, font, bold, maxW) {
+            const weight = bold ? '700' : '500';
+            ctx.font = weight + " " + size + "px '" + font + "', sans-serif";
+            
+            const limit = maxW * 0.85;
+            const textWidth = ctx.measureText(text).width;
+            
+            if (textWidth > limit) {
+                const newSize = size * (limit / textWidth);
+                ctx.font = weight + " " + newSize + "px '" + font + "', sans-serif";
+            }
+            ctx.fillText(text, x, y);
+        }
+
+        async function fetchStudents(loadMore) {
+            const dept = document.getElementById('deptFilter').value;
+            const eventId = document.getElementById('eventFilter').value;
+            const table = document.getElementById('studentList');
+            const btn = document.getElementById('loadMoreBtn');
+
+            if (!loadMore) {
+                table.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading records...</td></tr>';
+                lastKey = null;
+                recipientList = [];
+            }
+            
+            try {
+                let url = '/api/admin/certificate-recipients?dept=' + dept + '&eventId=' + eventId;
+                if (lastKey) {
+                    url += '&lastKey=' + lastKey;
+                }
+                
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if (!loadMore) table.innerHTML = '';
+                
+                const items = Array.isArray(data) ? data : (data.items || []);
+                recipientList = recipientList.concat(items);
+                lastKey = data.lastEvaluatedKey || null;
+
+                items.forEach((s, idx) => {
+                    const row = document.createElement('tr');
+                    // Wrap click in simple function
+                    row.onclick = function() { selectStudentForPreview(s, row); };
+                    
+                    // Simple string concat instead of multiline template literal to be safe
+                    const index = recipientList.length - items.length + idx + 1;
+                    const type = s.type || 'PARTICIPANT';
+                    
+                    row.innerHTML = '<td>' + index + '</td>' +
+                                    '<td><b>' + s.studentName + '</b></td>' +
+                                    '<td>' + s.collegeName + '</td>' +
+                                    '<td>' + s.eventName + ' <span style="opacity:0.5; font-size:0.7em;">(' + type + ')</span></td>' +
+                                    '<td>' + s.dept + '</td>';
+                    table.appendChild(row);
+                });
+
+                if (btn) btn.style.display = lastKey ? 'flex' : 'none';
+
+            } catch (e) {
+                console.error("Fetch error:", e);
+                table.innerHTML = '<tr><td colspan="5" style="color:red; text-align:center;">Failed to fetch data</td></tr>';
+            }
+        }
+
+        function selectStudentForPreview(data, row) {
+            const rows = document.querySelectorAll('.student-table tr');
+            for(let i=0; i<rows.length; i++) {
+                rows[i].classList.remove('selected');
+            }
+            row.classList.add('selected');
+            
+            currentPreviewData = {
+                studentName: data.studentName,
+                collegeName: data.collegeName,
+                eventName: data.eventName
+            };
+            
+            const label = document.getElementById('activeStudentLabel');
+            if (label) label.innerText = 'Previewing: ' + data.studentName + ' (' + data.eventName + ')';
+            
+            updatePreview();
+            switchTab('design');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetAndFetch() {
+            lastKey = null;
+            recipientList = [];
+            fetchStudents(false);
+        }
+
+        async function loadFilters() {
+            try {
+                const [deptRes, evtRes] = await Promise.all([
+                    fetch('/api/admin/departments'),
+                    fetch('/api/events')
+                ]);
+                const depts = await deptRes.json();
+                const evts = await evtRes.json();
+                
+                const dSelect = document.getElementById('deptFilter');
+                const eSelect = document.getElementById('eventFilter');
+                
+                if (dSelect && depts) {
+                    depts.forEach(function(d) {
+                        dSelect.innerHTML += '<option value="' + d.name + '">' + d.name + '</option>';
+                    });
+                }
+                if (eSelect && evts) {
+                    evts.forEach(function(e) {
+                        eSelect.innerHTML += '<option value="' + e.eventId + '">' + e.title + '</option>';
+                    });
+                }
+            } catch (e) { console.error("Filter load error:", e); }
+        }
+
+        async function generateBulkZip() {
+            if (recipientList.length === 0) return alert("No students in current view to generate.");
+            
+            const loader = document.getElementById('loader');
+            const pFill = document.getElementById('progressFill');
+            const pText = document.getElementById('progressText');
+            loader.style.display = 'flex';
+
+            try {
+                const zip = new JSZip();
+                const folder = zip.folder("LAKSHYA_Certificates");
+                
+                const gCanvas = document.createElement('canvas');
+                gCanvas.width = baseImage.width;
+                gCanvas.height = baseImage.height;
+                const gCtx = gCanvas.getContext('2d');
+
+                for (let i = 0; i < recipientList.length; i++) {
+                    const s = recipientList[i];
+                    gCtx.clearRect(0, 0, gCanvas.width, gCanvas.height);
+                    gCtx.drawImage(baseImage, 0, 0);
+                    drawCert(gCtx, gCanvas.width, gCanvas.height, s);
+
+                    const blob = await new Promise(function(resolve) {
+                         gCanvas.toBlob(resolve, 'image/jpeg', 0.85);
+                    });
+                    
+                    // Safety check for ID
+                    const safeId = (s.regId || 'UNKNOWN').substring(0,5);
+                    const safeName = (s.studentName || 'Student').replace(/ /g, '_');
+                    
+                    folder.file(safeName + '_' + safeId + '.jpg', blob);
+
+                    pText.innerText = (i+1) + ' / ' + recipientList.length;
+                    const pct = ((i+1) / recipientList.length) * 100;
+                    pFill.style.width = pct + '%';
+                    
+                    // Yield to UI thread
+                    if(i % 15 === 0) await new Promise(function(r) { setTimeout(r, 0); });
+                }
+
+                pText.innerText = "Finalizing ZIP file...";
+                const content = await zip.generateAsync({ type: "blob" });
+                saveAs(content, "LAKSHYA_Bulk_Certificates.zip");
+            } catch (e) { 
+                console.error("ZIP Generation error:", e); 
+                alert("Failed to generate ZIP. Check console."); 
+            }
+            loader.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
