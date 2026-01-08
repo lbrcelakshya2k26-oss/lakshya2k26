@@ -12,7 +12,6 @@
     <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        /* Custom Font for Signature/Name */
         @font-face {
             font-family: 'Lavonia Classy';
             src: url('https://res.cloudinary.com/dpz44zf0z/raw/upload/v1736166034/Lavonia-Classy_m7sq5a.otf') format('opentype');
@@ -27,26 +26,24 @@
 
         body { background-color: #0a0a0a; color: var(--text-color); display: flex; min-height: 100vh; font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
         
-        .font-loader { font-family: 'Lavonia Classy'; position: absolute; opacity: 0; pointer-events: none; z-index: -999; }
+        .font-loader { font-family: 'Lavonia Classy', 'Great Vibes'; position: absolute; opacity: 0; pointer-events: none; z-index: -999; }
 
         .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: -2; }
 
-        /* --- MAIN CONTENT LAYOUT (Matches Dashboard) --- */
         .main-content {
             flex-grow: 1; 
-            margin-left: 260px; /* Aligned with common.js sidebar width */
+            margin-left: 260px; 
             padding: 2rem; 
             width: calc(100% - 260px); 
             transition: 0.3s;
         }
 
-        /* --- RESPONSIVE (Matches Dashboard Breakpoint) --- */
         @media (max-width: 1024px) {
             .main-content { margin-left: 0; width: 100%; padding: 1.5rem; padding-top: 90px; }
         }
 
         .container { max-width: 1000px; margin: 0 auto; }
-        h2 { font-family: 'Playfair Display', serif; color: var(--primary-color); font-size: 2.2rem; margin-bottom: 2rem; }
+        h2 { font-family: 'Playfair Display', serif; color: var(--primary-color); font-size: 2.8rem; margin-bottom: 2rem; }
 
         .cert-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
         .cert-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; text-align: center; transition: 0.3s; }
@@ -56,10 +53,11 @@
         .preview-box i { font-size: 3rem; color: #444; }
         .badge { position: absolute; top: 10px; right: 10px; background: #ffd700; color: #000; font-size: 10px; padding: 4px 8px; border-radius: 10px; font-weight: bold; }
 
-        .info h3 { margin: 5px 0; color: #fff; font-size: 1.1rem; }
-        .info .name { color: var(--primary-color); font-family: 'Lavonia Classy', serif; font-size: 1.5rem; margin: 5px 0; }
+        .info h3 { margin: 5px 0; color: #fff; font-size: 1.2rem; }
+        /* Adjusted card name font size for a better UI experience */
+        .info .name { color: var(--primary-color); font-family: 'Lavonia Classy', 'Great Vibes', serif; font-size: 2.5rem; font-weight: bold; margin: 12px 0; line-height: 1.2; }
         
-        .btn { background: var(--primary-color); color: #000; padding: 10px 20px; border-radius: 50px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; margin-top: 10px; transition: 0.2s; }
+        .btn { background: var(--primary-color); color: #000; padding: 10px 20px; border-radius: 50px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; margin-top: 10px; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
         .btn:hover { background: #fff; transform: scale(1.05); }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; justify-content: center; align-items: center; padding: 20px; }
@@ -78,12 +76,8 @@
     </style>
 </head>
 <body>
-    <!-- Hidden element to force font load -->
-    <div class="font-loader">Load Lavonia</div>
-    
+    <div class="font-loader">Preloading Script Fonts...</div>
     <div class="bg-layer"></div>
-
-    <!-- Sidebar Injected by Common JS -->
 
     <main class="main-content">
         <div class="container">
@@ -116,38 +110,31 @@
     <script src="/js/chatbot.js"></script>
 
     <script>
-        // --- 1. ROBUST WORKER LOADING (CORS FIX) ---
         const WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
-        // This fetches the worker code as a Blob to bypass cross-origin restrictions on Web Workers
         fetch(WORKER_URL)
-            .then(function(response) { return response.blob(); })
-            .then(function(blob) {
+            .then(res => res.blob())
+            .then(blob => {
                 const blobUrl = URL.createObjectURL(blob);
-                if (typeof pdfjsLib !== 'undefined') {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
-                }
+                if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
             })
-            .catch(function(err) {
-                console.warn("PDF Worker Blob failed, using direct link:", err);
-                if (typeof pdfjsLib !== 'undefined') {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
-                }
+            .catch(() => {
+                if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
             });
 
-        // Safe Defaults
         let CONFIG = {
             pdfUrl: '/assets/certificate-bg.pdf', 
-            baseY: { name: 0.448, college: 0.5378, event: 0.590 }, 
+            baseY: { name: 0.445, college: 0.5378, event: 0.590 }, 
             offsetX: { name: 0, college: 0.005, event: 0 }, 
-            fontScale: { name: 0.045, detail: 0.017, event: 0.016 },
+            // set fontScale.name: 0.06 for a standard elegant size
+            fontScale: { name: 0.04, detail: 0.024, event: 0.022 }, 
             style: { 
-                nameFont: 'Lavonia Classy', // STRICTLY ENFORCED
+                nameFont: 'Lavonia Classy', 
+                fallbackFont: 'Great Vibes', 
                 detailFont: 'Montserrat', 
                 nameColor: '#ff3131', 
                 detailColor: '#011963' 
-            },
-            colors: { name: '#ff3131', detail: '#011963' }
+            }
         };
 
         let currentCertData = null;
@@ -157,109 +144,98 @@
         async function loadCertificates() {
             const container = document.getElementById('certContainer');
 
-            // 1. Fetch Dynamic Configuration from Admin Settings
             try {
                 const cfgRes = await fetch('/api/public/cert-config');
-                const remoteConfig = await cfgRes.json();
-                
-                if(remoteConfig && remoteConfig.baseY) {
-                    CONFIG.baseY = remoteConfig.baseY;
-                    
-                    if (remoteConfig.offsetX) CONFIG.offsetX = remoteConfig.offsetX;
-                    if (remoteConfig.fontScale) CONFIG.fontScale = remoteConfig.fontScale;
-                    
-                    if(remoteConfig.colors) {
-                        if (remoteConfig.colors.name) CONFIG.style.nameColor = remoteConfig.colors.name;
-                        if (remoteConfig.colors.detail) CONFIG.style.detailColor = remoteConfig.colors.detail;
-                    }
-                    
-                    // --- IMPORTANT: FONT LOCK ---
-                    // We purposefully DO NOT let remoteConfig override nameFont here
-                    // to ensure Lavonia Classy is always used as per user request.
-                    // We only update detailFont if needed (though we default to keeping it Montserrat)
-                    if(remoteConfig.style && remoteConfig.style.detailFont) {
-                       CONFIG.style.detailFont = remoteConfig.style.detailFont;
+                if (cfgRes.ok) {
+                    const remoteConfig = await cfgRes.json();
+                    if(remoteConfig && remoteConfig.baseY) {
+                        Object.assign(CONFIG.baseY, remoteConfig.baseY);
+                        if (remoteConfig.offsetX) Object.assign(CONFIG.offsetX, remoteConfig.offsetX);
+                        
+                        // Protect the name scale from being overwritten by remote config
+                        if (remoteConfig.fontScale) {
+                            CONFIG.fontScale.detail = remoteConfig.fontScale.detail || CONFIG.fontScale.detail;
+                            CONFIG.fontScale.event = remoteConfig.fontScale.event || CONFIG.fontScale.event;
+                        }
+                        
+                        if (remoteConfig.colors) {
+                            CONFIG.style.nameColor = remoteConfig.colors.name || CONFIG.style.nameColor;
+                            CONFIG.style.detailColor = remoteConfig.colors.detail || CONFIG.style.detailColor;
+                        }
                     }
                 }
-            } catch(e) { console.warn("Using default config due to fetch error:", e); }
+            } catch(e) { console.warn("Using local configuration."); }
 
-            // 2. Fetch User Certificates
             try {
                 const res = await fetch('/api/participant/my-certificates');
                 const list = await res.json();
                 
                 container.innerHTML = '';
-                if(list.length === 0) {
-                    container.innerHTML = '<div style="color:#aaa; text-align:center; padding: 2rem;">No certificates available yet.</div>';
+                if(!list || list.length === 0) {
+                    container.innerHTML = '<div style="color:#aaa; text-align:center; padding: 2rem; grid-column: 1/-1;">No certificates found.</div>';
                     return;
                 }
 
-                list.forEach(function(cert) {
+                list.forEach(cert => {
                     cert.studentName = toTitleCase(cert.studentName);
                     cert.eventName = cert.eventName.toUpperCase();
                     cert.collegeName = (cert.collegeName || "LBRCE").toUpperCase();
 
-                    const dataStr = encodeURIComponent(JSON.stringify(cert));
-                    
-                    // Safe string construction
-                    let html = '<div class="cert-card">';
-                    html += '<div class="preview-box"><span class="badge">' + cert.role + '</span><i class="fa-solid fa-certificate" style="color:#555;"></i></div>';
-                    html += '<div class="info"><h3>' + cert.eventName + '</h3>';
-                    html += '<p class="name" style="font-family: \'Lavonia Classy\', serif;">' + cert.studentName + '</p>';
-                    html += '<p style="color:#888; font-size:0.8rem;">' + cert.collegeName + '</p></div>';
-                    html += '<button onclick="openGenerator(\'' + dataStr + '\', this)" class="btn"><i class="fa-solid fa-wand-magic-sparkles"></i> View & Download</button>';
-                    html += '</div>';
-                    
-                    container.innerHTML += html;
+                    const card = document.createElement('div');
+                    card.className = 'cert-card';
+                    card.innerHTML = `
+                        <div class="preview-box">
+                            <span class="badge">${cert.role}</span>
+                            <i class="fa-solid fa-certificate"></i>
+                        </div>
+                        <div class="info">
+                            <h3>${cert.eventName}</h3>
+                            <p class="name" style="font-family: '${CONFIG.style.nameFont}', '${CONFIG.style.fallbackFont}', cursive;">${cert.studentName}</p>
+                            <p style="color:#888; font-size:0.85rem;">${cert.collegeName}</p>
+                        </div>
+                        <button class="btn" onclick="openGenerator('${encodeURIComponent(JSON.stringify(cert))}', this)">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> View & Download
+                        </button>
+                    `;
+                    container.appendChild(card);
                 });
             } catch(e) {
-                console.error(e);
-                container.innerHTML = '<p style="color:red; text-align:center;">Failed to load certificates.</p>';
+                container.innerHTML = '<p style="color:red; text-align:center; grid-column: 1/-1;">Failed to load certificates.</p>';
             }
         }
 
         async function openGenerator(dataStr, btn) {
             if (typeof pdfjsLib === 'undefined') {
-                alert("PDF Library not loaded. Please refresh the page.");
+                alert("The PDF engine is still loading. Please wait.");
                 return;
             }
 
-            try {
-                currentCertData = JSON.parse(decodeURIComponent(dataStr));
-            } catch(e) {
-                alert("Error parsing certificate data.");
-                return;
-            }
-
+            currentCertData = JSON.parse(decodeURIComponent(dataStr));
             const oldText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Loading...';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Initializing...';
             btn.disabled = true;
 
             try {
-                // FORCE LOAD FONT BEFORE RENDERING
+                // Force load fonts before rendering canvas
                 try {
-                    await document.fonts.load("40px 'Lavonia Classy'");
+                    await Promise.all([
+                        document.fonts.load(`bold 10px "${CONFIG.style.nameFont}"`),
+                        document.fonts.load(`bold 10px "${CONFIG.style.fallbackFont}"`),
+                        document.fonts.load(`700 10px "${CONFIG.style.detailFont}"`)
+                    ]);
                     await document.fonts.ready;
-                } catch(fontErr) {
-                    console.warn("Font load check failed, proceeding anyway:", fontErr);
-                }
+                } catch(fErr) { console.warn("Font pre-check failed."); }
                 
                 canvas = document.getElementById('certCanvas');
-                ctx = canvas.getContext('2d');
+                ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-                if (!baseImage) {
-                    await renderBasePdf();
-                } else {
-                    canvas.width = baseImage.width;
-                    canvas.height = baseImage.height;
-                }
+                await renderBasePdf();
 
                 updateRender();
                 document.getElementById('previewModal').style.display = 'flex';
 
             } catch (err) {
-                console.error(err);
-                alert("Error loading template: " + (err.message || "Unknown error. Check PDF path or CORS."));
+                console.error("Generator Error:", err);
             } finally {
                 btn.innerHTML = oldText;
                 btn.disabled = false;
@@ -267,15 +243,14 @@
         }
 
         async function renderBasePdf() {
-            // Ensure worker is ready
-            if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-                pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
-            }
-
-            const loadingTask = pdfjsLib.getDocument(CONFIG.pdfUrl);
+            const loadingTask = pdfjsLib.getDocument({
+                url: CONFIG.pdfUrl,
+                enableXHR: true
+            });
+            
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
-            const viewport = page.getViewport({ scale: 4.0 }); // High res for download
+            const viewport = page.getViewport({ scale: 4.0 }); 
             
             const offCanvas = document.createElement('canvas');
             offCanvas.width = viewport.width;
@@ -283,6 +258,7 @@
             const offCtx = offCanvas.getContext('2d');
 
             await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
+            
             baseImage = offCanvas; 
             canvas.width = viewport.width;
             canvas.height = viewport.height;
@@ -294,74 +270,69 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(baseImage, 0, 0);
 
-            const offsets = CONFIG.offsetX || { name: 0, college: 0.005, event: 0 };
-            const scales = CONFIG.fontScale || { name: 0.045, detail: 0.017, event: 0.016 };
-
+            const scales = CONFIG.fontScale;
             const nameSize = Math.floor(canvas.width * scales.name);
             const detailSize = Math.floor(canvas.width * scales.detail);
             const eventSize = Math.floor(canvas.width * scales.event);
-
             const centerX = canvas.width / 2;
             
-            // Draw Student Name - Center
-            // STRICTLY USING LAVONIA CLASSY
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = CONFIG.style.nameColor;
 
-            const nameX = centerX + (canvas.width * (offsets.name || 0));
+            const nameX = centerX + (canvas.width * (CONFIG.offsetX.name || 0));
             const nameY = canvas.height * CONFIG.baseY.name;
             
-            // Force the font here
-            drawTextSmart(ctx, currentCertData.studentName, nameX, nameY, nameSize, 'Lavonia Classy', true);
+            // Draw name - the drawTextSmart handles long name scaling
+            drawTextSmart(ctx, currentCertData.studentName, nameX, nameY, nameSize, 
+                `"${CONFIG.style.nameFont}", "${CONFIG.style.fallbackFont}", cursive`, true);
 
-            // Draw College & Event Names
-            ctx.textBaseline = 'ideographic';
             ctx.fillStyle = CONFIG.style.detailColor;
+            ctx.textBaseline = 'ideographic';
             
-            // College Name (Montserrat)
             ctx.textAlign = 'left';
-            const collOffX = offsets.college || 0;
-            drawTextSmart(ctx, currentCertData.collegeName, centerX + (canvas.width * collOffX), (canvas.height * CONFIG.baseY.college), detailSize, CONFIG.style.detailFont, true);
+            const collX = centerX + (canvas.width * (CONFIG.offsetX.college || 0));
+            drawTextSmart(ctx, currentCertData.collegeName, collX, (canvas.height * CONFIG.baseY.college), detailSize, CONFIG.style.detailFont, true);
             
-            // Event Name - Center (Montserrat)
             ctx.textAlign = 'center';
-            const eventX = centerX + (canvas.width * (offsets.event || 0));
+            const eventX = centerX + (canvas.width * (CONFIG.offsetX.event || 0));
             drawTextSmart(ctx, currentCertData.eventName, eventX, (canvas.height * CONFIG.baseY.event), eventSize, CONFIG.style.detailFont, true);
         }
 
-        function drawTextSmart(ctx, text, x, y, initialSize, fontName, isBold) {
+        function drawTextSmart(ctx, text, x, y, initialSize, fontStack, isBold) {
             let currentSize = initialSize;
-            const weight = isBold ? '700' : '500';
-            // Fallback to sans-serif just in case, but fontName is prioritized
-            ctx.font = weight + " " + currentSize + "px '" + fontName + "', sans-serif";
+            const weight = isBold ? 'bold' : 'normal';
+            ctx.font = `${weight} ${currentSize}px ${fontStack}, sans-serif`;
             
-            const maxWidth = canvas.width * 0.85;
+            // Allow name to take up 95% of width before shrinking
+            const maxWidth = canvas.width * 0.95; 
             let textWidth = ctx.measureText(text).width;
             
-            while (textWidth > maxWidth && currentSize > 18) {
+            while (textWidth > maxWidth && currentSize > 15) {
                 currentSize -= 1;
-                ctx.font = weight + " " + currentSize + "px '" + fontName + "', sans-serif";
+                ctx.font = `${weight} ${currentSize}px ${fontStack}, sans-serif`;
                 textWidth = ctx.measureText(text).width;
             }
             ctx.fillText(text, x, y);
         }
 
         function toTitleCase(str) {
-            return str ? str.replace(/\w\S*/g, function(txt) { return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(); }) : "";
+            return str ? str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()) : "";
         }
 
         function downloadCurrentCert() {
             try {
+                const dataUrl = canvas.toDataURL('image/png', 1.0);
                 const link = document.createElement('a');
                 const safeName = currentCertData.studentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                link.download = "LAKSHYA_Cert_" + safeName + ".png";
-                // Ensure toDataURL works even if something tainted the canvas
-                link.href = canvas.toDataURL('image/png', 1.0);
+                link.download = `Certificate_${safeName}.png`;
+                link.href = dataUrl;
+                document.body.appendChild(link);
                 link.click();
+                document.body.removeChild(link);
             } catch (e) {
-                alert("Download failed. This is usually due to browser security restrictions.");
-                console.error(e);
+                console.error("Download Error:", e);
+                alert("Please take a screenshot or try another browser.");
             }
         }
 
