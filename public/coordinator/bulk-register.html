@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On-Site Registration | LAKSHYA 2K26</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #00d2ff;
+            --accent-color: #ff00cc;
+            --glass-bg: rgba(20, 20, 35, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+            --input-bg: rgba(255, 255, 255, 0.05);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { 
+            background-color: #050510; 
+            color: var(--text-color); 
+            min-height: 100vh;
+            background: radial-gradient(circle at top right, rgba(0, 210, 255, 0.05), transparent), #050510;
+        }
+        .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { font-family: 'Montserrat', sans-serif; font-weight: 900; font-size: 2.5rem; color: var(--primary-color); text-transform: uppercase; letter-spacing: 3px; }
+
+        .mode-toggle {
+            display: flex; justify-content: center; gap: 15px; margin-bottom: 30px;
+        }
+        .btn-mode {
+            padding: 12px 25px; border-radius: 30px; border: 1px solid var(--glass-border);
+            background: var(--glass-bg); color: #888; cursor: pointer; transition: 0.3s;
+            font-weight: 600; font-size: 0.9rem;
+        }
+        .btn-mode.active { background: var(--primary-color); color: #000; border-color: var(--primary-color); box-shadow: 0 0 15px rgba(0, 210, 255, 0.3); }
+
+        .card {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 30px; margin-bottom: 30px; backdrop-filter: blur(15px);
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 10px; color: #bbb; font-size: 0.9rem; }
+        .form-group select, .form-group input {
+            width: 100%; padding: 14px; border-radius: 12px; background: rgba(0,0,0,0.3);
+            border: 1px solid #333; color: white; outline: none; transition: 0.3s;
+        }
+        .form-group input:focus { border-color: var(--primary-color); }
+
+        .upload-area {
+            border: 2px dashed #444; border-radius: 15px; padding: 40px; text-align: center;
+            cursor: pointer; transition: 0.3s; margin-bottom: 20px;
+        }
+        .upload-area:hover { border-color: var(--primary-color); background: rgba(0, 210, 255, 0.02); }
+        .upload-area i { font-size: 3rem; color: #555; margin-bottom: 15px; }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+            color: white; border: none; padding: 15px 30px; border-radius: 12px;
+            font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%;
+            text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,210,255,0.3); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .template-link { color: var(--primary-color); text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; margin-top: 10px; }
+
+        .preview-table-wrapper { overflow-x: auto; margin-top: 20px; border-radius: 10px; border: 1px solid #333; display: none; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background: rgba(255,255,255,0.05); text-align: left; padding: 12px; color: var(--primary-color); }
+        td { padding: 12px; border-top: 1px solid #222; color: #ccc; }
+
+        .status-msg { margin-top: 20px; padding: 15px; border-radius: 10px; text-align: center; display: none; }
+        .status-msg.success { background: rgba(0, 255, 187, 0.1); color: #00ffbb; border: 1px solid #00ffbb; }
+        .status-msg.error { background: rgba(255, 68, 68, 0.1); color: #ff4444; border: 1px solid #ff4444; }
+
+        #singleSearchArea, #bulkUploadArea { transition: 0.3s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>On-Site Registration</h1>
+            <p style="color: #666;">Techno-Cultural Fest POS System</p>
+        </div>
+
+        <div class="mode-toggle">
+            <button class="btn-mode active" onclick="switchMode('single')" id="modeSingle">Search & Register</button>
+            <button class="btn-mode" onclick="switchMode('bulk')" id="modeBulk">Excel Bulk Upload</button>
+        </div>
+
+        <!-- SHARED EVENT SELECTION -->
+        <div class="card">
+            <div class="form-group">
+                <label><i class="fa-solid fa-trophy"></i> Target Event for Registration</label>
+                <select id="eventSelect" onchange="handleEventChange()">
+                    <option value="">-- Select Event --</option>
+                </select>
+                <p id="eventFeeInfo" style="margin-top: 10px; font-size: 0.85rem; color: #888;"></p>
+            </div>
+        </div>
+
+        <!-- SINGLE SEARCH MODE -->
+        <div id="singleSearchArea">
+            <div class="card">
+                <div class="form-group">
+                    <label>Student Email Address</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="email" id="searchEmail" placeholder="Enter email to fetch profile...">
+                        <button class="btn-primary" style="width: auto;" onclick="searchStudent()" id="searchBtn">Verify</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="profileDetails" style="display: none;" class="card">
+                <h3 style="margin-bottom: 20px; color: var(--primary-color); font-size: 1rem;">Participant Identity</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                    <div><label style="font-size: 0.7rem; color: #666; text-transform: uppercase;">Full Name</label><p id="pName" style="font-weight: 600;">-</p></div>
+                    <div><label style="font-size: 0.7rem; color: #666; text-transform: uppercase;">College</label><p id="pCollege" style="font-weight: 600;">-</p></div>
+                </div>
+                <button class="btn-primary" onclick="submitSingleReg()" id="singleSubmitBtn">Confirm & Register</button>
+            </div>
+        </div>
+
+        <!-- BULK UPLOAD MODE -->
+        <div id="bulkUploadArea" style="display: none;">
+            <div class="card">
+                <div class="upload-area" onclick="document.getElementById('excelFile').click()">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <h3>Click to Upload Excel</h3>
+                    <p style="color: #666; font-size: 0.85rem;">Format: .xlsx or .csv</p>
+                    <input type="file" id="excelFile" hidden accept=".xlsx, .xls, .csv" onchange="handleFileSelect(event)">
+                </div>
+                
+                <a href="javascript:void(0)" class="template-link" onclick="downloadTemplate()">
+                    <i class="fa-solid fa-download"></i> Download Excel Template
+                </a>
+
+                <div class="preview-table-wrapper" id="previewWrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>College</th>
+                                <th>Mobile</th>
+                                <th>M2 Name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="bulkStats" style="margin-top: 20px; font-size: 0.9rem; color: #888; display: none;">
+                    Ready to process <strong id="rowCount" style="color: white;">0</strong> records.
+                </div>
+
+                <button class="btn-primary" style="margin-top: 25px;" onclick="submitBulkReg()" id="bulkSubmitBtn" disabled>
+                    Start Bulk Enrollment
+                </button>
+            </div>
+        </div>
+
+        <div class="status-msg" id="statusMsg"></div>
+    </div>
+
+    <script>
+        let allEvents = [];
+        let selectedEvent = null;
+        let bulkData = [];
+        let currentStudent = null;
+
+        window.onload = async () => {
+            try {
+                const res = await fetch('/api/coordinator/my-events');
+                allEvents = await res.json();
+                const select = document.getElementById('eventSelect');
+                allEvents.forEach(e => {
+                    const opt = document.createElement('option');
+                    opt.value = e.eventId;
+                    opt.innerText = `${e.title} (${e.type})`;
+                    select.appendChild(opt);
+                });
+            } catch (e) { console.error("Load Error:", e); }
+        };
+
+        function switchMode(mode) {
+            document.getElementById('modeSingle').className = mode === 'single' ? 'btn-mode active' : 'btn-mode';
+            document.getElementById('modeBulk').className = mode === 'bulk' ? 'btn-mode active' : 'btn-mode';
+            document.getElementById('singleSearchArea').style.display = mode === 'single' ? 'block' : 'none';
+            document.getElementById('bulkUploadArea').style.display = mode === 'bulk' ? 'block' : 'none';
+            document.getElementById('statusMsg').style.display = 'none';
+        }
+
+        function handleEventChange() {
+            const eid = document.getElementById('eventSelect').value;
+            selectedEvent = allEvents.find(e => e.eventId === eid);
+            if (selectedEvent) {
+                document.getElementById('eventFeeInfo').innerText = `Registration Fee: ₹${selectedEvent.fee} | Category: ${selectedEvent.type}`;
+            } else {
+                document.getElementById('eventFeeInfo').innerText = '';
+            }
+        }
+
+        // --- SINGLE REG LOGIC ---
+        async function searchStudent() {
+            const email = document.getElementById('searchEmail').value.trim();
+            if (!email) return;
+            
+            const btn = document.getElementById('searchBtn');
+            btn.disabled = true;
+            btn.innerText = 'Checking...';
+
+            try {
+                const res = await fetch(`/api/coordinator/search-participant?email=${encodeURIComponent(email)}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Not found");
+
+                currentStudent = data.student;
+                document.getElementById('profileDetails').style.display = 'block';
+                document.getElementById('pName').innerText = currentStudent.fullName;
+                document.getElementById('pCollege').innerText = currentStudent.college;
+            } catch (e) {
+                alert(e.message);
+                document.getElementById('profileDetails').style.display = 'none';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Verify';
+            }
+        }
+
+        async function submitSingleReg() {
+            if (!selectedEvent) return alert("Select an event first");
+            const btn = document.getElementById('singleSubmitBtn');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/coordinator/on-site-register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentEmail: currentStudent.email,
+                        eventId: selectedEvent.eventId
+                    })
+                });
+                if (res.ok) {
+                    showStatus("Registration successful for " + currentStudent.fullName, "success");
+                    document.getElementById('profileDetails').style.display = 'none';
+                    document.getElementById('searchEmail').value = '';
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.error || "Failed");
+                }
+            } catch (e) { showStatus(e.message, "error"); }
+            finally { btn.disabled = false; }
+        }
+
+        // --- BULK REG LOGIC ---
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const data = evt.target.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                bulkData = XLSX.utils.sheet_to_json(sheet);
+                renderPreview();
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        function renderPreview() {
+            const body = document.getElementById('previewBody');
+            body.innerHTML = '';
+            const previewSet = bulkData.slice(0, 5);
+            
+            previewSet.forEach(row => {
+                body.innerHTML += `
+                    <tr>
+                        <td>${row.fullName || row.Name || '-'}</td>
+                        <td>${row.email || row.Email || '-'}</td>
+                        <td>${row.college || row.College || '-'}</td>
+                        <td>${row.mobile || row.Mobile || '-'}</td>
+                        <td>${row.member2Name || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('previewWrapper').style.display = 'block';
+            document.getElementById('bulkStats').style.display = 'block';
+            document.getElementById('rowCount').innerText = bulkData.length;
+            document.getElementById('bulkSubmitBtn').disabled = bulkData.length === 0;
+        }
+
+        function downloadTemplate() {
+            const headers = [["fullName", "email", "mobile", "college", "member2Name", "member2Email", "member2Mobile"]];
+            const ws = XLSX.utils.aoa_to_sheet(headers);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Template");
+            XLSX.writeFile(wb, "Lakshya_Bulk_Registration_Template.xlsx");
+        }
+
+        async function submitBulkReg() {
+            if (!selectedEvent) return alert("Please select an event first");
+            if (!confirm(`Registering ${bulkData.length} students for ${selectedEvent.title}. Proceed?`)) return;
+
+            const btn = document.getElementById('bulkSubmitBtn');
+            btn.disabled = true;
+            btn.innerText = "Processing Bulk Enrollment...";
+
+            try {
+                const res = await fetch('/api/coordinator/bulk-on-site-register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        eventId: selectedEvent.eventId,
+                        participants: bulkData
+                    })
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    showStatus(`Bulk Success! ${result.processed} registered, ${result.errors.length} skipped.`, "success");
+                    bulkData = [];
+                    document.getElementById('previewWrapper').style.display = 'none';
+                    document.getElementById('bulkStats').style.display = 'none';
+                } else {
+                    throw new Error(result.error || "Bulk upload failed");
+                }
+            } catch (e) { showStatus(e.message, "error"); }
+            finally { 
+                btn.disabled = false; 
+                btn.innerText = "Start Bulk Enrollment";
+            }
+        }
+
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMsg');
+            el.className = `status-msg ${type}`;
+            el.innerText = msg;
+            el.style.display = 'block';
+            if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+    </script>
+</body>
+</html>
