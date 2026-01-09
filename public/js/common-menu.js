@@ -9,6 +9,7 @@ const menuItems = [
     { label: 'Add Team', icon: 'fa-pen-to-square', link: 'add-team' },
     { label: 'View Submissions', icon: 'fa-pen-to-square', link: 'view-submissions' },
     { label: 'Issue Kits', icon: 'fa-box-open', link: 'benficiaries' },
+    { label: 'Bulk Register', icon: 'fa-file-upload', link: 'bulk-register' },
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
