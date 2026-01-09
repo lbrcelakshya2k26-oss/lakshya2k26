@@ -5392,6 +5392,127 @@ app.get('/admin/admin-certificates', isAuthenticated('admin'), (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/admin-certificates.html'));
 });
 
+app.post('/api/coordinator/bulk-on-site-register', isAuthenticated('coordinator'), async (req, res) => {
+    const { eventId, participants } = req.body;
+    const coordinator = req.session.user;
+
+    if (!eventId || !participants || !Array.isArray(participants)) {
+        return res.status(400).json({ error: "Invalid data format" });
+    }
+
+    try {
+        // 1. Fetch Event Details once
+        const eventRes = await docClient.send(new GetCommand({
+            TableName: 'Lakshya_Events',
+            Key: { eventId }
+        }));
+        if (!eventRes.Item) return res.status(404).json({ error: "Event not found" });
+        const event = eventRes.Item;
+
+        let processedCount = 0;
+        let errors = [];
+
+        // 2. Process each participant
+        // Using a sequential loop to prevent DynamoDB throughput issues and ensure account creation before registration
+        for (const p of participants) {
+            try {
+                // Normalize field names (handle Excel case variations)
+                const email = (p.email || p.Email || "").toLowerCase().trim();
+                const name = (p.fullName || p.Name || "").trim();
+                const mobile = (p.mobile || p.Mobile || "").toString();
+                const college = (p.college || p.College || "LBRCE").trim();
+
+                if (!email || !name) continue;
+
+                // A. Check/Create User Account
+                const userCheck = await docClient.send(new GetCommand({
+                    TableName: 'Lakshya_Users',
+                    Key: { email }
+                }));
+
+                if (!userCheck.Item) {
+                    // Create basic account with default password
+                    const defaultPassword = await bcrypt.hash("Lakshya@2026", 10);
+                    await docClient.send(new PutCommand({
+                        TableName: 'Lakshya_Users',
+                        Item: {
+                            email,
+                            fullName: name,
+                            mobile,
+                            college,
+                            role: 'participant',
+                            password: defaultPassword,
+                            createdAt: new Date().toISOString(),
+                            onSiteAccount: true
+                        }
+                    }));
+                }
+
+                // B. Construct Team Member list if 2nd member exists in Excel
+                const teamMembers = [];
+                const m2Name = p.member2Name || p.M2Name;
+                const m2Email = p.member2Email || p.M2Email;
+                if (m2Name && m2Email) {
+                    teamMembers.push({ name: m2Name.trim(), email: m2Email.toLowerCase().trim(), mobile: (p.member2Mobile || "").toString() });
+                }
+
+                // C. Create Registration
+                const registrationId = uuidv4();
+                const kitEligible = checkKitEligibility(event.type);
+
+                await docClient.send(new PutCommand({
+                    TableName: 'Lakshya_Registrations',
+                    Item: {
+                        registrationId,
+                        studentEmail: email,
+                        eventId,
+                        deptName: coordinator.dept || 'General',
+                        category: event.type,
+                        kitAllocated: kitEligible,
+                        teamName: teamMembers.length > 0 ? `${name} & Team` : null,
+                        teamMembers: teamMembers,
+                        paymentStatus: "COMPLETED",
+                        paymentId: `BULK-CASH-${uuidv4().substring(0,6).toUpperCase()}`,
+                        paymentMode: "CASH",
+                        paymentDate: new Date().toISOString(),
+                        amountPaid: parseInt(event.fee),
+                        registeredAt: new Date().toISOString(),
+                        attendance: false,
+                        managedBy: coordinator.email,
+                        bulkSource: true
+                    }
+                }));
+
+                // D. Optional: Send Email (Fire and forget)
+                // In bulk uploads, we often disable emails to prevent SES limit hits, 
+                // but for 10-50 students it's fine.
+                const emailSubject = `Registration Confirmed: ${event.title}`;
+                const emailHtml = `<h3>LAKSHYA 2K26</h3><p>Hello ${name}, your on-site registration for <b>${event.title}</b> is successful. <br>ID: ${registrationId}</p>`;
+                sendEmail(email, emailSubject, emailHtml).catch(() => {});
+
+                processedCount++;
+            } catch (err) {
+                console.error("Bulk Item Error:", err);
+                errors.push({ email: p.email, error: err.message });
+            }
+        }
+
+        res.json({ 
+            success: true, 
+            processed: processedCount, 
+            errors: errors 
+        });
+
+    } catch (error) {
+        console.error("Bulk Upload Logic Error:", error);
+        res.status(500).json({ error: "Failed to process bulk enrollment" });
+    }
+});
+app.get('/coordinator/bulk-register', isAuthenticated('coordinator'), (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/coordinator/bulk-register.html'));
+});
+
+
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, '0.0.0.0', () => {
