@@ -5483,11 +5483,31 @@ app.post('/api/coordinator/bulk-on-site-register', isAuthenticated('coordinator'
                     }
                 }));
 
-                // D. Optional: Send Email (Fire and forget)
-                // In bulk uploads, we often disable emails to prevent SES limit hits, 
-                // but for 10-50 students it's fine.
-                const emailSubject = `Registration Confirmed: ${event.title}`;
-                const emailHtml = `<h3>LAKSHYA 2K26</h3><p>Hello ${name}, your on-site registration for <b>${event.title}</b> is successful. <br>ID: ${registrationId}</p>`;
+                // D. Improved Email Format with Xeta Footer
+                const emailSubject = `Registration Confirmed: ${event.title} | LAKSHYA 2K26`;
+                const emailHtml = `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px; overflow: hidden;">
+                    <div style="background-color: #00d2ff; padding: 25px; text-align: center;">
+                        <h1 style="color: #fff; margin: 0; font-size: 24px;">LAKSHYA 2K26</h1>
+                    </div>
+                    <div style="padding: 30px; color: #333;">
+                        <p style="font-size: 16px;">Dear <strong>${name}</strong>,</p>
+                        <p style="font-size: 15px; line-height: 1.5;">Your on-site registration for <strong>${event.title}</strong> has been successfully processed.</p>
+                        
+                        <div style="background-color: #f9f9f9; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #00d2ff;">
+                            <p style="margin: 5px 0;"><strong>Registration ID:</strong> ${registrationId}</p>
+                            <p style="margin: 5px 0;"><strong>Event:</strong> ${event.title}</p>
+                            <p style="margin: 5px 0;"><strong>Status:</strong> Confirmed (Paid)</p>
+                        </div>
+
+                        <p style="font-size: 14px; color: #666;">Please present your Registration ID at the venue for attendance.</p>
+                    </div>
+                    <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee;">
+                        <p style="margin: 0;">Best Regards, Team LAKSHYA</p>
+                        <p style="margin: 5px 0 0;">Powered by <a href="https://xetasolutions.in" style="color: #00d2ff; text-decoration: none; font-weight: bold;">Xeta Solutions</a></p>
+                    </div>
+                </div>`;
+                
                 sendEmail(email, emailSubject, emailHtml).catch(() => {});
 
                 processedCount++;
