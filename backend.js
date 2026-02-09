@@ -176,7 +176,7 @@ async function sendEmail(to, subject, htmlContent) {
             : to.split(',').map(e => e.trim());
 
         const params = {
-            FromEmailAddress: '"LAKSHYA 2K26" <events@xetasolutions.in>',
+            FromEmailAddress: '"EVENTS LBRCE" <events@xetasolutions.in>',
             Destination: { ToAddresses: toAddresses },
             Content: {
                 Simple: {
